@@ -40,3 +40,4 @@ yarn-error.*
 /ios
 /android
 assets/fonts/_full_backup/
+assets/lenders/_raw/
