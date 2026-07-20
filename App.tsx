@@ -1,25 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFonts } from 'expo-font';
-import {
-  Outfit_400Regular,
-  Outfit_500Medium,
-  Outfit_600SemiBold,
-  Outfit_700Bold,
-  Outfit_800ExtraBold,
-} from '@expo-google-fonts/outfit';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { color } from './src/theme/tokens';
 import { Root } from './src/Root';
 
 export default function App() {
   const [loaded] = useFonts({
-    // Outfit — CashKaro primary type family
-    'Outfit-Regular': Outfit_400Regular,
-    'Outfit-Medium': Outfit_500Medium,
-    'Outfit-SemiBold': Outfit_600SemiBold,
-    'Outfit-Bold': Outfit_700Bold,
-    'Outfit-ExtraBold': Outfit_800ExtraBold,
+    // Outfit — CashKaro primary type family. Self-hosted .ttf (NOT the
+    // @expo-google-fonts package): Cloudflare Pages excludes node_modules/ from
+    // deploys, so package-path fonts 404 to the SPA fallback and text renders
+    // in serif fallback. Bundling under assets/fonts keeps them in the deploy.
+    'Outfit-Regular': require('./assets/fonts/Outfit-400Regular.ttf'),
+    'Outfit-Medium': require('./assets/fonts/Outfit-500Medium.ttf'),
+    'Outfit-SemiBold': require('./assets/fonts/Outfit-600SemiBold.ttf'),
+    'Outfit-Bold': require('./assets/fonts/Outfit-700Bold.ttf'),
+    'Outfit-ExtraBold': require('./assets/fonts/Outfit-800ExtraBold.ttf'),
     // Font Awesome 6 Pro (licensed .otf, subset to the ~34 glyphs used — §iconMap).
     // Brands + Duotone are not referenced by any icon and are intentionally not
     // bundled (they added ~9MB to the render-blocking font payload).
