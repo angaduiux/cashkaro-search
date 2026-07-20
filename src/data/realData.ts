@@ -904,8 +904,48 @@ export const REAL_CASES: Record<string, SerpModel> = {
 // the screen doubles as the "what leads where" guide.
 // ═════════════════════════════════════════════════════════════════════════════
 import { SuggestGroup } from '../components/Suggestions';
-import { searchStores } from './catalog';
+import { searchStores, CATEGORIES, buildCategoryStores } from './catalog';
 import { categoryIcon } from './categoryIcons';
+
+// ═════════════════════════════════════════════════════════════════════════════
+// "View all" verticals — one full-page list per result type (§ side-panel nav).
+// Each vertical aggregates every item of its kind(s) across the real SERP cases,
+// deduped by id, so a single generic ViewAll screen can browse the whole set.
+// ═════════════════════════════════════════════════════════════════════════════
+export type Vertical = {
+  key: string;
+  title: string;
+  kind: import('./dataContract').SectionKind;
+  items: ResultItem[];
+};
+
+function itemsOfKind(kinds: import('./dataContract').SectionKind[]): ResultItem[] {
+  const seen = new Set<string>();
+  const out: ResultItem[] = [];
+  for (const model of Object.values(REAL_CASES)) {
+    for (const section of model.sections) {
+      if (!kinds.includes(section.kind)) continue;
+      for (const item of section.items) {
+        if (seen.has(item.id)) continue;
+        seen.add(item.id);
+        out.push(item);
+      }
+    }
+  }
+  return out;
+}
+
+const ALL_VERTICALS: Vertical[] = [
+  { key: 'stores', title: 'Stores', kind: 'stores', items: CATEGORIES.flatMap((c) => buildCategoryStores(c)) },
+  { key: 'products', title: 'Products', kind: 'products', items: itemsOfKind(['products']) },
+  { key: 'cards', title: 'Credit Cards', kind: 'cards', items: itemsOfKind(['cards', 'similar_cards']) },
+  { key: 'loans', title: 'Loans', kind: 'loans', items: itemsOfKind(['loans']) },
+  { key: 'savings', title: 'Savings Accounts', kind: 'savings', items: itemsOfKind(['savings']) },
+  { key: 'coupons', title: 'Coupons & Offers', kind: 'coupons', items: itemsOfKind(['coupons']) },
+  { key: 'deals', title: 'Deals', kind: 'deals', items: ALL_DEALS },
+];
+
+export const VIEW_ALL_VERTICALS: Vertical[] = ALL_VERTICALS.filter((v) => v.items.length > 0);
 
 function cbLabel(cb: import('./dataContract').Cashback): { prefix?: string; value?: string; meta?: string } {
   if (cb.type === 'none') return { meta: 'Visit store' };

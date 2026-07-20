@@ -16,12 +16,13 @@ import { HomeScreen } from './screens/HomeScreen';
 import { SearchBody } from './screens/SearchBody';
 import { Gallery } from './screens/Gallery';
 import { CatalogViewAll } from './screens/CatalogViewAll';
+import { ViewAll } from './screens/ViewAll';
 import { ScreenNav, NavSection } from './components/ScreenNav';
 import { Keyboard } from './os/Keyboard';
 import { StatusBar } from './os/StatusBar';
 import { NavChrome } from './os/NavChrome';
 import { DEVICES, DEFAULT_DEVICE, Device } from './os/devices';
-import { REAL_CASES, webResultsForWhey, buildSuggestions, ALL_DEALS } from './data/realData';
+import { REAL_CASES, webResultsForWhey, buildSuggestions, ALL_DEALS, VIEW_ALL_VERTICALS } from './data/realData';
 import { searchStores, buildSerp, buildStorePage, _setDealItems, Cat } from './data/catalog';
 
 _setDealItems(ALL_DEALS);
@@ -49,6 +50,7 @@ export function Root() {
   const [recents, setRecents] = useState<string[]>(INITIAL_RECENTS);
   const [directStore, setDirectStore] = useState<string | null>(null); // Jump-back-in → store page
   const [viewAllCat, setViewAllCat] = useState<Cat | null>(null); // catalog View-all grid overlay
+  const [viewAllKey, setViewAllKey] = useState<string | null>(null); // generic per-vertical View-all overlay
   const [enterTick, setEnterTick] = useState(0); // bumps on search-bar tap → replays count-ups
   const [userType, setUserType] = useState<'new' | 'existing'>('new'); // drives new/existing flow
   const [kbH, setKbH] = useState(0); // measured on-screen keyboard height (web)
@@ -139,6 +141,7 @@ export function Root() {
   const resetOverlays = () => {
     setGallery(false);
     setViewAllCat(null);
+    setViewAllKey(null);
   };
   const goHome = () => {
     resetOverlays();
@@ -170,9 +173,11 @@ export function Root() {
 
   const activeScreen = gallery
     ? 'gallery'
-    : viewAllCat
-      ? 'viewall'
-      : !active
+    : viewAllKey
+      ? `viewall:${viewAllKey}`
+      : viewAllCat
+        ? `catalog:${viewAllCat}`
+        : !active
         ? 'home'
         : directStore
           ? 'store'
@@ -190,8 +195,16 @@ export function Root() {
         { key: 'search-empty', label: 'Search — empty', sub: 'recents + jump back in', onPress: () => goTyping('') },
         { key: 'suggestions', label: 'Suggestions', sub: 'flip', onPress: () => goTyping('flip') },
         { key: 'store', label: 'Store page', sub: 'croma', onPress: () => goStore('croma') },
-        { key: 'viewall', label: 'Catalog · View all', sub: 'category grid', onPress: () => setViewAllCat('Electronics') },
       ],
+    },
+    {
+      title: 'View all',
+      items: VIEW_ALL_VERTICALS.map((v) => ({
+        key: `viewall:${v.key}`,
+        label: v.title,
+        sub: `${v.items.length} ${v.items.length === 1 ? 'result' : 'results'}`,
+        onPress: () => { resetOverlays(); setViewAllKey(v.key); },
+      })),
     },
     {
       title: 'Result pages (A–G)',
@@ -210,7 +223,7 @@ export function Root() {
     },
     {
       title: 'Overview',
-      items: [{ key: 'gallery', label: 'All layouts', sub: 'every SERP shape', onPress: () => { setViewAllCat(null); setGallery(true); } }],
+      items: [{ key: 'gallery', label: 'All layouts', sub: 'every SERP shape', onPress: () => { resetOverlays(); setGallery(true); } }],
     },
   ];
 
@@ -299,6 +312,22 @@ export function Root() {
               onBack={() => setViewAllCat(null)}
               onSearch={() => {
                 setViewAllCat(null);
+                focusSearch();
+              }}
+            />
+          </View>
+        )}
+
+        {/* Per-vertical "View all" list — full-page overlay above the search bar */}
+        {viewAllKey && (
+          <View style={StyleSheet.absoluteFill}>
+            <ViewAll
+              verticals={VIEW_ALL_VERTICALS}
+              activeKey={viewAllKey}
+              onSelect={setViewAllKey}
+              onBack={() => setViewAllKey(null)}
+              onSearch={() => {
+                setViewAllKey(null);
                 focusSearch();
               }}
             />

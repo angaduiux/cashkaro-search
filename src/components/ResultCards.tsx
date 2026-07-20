@@ -95,7 +95,7 @@ const parsePrice = (s?: string | null) => {
   return Number.isFinite(n) ? n : NaN;
 };
 
-export function ProductCard({ item, index = 0 }: { item: ResultItem; index?: number }) {
+export function ProductCard({ item, index = 0, width }: { item: ResultItem; index?: number; width?: number }) {
   const cbLabel =
     item.cashback.type === 'flat_inr'
       ? `₹${item.cashback.value} Cashback`
@@ -121,12 +121,12 @@ export function ProductCard({ item, index = 0 }: { item: ResultItem; index?: num
   return (
     <Animated.View
       entering={FadeInDown.delay(staggerDelay(index)).duration(220)}
-      style={styles.productCard}
+      style={[styles.productCard, width != null && { width }]}
     >
       {item.productImage ? (
-        <Image source={item.productImage} style={styles.productImg} resizeMode="cover" accessibilityLabel={item.title} />
+        <Image source={item.productImage} style={[styles.productImg, width != null && { width }]} resizeMode="cover" accessibilityLabel={item.title} />
       ) : (
-        <ImageSlot uri={item.logo} label={item.title} icon="tag" size={132} radiusToken={radius.md} bg={item.logoBg} style={styles.productImg} />
+        <ImageSlot uri={item.logo} label={item.title} icon="tag" size={width ?? 132} radiusToken={radius.md} bg={item.logoBg} style={[styles.productImg, width != null && { width }]} />
       )}
       <View style={styles.productInfo}>
         <View style={styles.productTitleBlock}>

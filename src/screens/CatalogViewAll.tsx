@@ -92,9 +92,13 @@ export function CatalogViewAll({
       >
         <View style={styles.grid}>
           {stores.map((item, i) => (
-            <Animated.View key={item.id} entering={FadeInDown.delay(staggerDelay(i)).duration(220)}>
+            <Animated.View key={item.id} style={styles.cell} entering={FadeInDown.delay(staggerDelay(i)).duration(220)}>
               <StoreTile item={item} />
             </Animated.View>
+          ))}
+          {/* Fill the last row so space-between spacing stays identical on every row */}
+          {Array.from({ length: (3 - (stores.length % 3)) % 3 }).map((_, i) => (
+            <View key={`spacer-${i}`} style={styles.cell} />
           ))}
         </View>
         <View style={{ height: space.huge }} />
@@ -137,7 +141,10 @@ const styles = StyleSheet.create({
   chipOff: { backgroundColor: color.surfaceAlt },
   scroll: { flex: 1 },
   gridContent: { paddingHorizontal: space.m20 },
-  // 3-up left-aligned grid: fixed 96-wide tiles + 12px column gap = 312 across a
-  // 320 content column (three per row on the phone frame). Rows breathe at 20px.
-  grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.s12, rowGap: space.m20 },
+  // 3-up grid: three 96-wide tiles per row spread with space-between, so the first
+  // tile hugs the left page padding and the last hugs the right — equal padding on
+  // both sides on any frame width (leftover width splits evenly between the two
+  // inter-column gaps instead of dumping on the right). Rows breathe at 20px.
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: space.m20 },
+  cell: { width: 96 }, // matches StoreTile width; keeps every row's slots aligned
 });

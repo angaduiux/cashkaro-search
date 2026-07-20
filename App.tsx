@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFonts } from 'expo-font';
 import {
@@ -20,15 +20,27 @@ export default function App() {
     'Outfit-SemiBold': Outfit_600SemiBold,
     'Outfit-Bold': Outfit_700Bold,
     'Outfit-ExtraBold': Outfit_800ExtraBold,
-    // Font Awesome 6 Pro (licensed .otf, bundled from desktop install)
+    // Font Awesome 6 Pro (licensed .otf, subset to the ~34 glyphs used — §iconMap).
+    // Brands + Duotone are not referenced by any icon and are intentionally not
+    // bundled (they added ~9MB to the render-blocking font payload).
     'FA6Pro-Solid': require('./assets/fonts/FontAwesome6Pro-Solid.otf'),
     'FA6Pro-Regular': require('./assets/fonts/FontAwesome6Pro-Regular.otf'),
     'FA6Pro-Light': require('./assets/fonts/FontAwesome6Pro-Light.otf'),
-    'FA6Brands': require('./assets/fonts/FontAwesome6Brands-Regular.otf'),
-    'FA6Duotone-Solid': require('./assets/fonts/FontAwesome6Duotone-Solid.otf'),
   });
 
-  if (!loaded) {
+  // Fail-safe render gate. On some CDNs (observed on Cloudflare Pages) the
+  // aggregate FontFace.load() promises behind `useFonts` stall and never
+  // resolve, leaving the app stuck on this spinner forever. We therefore render
+  // as soon as fonts are ready OR after a short cap — whichever comes first.
+  // Mounting the tree also triggers on-demand FontFace loading, so any glyphs
+  // that hadn't loaded swap in within a moment (brief FOUT at worst).
+  const [gateOpen, setGateOpen] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setGateOpen(true), 1200);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (!loaded && !gateOpen) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={color.actionPrimary} />
