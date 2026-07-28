@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { color, type as t, space, radius, MIN_TAP_TARGET, fontFamily } from '../theme/tokens';
+import { color, type as t, space, radius, MIN_TAP_TARGET } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 import { IconName } from '../icons/iconMap';
-import { BrandThumb } from '../components/ImageSlot';
-import { DealsCarousel, CategoryChip } from '../components/ResultCards';
+import { DealsCarousel, CategoryChip, StoreTile } from '../components/ResultCards';
 import { BRAND, ALL_DEALS } from '../data/realData';
+import { Cashback } from '../data/dataContract';
 import { staggerDelay } from '../motion/motion';
 import { ResultItem } from '../data/dataContract';
 
@@ -17,14 +17,6 @@ import { ResultItem } from '../data/dataContract';
  * content (deals, categories, top stores) and the app bottom-tab bar. Search
  * pages have no tab bar; this Home owns it.
  */
-const TOP_STORES = [
-  { name: 'Beyoung', brand: BRAND.beyoung, line: 'Up to 7.5%', q: 'body' },
-  { name: 'Cleartrip', brand: BRAND.cleartrip, line: 'Flat ₹1,500', q: 'flip' },
-  { name: 'Myntra', brand: BRAND.myntra, line: 'Up to 7.5%', q: 'body' },
-  { name: 'Flipkart', brand: BRAND.flipkart, line: 'Up to 7%', q: 'flip' },
-  { name: 'Nykaa', brand: BRAND.nykaa, line: 'Flat 9%', q: 'body' },
-  { name: 'PharmEasy', brand: BRAND.pharmeasy, line: 'Up to 7%', q: 'phar' },
-];
 const CATEGORIES: ResultItem[] = [
   { id: 'c-fashion', archetype: '04_category', source: 'internal', title: 'Fashion', logo: null, logoBg: '#ff3f6c1a', cashback: { type: 'none' } },
   { id: 'c-electronics', archetype: '04_category', source: 'internal', title: 'Electronics', logo: null, logoBg: '#0741ef1a', cashback: { type: 'none' } },
@@ -36,7 +28,30 @@ const CATEGORIES: ResultItem[] = [
 // bar, which floats over this slot (Root REST_Y positions it here).
 const BAR_SLOT = 64;
 
+// Top-Stores rail (Home landing). Built from real brand assets + rates; rendered
+// with the same StoreTile card as the SERP/category grids. Constructed at render
+// time (not module scope) to stay clear of the catalog↔realData import cycle.
+const TOP_STORE_SPECS: { brand: keyof typeof BRAND; title: string; cashback: Cashback; offer: string }[] = [
+  { brand: 'beyoung', title: 'Beyoung', cashback: { type: 'pct_single', value: 7.5 }, offer: 'Upto 70% Off' },
+  { brand: 'cleartrip', title: 'Cleartrip', cashback: { type: 'flat_inr', value: 1500, prefix: 'flat' }, offer: 'Upto 40% Off' },
+  { brand: 'myntra', title: 'Myntra', cashback: { type: 'pct_single', value: 6 }, offer: 'Upto 70% Off' },
+  { brand: 'flipkart', title: 'Flipkart', cashback: { type: 'pct_single', value: 6.5 }, offer: 'Upto 80% Off' },
+  { brand: 'nykaa', title: 'Nykaa', cashback: { type: 'pct_single', value: 6 }, offer: 'Upto 60% Off' },
+  { brand: 'pharmeasy', title: 'PharmEasy', cashback: { type: 'pct_single', value: 7 }, offer: 'Upto 40% Off' },
+];
+
 export function HomeScreen({ onPick }: { onPick: (q: string) => void }) {
+  const TOP_STORES: ResultItem[] = TOP_STORE_SPECS.map((s) => ({
+    id: `top-${s.brand}`,
+    archetype: '01_store',
+    source: 'internal',
+    title: s.title,
+    logo: BRAND[s.brand].logo,
+    logoBg: BRAND[s.brand].bg,
+    heroTint: BRAND[s.brand].bg,
+    cashback: s.cashback,
+    discount: s.offer,
+  }));
   return (
     <View style={styles.screen}>
       {/* Brand header */}
@@ -87,22 +102,11 @@ export function HomeScreen({ onPick }: { onPick: (q: string) => void }) {
         <View style={styles.blockPad}>
           <Head title="Top Stores" seeAll />
           <View style={styles.storeGrid}>
-            {TOP_STORES.map((s, i) => {
-              const parts = s.line.split(' ');
-              const value = parts[parts.length - 1];
-              const prefix = parts.slice(0, -1).join(' ');
-              return (
-                <Animated.View key={s.name} entering={FadeInDown.delay(staggerDelay(i)).duration(220)}>
-                  <Pressable onPress={() => onPick(s.q)} style={styles.storeTile} accessibilityRole="button" accessibilityLabel={s.name}>
-                    <BrandThumb uri={s.brand.logo} label={s.name} width={100} height={44} radiusToken={11} />
-                    <View style={styles.storeLine}>
-                      <Text style={[t.body12Medium, { color: color.aura.slate }]}>{prefix} </Text>
-                      <Text style={[styles.storeValue, { color: color.aura.cashback }]}>{value}</Text>
-                    </View>
-                  </Pressable>
-                </Animated.View>
-              );
-            })}
+            {TOP_STORES.map((item, i) => (
+              <Animated.View key={item.id} entering={FadeInDown.delay(staggerDelay(i)).duration(220)}>
+                <StoreTile item={item} onPress={() => onPick(item.title.toLowerCase())} />
+              </Animated.View>
+            ))}
           </View>
         </View>
         <View style={{ height: space.l }} />
@@ -177,10 +181,7 @@ const styles = StyleSheet.create({
   blockPad: { paddingHorizontal: space.m, gap: space.s12 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   catRow: { flexDirection: 'row', gap: space.s12, paddingHorizontal: space.m },
-  storeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.m },
-  storeTile: { width: 100, alignItems: 'center', gap: space.s12 },
-  storeLine: { flexDirection: 'row', alignItems: 'baseline' },
-  storeValue: { fontFamily: fontFamily.semiBold, fontSize: 20, letterSpacing: -0.08 },
+  storeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: space.m },
   tabBar: {
     flexDirection: 'row',
     borderTopWidth: 1,

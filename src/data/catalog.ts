@@ -35,7 +35,26 @@ export type Store = {
   ratingValue?: number;
   shoppers?: string;
   priorPct?: number;
+  offer?: string; // store-card max-discount line, e.g. "Upto 80% Off" (overrides the category default)
 };
+
+// Store-card "Upto X% Off" line (Figma 1646:7182). A storepage always surfaces
+// the merchant's headline discount; when a store doesn't carry an explicit
+// `offer`, fall back to a sensible per-category ceiling. Finance/payments
+// merchants have no product discount, so they show none.
+const CATEGORY_OFFER: Partial<Record<Cat, string>> = {
+  Shopping: 'Upto 80% Off',
+  Fashion: 'Upto 70% Off',
+  Beauty: 'Upto 60% Off',
+  Electronics: 'Upto 50% Off',
+  Home: 'Upto 65% Off',
+  Grocery: 'Upto 50% Off',
+  Nutrition: 'Upto 45% Off',
+  Pharmacy: 'Upto 40% Off',
+  Travel: 'Upto 40% Off',
+  Education: 'Upto 35% Off',
+};
+const storeOffer = (s: Store): string | undefined => s.offer ?? CATEGORY_OFFER[s.category];
 
 // Standard CashKaro cashback mechanic (same structure across stores).
 const TL = { tracksIn: '48 Hours', confirmsIn: '60 Days', withdraw: 'UPI/Bank' };
@@ -158,9 +177,22 @@ const storeItem = (s: Store, id: string): ResultItem => ({
   subtitle: s.note,
   logo: s.brand ? BRAND[s.brand].logo : null,
   logoBg: s.brand ? BRAND[s.brand].bg : undefined,
+  heroTint: s.brand ? BRAND[s.brand].bg : undefined, // store-card gradient wash tint
   cashback: s.cashback,
+  discount: storeOffer(s), // store-card "Upto X% Off" line (Figma 1646:7182)
   ctaLabel: s.cashback.type === 'none' ? 'Visit Store' : undefined,
 });
+
+/** Curated Top-Stores rail for the Home landing — real catalog items so the
+ *  store cards render identically to the SERP/category grids. */
+export function topStores(
+  slugs: string[] = ['beyoung', 'cleartrip', 'myntra', 'flipkart', 'nykaa', 'pharmeasy'],
+): ResultItem[] {
+  return slugs
+    .map((slug) => STORES.find((s) => s.slug === slug))
+    .filter((s): s is Store => !!s)
+    .map((s) => storeItem(s, `top-${s.slug}`));
+}
 
 /** Build a store SERP dynamically from real catalog data (§3.3 shell). */
 /** The store's money-card hero item (shared by the SERP and the store page). */

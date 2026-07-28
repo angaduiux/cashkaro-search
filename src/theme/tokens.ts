@@ -36,6 +36,8 @@ const palette = {
   auraGreen: '#047857', // "up from" reward text
   auraGreenSurface: '#e7f7f1', // "up from" chip bg
   auraBorder: '#e6e8ee', // hairline on tiles
+  auraOffGreen: '#01ab4b', // storepage store-card "Upto X% Off" (Figma 1646:7182)
+  auraCashbackCaption: 'rgba(99,99,99,0.44)', // store-card "CASHBACK" label
   ink900: '#262626', // text/primary
   ink600: '#5c5c5c', // text/secondary
   ink400: '#878787', // text/tertiary
@@ -110,6 +112,8 @@ export const color = {
     green: palette.auraGreen,
     greenSurface: palette.auraGreenSurface,
     border: palette.auraBorder,
+    offGreen: palette.auraOffGreen, // store-card "Upto X% Off"
+    cashbackCaption: palette.auraCashbackCaption, // store-card "CASHBACK" label
     fieldIcon: palette.slate400, // search-field icons (search / clear)
     priceMuted: palette.slate400, // product current/strike price grey (Figma 1646:7869)
     cashbackPillFrom: palette.peach50, // product cashback-pill gradient start
@@ -150,8 +154,10 @@ export const fontFamily = {
 
 export const letterSpacing = {
   tight: -0.4,
+  snug: -0.28, // store-card cashback value (Figma 1646:7182)
   normal: 0,
   wide: 0.4,
+  caps: 0.96, // store-card "CASHBACK" label tracking
 } as const;
 
 type TypeStyle = {
@@ -183,10 +189,12 @@ export const type = {
   body12Regular: { fontFamily: fontFamily.regular, fontSize: 12, lineHeight: 16, letterSpacing: letterSpacing.normal },
   body12Medium: { fontFamily: fontFamily.medium, fontSize: 12, lineHeight: 16, letterSpacing: letterSpacing.normal },
   body12SemiBold: { fontFamily: fontFamily.semiBold, fontSize: 12, lineHeight: 16, letterSpacing: letterSpacing.wide },
+  body14BoldSnug: { fontFamily: fontFamily.bold, fontSize: 14, lineHeight: 18, letterSpacing: letterSpacing.snug },
   caption10SemiBold: { fontFamily: fontFamily.semiBold, fontSize: 10, lineHeight: 14, letterSpacing: letterSpacing.wide },
   caption10Bold: { fontFamily: fontFamily.bold, fontSize: 10, lineHeight: 12, letterSpacing: letterSpacing.normal },
   caption10Medium: { fontFamily: fontFamily.medium, fontSize: 10, lineHeight: 10, letterSpacing: letterSpacing.normal },
   caption8SemiBold: { fontFamily: fontFamily.semiBold, fontSize: 8, lineHeight: 10, letterSpacing: letterSpacing.normal },
+  caption8SemiBoldCaps: { fontFamily: fontFamily.semiBold, fontSize: 8, lineHeight: 10, letterSpacing: letterSpacing.caps },
 } satisfies Record<string, TypeStyle>;
 
 // ── Spacing ────────────────────────────────────────────────────────────────── (Figma spacing scale)

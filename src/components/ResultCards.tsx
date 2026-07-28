@@ -35,7 +35,7 @@ import { CountUp } from '../motion/CountUp';
 import { staggerDelay } from '../motion/motion';
 
 /** Press-scale wrapper — every tappable card breathes on touch (§9.4). */
-function Press({ children, label }: { children: React.ReactNode; label: string }) {
+function Press({ children, label, onPress }: { children: React.ReactNode; label: string; onPress?: () => void }) {
   const s = useSharedValue(1);
   const st = useAnimatedStyle(() => ({ transform: [{ scale: s.value }] }));
   return (
@@ -43,6 +43,7 @@ function Press({ children, label }: { children: React.ReactNode; label: string }
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
+        onPress={onPress}
         onPressIn={() => (s.value = withSpring(0.97, spring.snappy))}
         onPressOut={() => (s.value = withSpring(1, spring.snappy))}
       >
@@ -173,23 +174,71 @@ export function ProductCard({ item, index = 0, width }: { item: ResultItem; inde
   );
 }
 
-/** Store logo tile — brand logo card + orange cashback (matches W4 stores rail). */
-export function StoreTile({ item }: { item: ResultItem }) {
+/**
+ * Store card (Figma 1646:7182) — image-forward brand tile: a brand-tint gradient
+ * wash carrying the merchant logo, a green "Upto X% Off" strip, and a cobalt
+ * "Upto Y%" + muted "CASHBACK" footer. Replaces the old logo-only stores tile;
+ * used across the SERP stores rail, category grids, View-all, and Home Top
+ * Stores so every store surface renders the same card.
+ */
+// Soften a brand tint (which may carry a baked-in alpha suffix) toward white so
+// any source colour — pale yellow or near-black — becomes a light pastel wash.
+const softTintRgb = (hex: string, whiteMix = 0.8) => {
+  let h = hex.replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  if (h.length === 8) h = h.slice(0, 6); // drop baked alpha; the gradient sets its own
+  const mix = (c: number) => Math.round(c + (255 - c) * whiteMix);
+  return `${mix(parseInt(h.slice(0, 2), 16))}, ${mix(parseInt(h.slice(2, 4), 16))}, ${mix(parseInt(h.slice(4, 6), 16))}`;
+};
+
+export function StoreTile({ item, width = 96, onPress }: { item: ResultItem; width?: number; onPress?: () => void }) {
   const cb = item.cashback;
-  const prefix = cb.type === 'flat_inr' ? 'Flat' : 'Up to';
+  const prefix = cb.type === 'flat_inr' ? 'Flat' : 'Upto';
   const value =
-    cb.type === 'flat_inr' ? `₹${cb.value}` : cb.type === 'pct_single' ? `${cb.value}%` : cb.type === 'pct_range' ? `${cb.max}%` : '';
+    cb.type === 'flat_inr' ? `₹${cb.value.toLocaleString('en-IN')}`
+    : cb.type === 'pct_single' ? `${cb.value}%`
+    : cb.type === 'pct_range' ? `${cb.max}%`
+    : '';
+  const rgb = softTintRgb(item.heroTint ?? item.logoBg ?? color.aura.searchField);
+  const source: ImageSourcePropType | undefined =
+    item.logo == null ? undefined : typeof item.logo === 'string' ? { uri: item.logo } : (item.logo as ImageSourcePropType);
+  const logoW = Math.round((width - 8) * 0.66);
+
   return (
-    <Press label={item.title}>
-      <View style={styles.storeTile}>
-        <BrandThumb uri={item.logo} label={item.title} width={96} height={64} />
-        {value ? (
-          <Text style={[t.caption10SemiBold, { color: color.aura.slateMuted }]}>
-            {prefix} <Text style={[t.heading18SemiBold, { color: color.aura.cashback }]}>{value}</Text>
-          </Text>
-        ) : (
-          <Text style={[t.body12SemiBold, { color: color.aura.cta }]}>{item.ctaLabel ?? 'Visit'}</Text>
-        )}
+    <Press label={item.title} onPress={onPress}>
+      <View style={[styles.storeCard, { width }]}>
+        <View style={styles.storeCardTile}>
+          <LinearGradient
+            colors={[`rgba(${rgb}, 0.95)`, `rgba(${rgb}, 0)`]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.storeCardLogoWrap}>
+            {source ? (
+              <Image source={source} style={{ width: logoW, height: Math.round(logoW * 0.62) }} resizeMode="contain" accessibilityLabel={item.title} />
+            ) : (
+              <Text style={[t.body16SemiBold, { color: color.aura.slate }]} numberOfLines={1}>{item.title}</Text>
+            )}
+          </View>
+          {!!item.discount && (
+            <View style={styles.storeCardOffStrip}>
+              <Text style={[t.caption10Medium, { color: color.aura.offGreen }]} numberOfLines={1}>{item.discount}</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.storeCardFoot}>
+          {value ? (
+            <>
+              <Text style={[t.body14BoldSnug, { color: color.aura.cta }]} numberOfLines={1}>
+                {prefix} {value}
+              </Text>
+              <Text style={[t.caption8SemiBoldCaps, { color: color.aura.cashbackCaption }]}>CASHBACK</Text>
+            </>
+          ) : (
+            <Text style={[t.body14BoldSnug, { color: color.aura.cta }]} numberOfLines={1}>{item.ctaLabel ?? 'Visit'}</Text>
+          )}
+        </View>
       </View>
     </Press>
   );
@@ -711,17 +760,37 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignSelf: 'stretch', // span the 151px card so the label never wraps
   },
-  storeTile: { width: 96, alignItems: 'center', gap: space.s },
-  storeTileLogo: {
-    width: 96,
-    height: 72,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+  // Store card (Figma 1646:7182): white card, tinted tile, offer strip, footer.
+  storeCard: {
+    backgroundColor: color.surface,
+    borderRadius: radius.lg, // 12
+    borderWidth: 1,
+    borderColor: color.card.border, // #eee
+    paddingHorizontal: space.xs, // 4px frame around the tile (Figma 104→96 inset)
+    paddingTop: space.xs,
+    paddingBottom: space.s,
+    ...elevation.xs, // 0 2 2 rgba(0,0,0,.12) equivalent
+  },
+  storeCardTile: {
+    aspectRatio: 96 / 113,
+    borderRadius: radius.md, // 10
     overflow: 'hidden',
     backgroundColor: color.surface,
-    ...elevation.logo, // exact W4 brand-logo shadow
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  storeCardLogoWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.s },
+  storeCardOffStrip: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: color.surface,
+    paddingVertical: space.xxs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storeCardFoot: { alignItems: 'center', paddingTop: space.s6, gap: space.xxs },
   categoryPill: {
     flexDirection: 'row',
     alignItems: 'center',
