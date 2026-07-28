@@ -8,7 +8,7 @@
  * automatically, so search behaves like the real thing.
  */
 import { SerpModel, ResultItem, Cashback } from './dataContract';
-import { BRAND } from './realData';
+import { BRAND, PRODUCT_IMG } from './realData';
 
 export type Cat =
   | 'Shopping'
@@ -255,40 +255,45 @@ type Product = {
   cbPct?: number;
   cbFlat?: number;
   keywords: string[];
+  // Key into PRODUCT_IMG for this product's real photo. Stored as a key (not the
+  // require value) and resolved lazily in productItem() so we never touch
+  // PRODUCT_IMG at module-eval — that would hit the catalog↔realData import-cycle
+  // TDZ. Every product has one, so a brand-logo fallback is never shown.
+  imgKey: keyof typeof PRODUCT_IMG;
 };
 
 const PRODUCTS: Product[] = [
   // Mobiles
-  { id: 'iphone15', title: 'Apple iPhone 15 (128GB, Blue)', brand: 'Apple', brandKey: 'apple', category: 'Electronics', mrp: 79900, price: 66999, cbPct: 3, keywords: ['iphone', 'apple', 'phone', 'mobile', 'smartphone', 'ios'] },
-  { id: 'iphone15pro', title: 'Apple iPhone 15 Pro (256GB)', brand: 'Apple', brandKey: 'apple', category: 'Electronics', mrp: 134900, price: 119900, cbPct: 3, keywords: ['iphone', 'apple', 'phone', 'mobile', 'smartphone', 'pro'] },
-  { id: 'galaxys24', title: 'Samsung Galaxy S24 5G (256GB)', brand: 'Samsung', brandKey: 'samsung', category: 'Electronics', mrp: 79999, price: 64999, cbFlat: 480, keywords: ['galaxy', 'samsung', 'phone', 'mobile', 'smartphone', 'android', 's24'] },
-  { id: 'oneplus12', title: 'OnePlus 12R (256GB)', brand: 'OnePlus', category: 'Electronics', mrp: 45999, price: 39999, cbPct: 4, keywords: ['oneplus', 'phone', 'mobile', 'smartphone', 'android'] },
-  { id: 'redminote13', title: 'Redmi Note 13 Pro 5G', brand: 'Redmi', category: 'Electronics', mrp: 27999, price: 23999, cbPct: 5, keywords: ['redmi', 'xiaomi', 'phone', 'mobile', 'smartphone', 'note'] },
+  { id: 'iphone15', title: 'Apple iPhone 15 (128GB, Blue)', brand: 'Apple', brandKey: 'apple', category: 'Electronics', mrp: 79900, price: 66999, cbPct: 3, keywords: ['iphone', 'apple', 'phone', 'mobile', 'smartphone', 'ios'], imgKey: 'iphone15' },
+  { id: 'iphone15pro', title: 'Apple iPhone 15 Pro (256GB)', brand: 'Apple', brandKey: 'apple', category: 'Electronics', mrp: 134900, price: 119900, cbPct: 3, keywords: ['iphone', 'apple', 'phone', 'mobile', 'smartphone', 'pro'], imgKey: 'iphone15pro' },
+  { id: 'galaxys24', title: 'Samsung Galaxy S24 5G (256GB)', brand: 'Samsung', brandKey: 'samsung', category: 'Electronics', mrp: 79999, price: 64999, cbFlat: 480, keywords: ['galaxy', 'samsung', 'phone', 'mobile', 'smartphone', 'android', 's24'], imgKey: 'galaxyS24' },
+  { id: 'oneplus12', title: 'OnePlus 12R (256GB)', brand: 'OnePlus', category: 'Electronics', mrp: 45999, price: 39999, cbPct: 4, keywords: ['oneplus', 'phone', 'mobile', 'smartphone', 'android'], imgKey: 'oneplus12' },
+  { id: 'redminote13', title: 'Redmi Note 13 Pro 5G', brand: 'Redmi', category: 'Electronics', mrp: 27999, price: 23999, cbPct: 5, keywords: ['redmi', 'xiaomi', 'phone', 'mobile', 'smartphone', 'note'], imgKey: 'redmiNote13' },
   // Audio / wearables
-  { id: 'boatairdopes', title: 'boAt Airdopes 141 TWS Earbuds', brand: 'boAt', brandKey: 'boat', category: 'Electronics', mrp: 4490, price: 1299, cbFlat: 80, keywords: ['earbuds', 'headphones', 'boat', 'audio', 'tws', 'earphones'] },
-  { id: 'noisebuds', title: 'Noise Buds VS104 Earbuds', brand: 'Noise', brandKey: 'noise', category: 'Electronics', mrp: 3999, price: 999, cbFlat: 60, keywords: ['earbuds', 'headphones', 'noise', 'audio', 'tws'] },
-  { id: 'noisewatch', title: 'Noise ColorFit Pro 5 Smartwatch', brand: 'Noise', brandKey: 'noise', category: 'Electronics', mrp: 6999, price: 2499, cbFlat: 120, keywords: ['watch', 'smartwatch', 'noise', 'wearable'] },
-  { id: 'boatwatch', title: 'boAt Wave Call 2 Smartwatch', brand: 'boAt', brandKey: 'boat', category: 'Electronics', mrp: 5499, price: 1599, cbFlat: 90, keywords: ['watch', 'smartwatch', 'boat', 'wearable'] },
+  { id: 'boatairdopes', title: 'boAt Airdopes 141 TWS Earbuds', brand: 'boAt', brandKey: 'boat', category: 'Electronics', mrp: 4490, price: 1299, cbFlat: 80, keywords: ['earbuds', 'headphones', 'boat', 'audio', 'tws', 'earphones'], imgKey: 'earbuds' },
+  { id: 'noisebuds', title: 'Noise Buds VS104 Earbuds', brand: 'Noise', brandKey: 'noise', category: 'Electronics', mrp: 3999, price: 999, cbFlat: 60, keywords: ['earbuds', 'headphones', 'noise', 'audio', 'tws'], imgKey: 'noiseBuds' },
+  { id: 'noisewatch', title: 'Noise ColorFit Pro 5 Smartwatch', brand: 'Noise', brandKey: 'noise', category: 'Electronics', mrp: 6999, price: 2499, cbFlat: 120, keywords: ['watch', 'smartwatch', 'noise', 'wearable'], imgKey: 'noiseWatch' },
+  { id: 'boatwatch', title: 'boAt Wave Call 2 Smartwatch', brand: 'boAt', brandKey: 'boat', category: 'Electronics', mrp: 5499, price: 1599, cbFlat: 90, keywords: ['watch', 'smartwatch', 'boat', 'wearable'], imgKey: 'boatWatch' },
   // Shoes
-  { id: 'nikerevo', title: 'Nike Revolution 7 Running Shoes', brand: 'Nike', brandKey: 'nike', category: 'Fashion', mrp: 4995, price: 3496, cbPct: 6, keywords: ['shoes', 'nike', 'running', 'sneakers', 'footwear'] },
-  { id: 'pumashoes', title: 'Puma Softride Running Shoes', brand: 'Puma', brandKey: 'puma', category: 'Fashion', mrp: 5999, price: 2999, cbPct: 7, keywords: ['shoes', 'puma', 'running', 'sneakers', 'footwear'] },
-  { id: 'adidasshoes', title: 'Adidas Galaxy 6 Running Shoes', brand: 'Adidas', brandKey: 'adidas', category: 'Fashion', mrp: 5599, price: 3359, cbPct: 6.5, keywords: ['shoes', 'adidas', 'running', 'sneakers', 'footwear'] },
+  { id: 'nikerevo', title: 'Nike Revolution 7 Running Shoes', brand: 'Nike', brandKey: 'nike', category: 'Fashion', mrp: 4995, price: 3496, cbPct: 6, keywords: ['shoes', 'nike', 'running', 'sneakers', 'footwear'], imgKey: 'nikeAf1' },
+  { id: 'pumashoes', title: 'Puma Softride Running Shoes', brand: 'Puma', brandKey: 'puma', category: 'Fashion', mrp: 5999, price: 2999, cbPct: 7, keywords: ['shoes', 'puma', 'running', 'sneakers', 'footwear'], imgKey: 'pumaShoes' },
+  { id: 'adidasshoes', title: 'Adidas Galaxy 6 Running Shoes', brand: 'Adidas', brandKey: 'adidas', category: 'Fashion', mrp: 5599, price: 3359, cbPct: 6.5, keywords: ['shoes', 'adidas', 'running', 'sneakers', 'footwear'], imgKey: 'adidas' },
   // Apparel
-  { id: 'bewakooftee', title: 'Bewakoof Oversized Cotton T-Shirt', brand: 'Bewakoof', brandKey: 'bewakoof', category: 'Fashion', mrp: 999, price: 499, cbPct: 9, keywords: ['tshirt', 't-shirt', 'tee', 'bewakoof', 'fashion', 'shirt', 'clothing'] },
-  { id: 'levisjeans', title: "Levi's 511 Slim Fit Jeans", brand: "Levi's", brandKey: 'levis', category: 'Fashion', mrp: 3999, price: 2399, cbPct: 6, keywords: ['jeans', 'levis', 'denim', 'fashion', 'clothing'] },
+  { id: 'bewakooftee', title: 'Bewakoof Oversized Cotton T-Shirt', brand: 'Bewakoof', brandKey: 'bewakoof', category: 'Fashion', mrp: 999, price: 499, cbPct: 9, keywords: ['tshirt', 't-shirt', 'tee', 'bewakoof', 'fashion', 'shirt', 'clothing'], imgKey: 'tshirt' },
+  { id: 'levisjeans', title: "Levi's 511 Slim Fit Jeans", brand: "Levi's", brandKey: 'levis', category: 'Fashion', mrp: 3999, price: 2399, cbPct: 6, keywords: ['jeans', 'levis', 'denim', 'fashion', 'clothing'], imgKey: 'levis' },
   // Protein / nutrition
-  { id: 'mbwhey', title: 'MuscleBlaze Biozyme Whey Protein 1kg', brand: 'MuscleBlaze', brandKey: 'muscleblaze', category: 'Nutrition', mrp: 3499, price: 2624, cbPct: 12, keywords: ['whey', 'protein', 'muscleblaze', 'supplement', 'gym', 'fitness'] },
-  { id: 'onwhey', title: 'ON Gold Standard 100% Whey 2lb', brand: 'Optimum Nutrition', brandKey: 'optimum', category: 'Nutrition', mrp: 5499, price: 4399, cbPct: 8, keywords: ['whey', 'protein', 'optimum', 'supplement', 'gym'] },
-  { id: 'myfitpb', title: 'MyFitness Chocolate Peanut Butter 1kg', brand: 'MyFitness', brandKey: 'myfitness', category: 'Nutrition', mrp: 749, price: 549, cbPct: 15, keywords: ['peanut butter', 'myfitness', 'protein', 'food'] },
+  { id: 'mbwhey', title: 'MuscleBlaze Biozyme Whey Protein 1kg', brand: 'MuscleBlaze', brandKey: 'muscleblaze', category: 'Nutrition', mrp: 3499, price: 2624, cbPct: 12, keywords: ['whey', 'protein', 'muscleblaze', 'supplement', 'gym', 'fitness'], imgKey: 'muscleblazeWhey' },
+  { id: 'onwhey', title: 'ON Gold Standard 100% Whey 2lb', brand: 'Optimum Nutrition', brandKey: 'optimum', category: 'Nutrition', mrp: 5499, price: 4399, cbPct: 8, keywords: ['whey', 'protein', 'optimum', 'supplement', 'gym'], imgKey: 'optimumWhey' },
+  { id: 'myfitpb', title: 'MyFitness Chocolate Peanut Butter 1kg', brand: 'MyFitness', brandKey: 'myfitness', category: 'Nutrition', mrp: 749, price: 549, cbPct: 15, keywords: ['peanut butter', 'myfitness', 'protein', 'food'], imgKey: 'peanutButter' },
   // Beauty
-  { id: 'sugarlip', title: 'SUGAR Matte As Hell Crayon Lipstick', brand: 'SUGAR', brandKey: 'sugar', category: 'Beauty', mrp: 799, price: 679, cbPct: 9, keywords: ['lipstick', 'makeup', 'sugar', 'cosmetics', 'beauty'] },
-  { id: 'mamaserum', title: 'Mamaearth Vitamin C Face Serum', brand: 'Mamaearth', brandKey: 'mamaearth', category: 'Beauty', mrp: 599, price: 449, cbPct: 10, keywords: ['serum', 'skincare', 'vitamin c', 'mamaearth', 'beauty', 'face'] },
-  { id: 'plumsun', title: 'Plum Green Tea Sunscreen SPF 50', brand: 'Plum', brandKey: 'plum', category: 'Beauty', mrp: 465, price: 395, cbPct: 11, keywords: ['sunscreen', 'skincare', 'plum', 'spf', 'beauty'] },
-  { id: 'sugarfoundation', title: 'SUGAR Ace Of Face Foundation Stick', brand: 'SUGAR', brandKey: 'sugar', category: 'Beauty', mrp: 899, price: 764, cbPct: 9, keywords: ['foundation', 'makeup', 'sugar', 'cosmetics', 'beauty'] },
+  { id: 'sugarlip', title: 'SUGAR Matte As Hell Crayon Lipstick', brand: 'SUGAR', brandKey: 'sugar', category: 'Beauty', mrp: 799, price: 679, cbPct: 9, keywords: ['lipstick', 'makeup', 'sugar', 'cosmetics', 'beauty'], imgKey: 'lipstick' },
+  { id: 'mamaserum', title: 'Mamaearth Vitamin C Face Serum', brand: 'Mamaearth', brandKey: 'mamaearth', category: 'Beauty', mrp: 599, price: 449, cbPct: 10, keywords: ['serum', 'skincare', 'vitamin c', 'mamaearth', 'beauty', 'face'], imgKey: 'faceSerum' },
+  { id: 'plumsun', title: 'Plum Green Tea Sunscreen SPF 50', brand: 'Plum', brandKey: 'plum', category: 'Beauty', mrp: 465, price: 395, cbPct: 11, keywords: ['sunscreen', 'skincare', 'plum', 'spf', 'beauty'], imgKey: 'sunscreen' },
+  { id: 'sugarfoundation', title: 'SUGAR Ace Of Face Foundation Stick', brand: 'SUGAR', brandKey: 'sugar', category: 'Beauty', mrp: 899, price: 764, cbPct: 9, keywords: ['foundation', 'makeup', 'sugar', 'cosmetics', 'beauty'], imgKey: 'foundation' },
   // Home
-  { id: 'wakefitmat', title: 'Wakefit Orthopedic Memory Foam Mattress', brand: 'Wakefit', brandKey: 'wakefit', category: 'Home', mrp: 18999, price: 9499, cbPct: 8, keywords: ['mattress', 'wakefit', 'home', 'furniture', 'bed'] },
+  { id: 'wakefitmat', title: 'Wakefit Orthopedic Memory Foam Mattress', brand: 'Wakefit', brandKey: 'wakefit', category: 'Home', mrp: 18999, price: 9499, cbPct: 8, keywords: ['mattress', 'wakefit', 'home', 'furniture', 'bed'], imgKey: 'mattress' },
   // Grocery
-  { id: 'liciouschicken', title: 'Licious Chicken Curry Cut 1kg', brand: 'Licious', brandKey: 'licious', category: 'Grocery', mrp: 399, price: 319, cbPct: 8, keywords: ['chicken', 'licious', 'meat', 'grocery', 'food'] },
+  { id: 'liciouschicken', title: 'Licious Chicken Curry Cut 1kg', brand: 'Licious', brandKey: 'licious', category: 'Grocery', mrp: 399, price: 319, cbPct: 8, keywords: ['chicken', 'licious', 'meat', 'grocery', 'food'], imgKey: 'rawChicken' },
 ];
 
 const productItem = (p: Product, id: string): ResultItem => ({
@@ -299,6 +304,8 @@ const productItem = (p: Product, id: string): ResultItem => ({
   subtitle: p.brand,
   logo: p.brandKey ? BRAND[p.brandKey].logo : null,
   logoBg: p.brandKey ? BRAND[p.brandKey].bg : undefined,
+  productImage: PRODUCT_IMG[p.imgKey], // real product photo — never the brand-logo fallback
+
   cashback: p.cbFlat ? { type: 'flat_inr', value: p.cbFlat, prefix: 'flat' } : p.cbPct ? { type: 'pct_single', value: p.cbPct } : { type: 'none' },
   originalPrice: `₹${p.mrp.toLocaleString('en-IN')}`,
   ctaLabel: `₹${p.price.toLocaleString('en-IN')}`,

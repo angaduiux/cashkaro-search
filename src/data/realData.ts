@@ -134,6 +134,21 @@ export const PRODUCT_IMG = {
   faceCream: require('../../assets/products/face-cream.jpg'),
   muscleblazeWhey: require('../../assets/products/muscleblaze-whey.jpg'),
   optimumWhey: require('../../assets/products/optimum-whey.jpg'),
+  // Catalog-coverage product photos (every catalog product shows a real image,
+  // never a brand-logo fallback).
+  iphone15pro: require('../../assets/products/iphone-15-pro.jpg'),
+  redmiNote13: require('../../assets/products/redmi-note-13.jpg'),
+  noiseBuds: require('../../assets/products/noise-earbuds.jpg'),
+  noiseWatch: require('../../assets/products/smartwatch-noise.jpg'),
+  boatWatch: require('../../assets/products/smartwatch-boat.jpg'),
+  pumaShoes: require('../../assets/products/puma-shoes.jpg'),
+  tshirt: require('../../assets/products/tshirt.jpg'),
+  peanutButter: require('../../assets/products/peanut-butter.jpg'),
+  faceSerum: require('../../assets/products/face-serum.jpg'),
+  sunscreen: require('../../assets/products/sunscreen.jpg'),
+  foundation: require('../../assets/products/foundation.jpg'),
+  mattress: require('../../assets/products/mattress.jpg'),
+  rawChicken: require('../../assets/products/raw-chicken.jpg'),
 } as const;
 
 /**

@@ -127,7 +127,9 @@ export function ProductCard({ item, index = 0, width }: { item: ResultItem; inde
       {item.productImage ? (
         <Image source={item.productImage} style={[styles.productImg, width != null && { width }]} resizeMode="cover" accessibilityLabel={item.title} />
       ) : (
-        <ImageSlot uri={item.logo} label={item.title} icon="tag" size={width ?? 132} radiusToken={radius.md} bg={item.logoBg} style={[styles.productImg, width != null && { width }]} />
+        // Never fall back to the brand logo as the product image — show a neutral
+        // photo slot (tag glyph) instead so a logo never stands in for a product.
+        <ImageSlot uri={undefined} label={item.title} icon="tag" size={width ?? 132} radiusToken={radius.md} bg={item.logoBg} style={[styles.productImg, width != null && { width }]} />
       )}
       <View style={styles.productInfo}>
         <View style={styles.productTitleBlock}>
