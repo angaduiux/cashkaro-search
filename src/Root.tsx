@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform, TextInput, useWindowDimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -41,10 +41,10 @@ export function Root() {
   const [gallery, setGallery] = useState(false);
 
   // ── Single search controller (drives the one hoisted bar) ──────────────────
-  const [active, setActive] = useState(false); // false = Home, true = searching
+  const [active, setActive] = useState(true); // false = Home, true = searching
   const [text, setText] = useState('');
-  const [committed, setCommitted] = useState('');
-  const [mode, setMode] = useState<'typing' | 'serp'>('typing');
+  const [committed, setCommitted] = useState('flip');
+  const [mode, setMode] = useState<'typing' | 'serp'>('serp');
   const [debounced, setDebounced] = useState('');
   const [serpLoading, setSerpLoading] = useState(false);
   const [recents, setRecents] = useState<string[]>(INITIAL_RECENTS);
@@ -55,7 +55,8 @@ export function Root() {
   const [userType, setUserType] = useState<'new' | 'existing'>('new'); // drives new/existing flow
   const [kbH, setKbH] = useState(0); // measured on-screen keyboard height (web)
   const reduced = useReducedMotion();
-  const g = useSharedValue(0); // 0 = Home, 1 = searching
+  const g = useSharedValue(1); // 0 = Home, 1 = searching
+  const inputRef = useRef<TextInput | null>(null); // the one search field, for imperative focus
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -69,12 +70,21 @@ export function Root() {
     g.value = reduced ? to : withTiming(to, { duration: 560, easing: EASE.emphasized });
   };
 
+  // Raise the OS keyboard. On web the tap focuses the field itself, but every other
+  // entry point (chip, nav item, back-out of the SERP) only flips state, so the
+  // persistent field has to be focused imperatively. Deferred a frame: focusing in
+  // the same tick as the state change gets swallowed by the re-render.
+  const raiseKeyboard = () => {
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
   const focusSearch = () => {
     if (!active) {
       setActive(true);
       setMode('typing');
       glide(1);
     }
+    raiseKeyboard();
     setEnterTick((t) => t + 1); // replay Explore cashback count-ups on entry
   };
   const commit = (q: string) => {
@@ -84,6 +94,7 @@ export function Root() {
     setMode('serp');
     setActive(true);
     setSerpLoading(true);
+    inputRef.current?.blur(); // results are showing — get the keyboard out of the way
     glide(1);
     timers.current.push(setTimeout(() => setSerpLoading(false), 650));
   };
@@ -97,6 +108,7 @@ export function Root() {
     setMode('serp');
     setActive(true);
     setSerpLoading(true);
+    inputRef.current?.blur();
     glide(1);
     timers.current.push(setTimeout(() => setSerpLoading(false), 500));
   };
@@ -107,11 +119,13 @@ export function Root() {
       setText('');
       setCommitted('');
       setDirectStore(null);
+      raiseKeyboard(); // back into typing → keyboard returns
     } else {
       setActive(false);
       setText('');
       setCommitted('');
       setDirectStore(null);
+      inputRef.current?.blur(); // leaving search → drop the keyboard
       glide(0);
     }
   };
@@ -237,7 +251,9 @@ export function Root() {
 
   const app = (
     <>
-      <StatusBar os={device.os} notch={device.notch} />
+      {/* Mock OS chrome is for the web device frame only — on a real device the
+          OS draws its own status bar and `insets.top` already reserves its space. */}
+      {Platform.OS === 'web' && <StatusBar os={device.os} notch={device.notch} />}
       <View style={styles.stageBody}>
         {/* Home layer */}
         <Animated.View style={[StyleSheet.absoluteFill, homeStyle]} pointerEvents={active ? 'none' : 'auto'}>
@@ -285,6 +301,7 @@ export function Root() {
               setMode('typing');
             }}
             showBack={active}
+            inputRef={inputRef}
             placeholder="Search stores, products, cards…"
           />
         </Animated.View>

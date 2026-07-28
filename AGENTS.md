@@ -44,6 +44,12 @@ See `components/ResultCards.tsx` → `DealsCarousel`.
 
 ## Design-system rules
 
+- **Store cards render ONLY the brands in `data/storeTiles.ts`** — the exact 44-brand
+  set from Figma "Storepage Tiles" (`qDyQsqusZTtdGdBPdua6QT`, node 611:3360), with
+  that frame's own logo PNGs (`assets/brands/figma/`), washes, offer strips and
+  cashback labels. Never put a favicon/CDN logo or an off-design brand on a tile.
+  The search index (`catalog.ts` `STORES`) is deliberately unfiltered, so a query can
+  resolve to a store whose card shows a different brand — accepted trade-off.
 - Section titles use the `Head` component (`ExploreHome.tsx`). Pass `icon` only when
   a section semantically warrants one (e.g. Trending = `fire`); plain titles omit it.
 - Use tokens from `theme/tokens.ts` (`space`, `color`, `radius`, `type`) — no hard-coded

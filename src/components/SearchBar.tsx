@@ -95,6 +95,7 @@ export function SearchBar({
   onClear,
   showBack,
   autoFocus,
+  inputRef,
   placeholder = 'Search stores, products, cards…',
 }: {
   value: string;
@@ -105,6 +106,10 @@ export function SearchBar({
   onClear?: () => void;
   showBack?: boolean;
   autoFocus?: boolean;
+  /** Lets the owner focus the field imperatively — the bar is persistent, so
+   *  `autoFocus` only ever fires on first mount and can't raise the keyboard
+   *  when search is entered from a chip, nav item, or back-out of the SERP. */
+  inputRef?: React.RefObject<TextInput | null>;
   placeholder?: string;
 }) {
   const hasText = value.length > 0;
@@ -150,6 +155,7 @@ export function SearchBar({
           {/* Rotating catalog-word placeholder; only while the field is empty. */}
           {!hasText && <AnimatedPlaceholder />}
           <TextInput
+            ref={inputRef}
             value={value}
             onChangeText={onChangeText}
             onFocus={onFocus}
@@ -172,7 +178,7 @@ export function SearchBar({
           accessibilityLabel={hasText ? 'Clear' : 'Voice search'}
         >
           <Animated.View style={[styles.trailingIcon, micStyle]} pointerEvents="none">
-            <Icon name="mic" size={16} color={color.aura.fieldIcon} />
+            <Icon name="mic" size={16} color={color.aura.cta} weight="solid" />
           </Animated.View>
           <Animated.View style={[styles.trailingIcon, clearStyle]} pointerEvents="none">
             <Icon name="clear" size={16} color={color.aura.fieldIcon} />
@@ -202,7 +208,7 @@ const styles = StyleSheet.create({
     gap: space.s12,
     backgroundColor: color.aura.searchField,
     borderRadius: radius.xxl,
-    paddingHorizontal: space.s12,
+    paddingHorizontal: space.m, // 16px side padding
   },
   // Holds the TextInput plus the absolutely-positioned animated placeholder.
   inputWrap: { flex: 1, justifyContent: 'center' },

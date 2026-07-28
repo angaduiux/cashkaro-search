@@ -9,6 +9,7 @@
  * (no real source available yet) — those stay as loud PLACEHOLDER flags (§7).
  */
 import { ResultItem, SerpModel } from './dataContract';
+import { allStoreTileItems, storeTilesByKeys } from './storeTiles';
 
 const PLACEHOLDER = true; // greppable marker for un-sourced values (§7)
 
@@ -485,11 +486,8 @@ export const caseFlip: SerpModel = {
     {
       kind: 'stores',
       title: 'Stores',
-      count: 2,
-      items: [
-        { id: 'store-flipkart-row', archetype: '01_store', source: 'internal', title: 'Flipkart', subtitle: '23K Shopping', logo: BRAND.flipkart.logo, logoBg: BRAND.flipkart.bg, cashback: { type: 'pct_single', value: 7 } },
-        { id: 'card-axis-flip-row', archetype: '06_cobranded_card', source: 'internal', title: 'Axis Flipkart', subtitle: 'Co-branded card', logo: BRAND.axisBank.logo, logoBg: BRAND.axisBank.bg, cashback: { type: 'flat_inr', value: 1500, prefix: 'flat' } },
-      ],
+      count: 3,
+      items: storeTilesByKeys(['croma', 'amazon', 'ajio'], 'flip'),
     },
     { kind: 'deals', title: 'Deals', count: 8, items: [dealCroma, dealAmazon, dealAjio, dealKlook] },
     {
@@ -547,11 +545,7 @@ export const caseBody: SerpModel = {
       kind: 'stores',
       title: 'Stores',
       count: 4,
-      items: [
-        { id: 's-bodyshop', archetype: '01_store', source: 'internal', title: 'The Body Shop', subtitle: '23K Shopping', logo: BRAND.bodyshop.logo, logoBg: BRAND.bodyshop.bg, cashback: { type: 'flat_inr', value: 200, prefix: 'flat' } },
-        { id: 's-bodycupid', archetype: '01_store', source: 'internal', title: 'Body Cupid', subtitle: '23K Shopping', logo: BRAND.bodycupid.logo, logoBg: BRAND.bodycupid.bg, cashback: { type: 'pct_single', value: 15 } },
-        { id: 's-bebodywise', archetype: '01_store', source: 'internal', title: 'BeBodyWise', subtitle: '23K Shopping', logo: BRAND.bebodywise.logo, logoBg: BRAND.bebodywise.bg, cashback: { type: 'pct_single', value: 8 } },
-      ],
+      items: storeTilesByKeys(['foxtale', 'mamaearth', 'dermaCo', 'dotKey'], 'body'),
     },
     { kind: 'deals', title: 'Deals', count: 8, items: [dealS3Beauty, dealAmazon, dealAjio, dealCroma] },
     {
@@ -596,10 +590,8 @@ export const casePhar: SerpModel = {
     {
       kind: 'stores',
       title: 'Stores',
-      count: 1,
-      items: [
-        { id: 's-pharmeasy', archetype: '01_store', source: 'internal', title: 'PharmEasy', subtitle: '23K Shopping', logo: BRAND.pharmeasy.logo, logoBg: BRAND.pharmeasy.bg, cashback: { type: 'pct_single', value: 7 } },
-      ],
+      count: 3,
+      items: storeTilesByKeys(['hyugalife', 'hkVitals', 'nutrabay'], 'phar'),
     },
     { kind: 'categories', title: 'Store Categories', count: 1, items: [{ id: 'c-pharmacy', archetype: '04_category', source: 'internal', title: 'Pharmacy', logo: null, cashback: { type: 'none' } }] },
     { kind: 'products', title: 'Products', count: 2, items: [prodHsnMagnesium, prodMahabhringraj] },
@@ -621,10 +613,7 @@ export const caseMobile: SerpModel = {
       kind: 'stores',
       title: 'Stores',
       count: 2,
-      items: [
-        { id: 's-lotus', archetype: '01_store', source: 'internal', title: 'Lotus Botanicals', subtitle: '23K Shopping', logo: BRAND.lotus.logo, logoBg: BRAND.lotus.bg, cashback: { type: 'pct_single', value: 20 } },
-        { id: 's-mobikwik', archetype: '01_store', source: 'internal', title: 'MobiKwik', subtitle: '23K Shopping', logo: BRAND.mobikwik.logo, logoBg: BRAND.mobikwik.bg, cashback: { type: 'pct_single', value: 3 } },
-      ],
+      items: storeTilesByKeys(['croma', 'amazon'], 'mobile'),
     },
     { kind: 'deals', title: 'Deals', count: 4, items: [dealCroma, dealAmazon, dealKlook] },
     { kind: 'categories', title: 'Product Categories', count: 1, items: [{ id: 'c-mobiles', archetype: '04_category', source: 'internal', title: 'Mobile Phones', logo: null, cashback: { type: 'none' } }] },
@@ -952,7 +941,9 @@ function itemsOfKind(kinds: import('./dataContract').SectionKind[]): ResultItem[
 }
 
 const ALL_VERTICALS: Vertical[] = [
-  { key: 'stores', title: 'Stores', kind: 'stores', items: CATEGORIES.flatMap((c) => buildCategoryStores(c)) },
+  // Every Storepage brand once each — the catalog has more store slots than the
+  // frame has tiles, so aggregating per category would repeat brands.
+  { key: 'stores', title: 'Stores', kind: 'stores', items: allStoreTileItems('all') },
   { key: 'products', title: 'Products', kind: 'products', items: itemsOfKind(['products']) },
   { key: 'cards', title: 'Credit Cards', kind: 'cards', items: itemsOfKind(['cards', 'similar_cards']) },
   { key: 'loans', title: 'Loans', kind: 'loans', items: itemsOfKind(['loans']) },

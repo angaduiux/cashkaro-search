@@ -182,9 +182,14 @@ export function ProductCard({ item, index = 0, width }: { item: ResultItem; inde
  * "Upto Y%" + muted "CASHBACK" footer. Replaces the old logo-only stores tile;
  * used across the SERP stores rail, category grids, View-all, and Home Top
  * Stores so every store surface renders the same card.
+ *
+ * Brands come from `data/storeTiles.ts` — the exact 44-brand set in Figma
+ * "Storepage Tiles" (611:3360), with that frame's own logo PNGs and washes.
  */
 // Soften a brand tint (which may carry a baked-in alpha suffix) toward white so
 // any source colour — pale yellow or near-black — becomes a light pastel wash.
+// Storepage tiles supply `heroTint` as the frame's *final* wash colour, so they
+// bypass this and use it verbatim (whiteMix 0).
 const softTintRgb = (hex: string, whiteMix = 0.8) => {
   let h = hex.replace('#', '');
   if (h.length === 3) h = h.split('').map((c) => c + c).join('');
@@ -195,13 +200,15 @@ const softTintRgb = (hex: string, whiteMix = 0.8) => {
 
 export function StoreTile({ item, width = 96, onPress }: { item: ResultItem; width?: number; onPress?: () => void }) {
   const cb = item.cashback;
-  const prefix = cb.type === 'flat_inr' ? 'Flat' : 'Upto';
+  const prefix = cb.type === 'flat_inr' || (cb.type === 'pct_single' && cb.prefix === 'flat') ? 'Flat' : 'Upto';
   const value =
     cb.type === 'flat_inr' ? `₹${cb.value.toLocaleString('en-IN')}`
     : cb.type === 'pct_single' ? `${cb.value}%`
     : cb.type === 'pct_range' ? `${cb.max}%`
     : '';
-  const rgb = softTintRgb(item.heroTint ?? item.logoBg ?? color.aura.searchField);
+  const rgb = item.heroTint
+    ? softTintRgb(item.heroTint, 0)
+    : softTintRgb(item.logoBg ?? color.aura.searchField);
   const source: ImageSourcePropType | undefined =
     item.logo == null ? undefined : typeof item.logo === 'string' ? { uri: item.logo } : (item.logo as ImageSourcePropType);
   const logoW = Math.round((width - 8) * 0.66);
@@ -235,7 +242,7 @@ export function StoreTile({ item, width = 96, onPress }: { item: ResultItem; wid
               <Text style={[t.body14BoldSnug, { color: color.aura.cta }]} numberOfLines={1}>
                 {prefix} {value}
               </Text>
-              <Text style={[t.caption8SemiBoldCaps, { color: color.aura.cashbackCaption }]}>CASHBACK</Text>
+              <Text style={[t.caption8SemiBoldCaps, { color: color.aura.cashbackCaption }]}>{item.cashbackCaption ?? 'CASHBACK'}</Text>
             </>
           ) : (
             <Text style={[t.body14BoldSnug, { color: color.aura.cta }]} numberOfLines={1}>{item.ctaLabel ?? 'Visit'}</Text>
@@ -254,13 +261,15 @@ export function StoreTile({ item, width = 96, onPress }: { item: ResultItem; wid
  */
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
-export function DealsCarousel({ items }: { items: ResultItem[] }) {
-  // Banners sit inside the page's 20px padding (no full-bleed): each banner fills
-  // the padded content width and pages one at a time — no gap/peek, so nothing
-  // clips at the sides.
+export function DealsCarousel({ items, bleed = 0 }: { items: ResultItem[]; bleed?: number }) {
+  // Each banner fills the carousel's own width and pages one at a time — no
+  // gap/peek, so nothing clips at the sides. `bleed` cancels the host page's
+  // horizontal padding (pass `space.m20` inside a padded column) so banners run
+  // to the true screen edge; the measured width still drives card/step/frame, so
+  // paging stays sub-pixel exact.
   const INSET = 0;
   const GAP = 0;
-  const [W, setW] = useState(0); // padded content width (rounded to whole px)
+  const [W, setW] = useState(0); // carousel width (rounded to whole px)
   const cardW = W > 0 ? W - INSET * 2 : 0;
   const step = cardW + GAP;
   const [page, setPage] = useState(0);
@@ -293,7 +302,7 @@ export function DealsCarousel({ items }: { items: ResultItem[] }) {
   }, [reduced, items.length, step]);
 
   return (
-    <View style={styles.bleed} onLayout={(e) => setW(Math.round(e.nativeEvent.layout.width))}>
+    <View style={{ marginHorizontal: -bleed }} onLayout={(e) => setW(Math.round(e.nativeEvent.layout.width))}>
       {cardW > 0 && (
         <AnimatedScrollView
           ref={scroller as any}
@@ -391,7 +400,7 @@ export function DealCard({ item, width = 320 }: { item: ResultItem; width?: numb
  */
 export function SimilarCardsRail({ items }: { items: ResultItem[] }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRail}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railBleed} contentContainerStyle={styles.cardsRail}>
       {items.map((item) => {
         const cb = item.cashback;
         const value =
@@ -594,9 +603,9 @@ export function StoreHero({ item, userType = 'existing' }: { item: ResultItem; u
                 {figStr}
               </Text>
               {cb.type === 'flat_inr' ? (
-                <CountUp value={cb.value} prefix="₹" style={[styles.heroFigure, styles.figFill, { color: color.aura.cashback }] as any} />
+                <CountUp value={cb.value} prefix="₹" group style={[styles.heroFigure, styles.figFill, { color: color.aura.cashback }] as any} />
               ) : (
-                <CountUp value={pct!} suffix="%" format={(n) => (Number.isInteger(pct) ? `${Math.round(n)}` : `${n.toFixed(1)}`)} style={[styles.heroFigure, styles.figFill, { color: color.aura.cashback }] as any} />
+                <CountUp value={pct!} suffix="%" decimals={Number.isInteger(pct) ? 0 : 1} style={[styles.heroFigure, styles.figFill, { color: color.aura.cashback }] as any} />
               )}
             </View>
           )}

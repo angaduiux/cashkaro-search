@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { color, type as t, space, radius, MIN_TAP_TARGET } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 import { IconName } from '../icons/iconMap';
 import { DealsCarousel, CategoryChip, StoreTile } from '../components/ResultCards';
-import { BRAND, ALL_DEALS } from '../data/realData';
-import { Cashback } from '../data/dataContract';
+import { ALL_DEALS } from '../data/realData';
+import { storeTilesByKeys } from '../data/storeTiles';
 import { staggerDelay } from '../motion/motion';
 import { ResultItem } from '../data/dataContract';
 
@@ -28,30 +28,17 @@ const CATEGORIES: ResultItem[] = [
 // bar, which floats over this slot (Root REST_Y positions it here).
 const BAR_SLOT = 64;
 
-// Top-Stores rail (Home landing). Built from real brand assets + rates; rendered
-// with the same StoreTile card as the SERP/category grids. Constructed at render
-// time (not module scope) to stay clear of the catalog↔realData import cycle.
-const TOP_STORE_SPECS: { brand: keyof typeof BRAND; title: string; cashback: Cashback; offer: string }[] = [
-  { brand: 'beyoung', title: 'Beyoung', cashback: { type: 'pct_single', value: 7.5 }, offer: 'Upto 70% Off' },
-  { brand: 'cleartrip', title: 'Cleartrip', cashback: { type: 'flat_inr', value: 1500, prefix: 'flat' }, offer: 'Upto 40% Off' },
-  { brand: 'myntra', title: 'Myntra', cashback: { type: 'pct_single', value: 6 }, offer: 'Upto 70% Off' },
-  { brand: 'flipkart', title: 'Flipkart', cashback: { type: 'pct_single', value: 6.5 }, offer: 'Upto 80% Off' },
-  { brand: 'nykaa', title: 'Nykaa', cashback: { type: 'pct_single', value: 6 }, offer: 'Upto 60% Off' },
-  { brand: 'pharmeasy', title: 'PharmEasy', cashback: { type: 'pct_single', value: 7 }, offer: 'Upto 40% Off' },
-];
+// Top-Stores rail (Home landing) — Storepage tiles (Figma 611:3360) with the
+// frame's own logos, washes and rates. Built at render time (not module scope) to
+// stay clear of the catalog↔realData import cycle.
+const TOP_STORE_KEYS = ['croma', 'nykaa', 'ajio', 'amazon', 'mamaearth', 'dotKey'];
 
 export function HomeScreen({ onPick }: { onPick: (q: string) => void }) {
-  const TOP_STORES: ResultItem[] = TOP_STORE_SPECS.map((s) => ({
-    id: `top-${s.brand}`,
-    archetype: '01_store',
-    source: 'internal',
-    title: s.title,
-    logo: BRAND[s.brand].logo,
-    logoBg: BRAND[s.brand].bg,
-    heroTint: BRAND[s.brand].bg,
-    cashback: s.cashback,
-    discount: s.offer,
-  }));
+  const { width } = useWindowDimensions();
+  const TOP_STORES: ResultItem[] = storeTilesByKeys(TOP_STORE_KEYS, 'home-top');
+  // 3-up grid: tiles fill the row inside the 20px page padding with a 16px gutter
+  // between them. Floored so three tiles + two gaps can never exceed the row.
+  const tileW = Math.floor((width - space.m20 * 2 - space.m * 2) / 3);
   return (
     <View style={styles.screen}>
       {/* Brand header */}
@@ -104,7 +91,7 @@ export function HomeScreen({ onPick }: { onPick: (q: string) => void }) {
           <View style={styles.storeGrid}>
             {TOP_STORES.map((item, i) => (
               <Animated.View key={item.id} entering={FadeInDown.delay(staggerDelay(i)).duration(220)}>
-                <StoreTile item={item} onPress={() => onPick(item.title.toLowerCase())} />
+                <StoreTile item={item} width={tileW} onPress={() => onPick(item.title.toLowerCase())} />
               </Animated.View>
             ))}
           </View>
@@ -181,7 +168,7 @@ const styles = StyleSheet.create({
   blockPad: { paddingHorizontal: space.m, gap: space.s12 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   catRow: { flexDirection: 'row', gap: space.s12, paddingHorizontal: space.m },
-  storeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: space.m },
+  storeGrid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.m, rowGap: space.m },
   tabBar: {
     flexDirection: 'row',
     borderTopWidth: 1,

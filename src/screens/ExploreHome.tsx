@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Image, ImageSourcePropType } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Image, ImageSourcePropType, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { color, type as t, space, radius, fontFamily, MIN_TAP_TARGET, PILL_HEIGHT } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 import { IconName } from '../icons/iconMap';
 import { BrandThumb } from '../components/ImageSlot';
-import { DealsCarousel } from '../components/ResultCards';
+import { DealsCarousel, StoreTile } from '../components/ResultCards';
+import { storeTilesByKeys } from '../data/storeTiles';
 import { CountUpText } from '../motion/CountUp';
 import { UserType } from '../components/UserTypeToggle';
 import { BRAND, ALL_DEALS, cardSbiCashback, cardAxisFlipkart, cardFederalScapia } from '../data/realData';
@@ -42,6 +43,11 @@ function Head({ icon, gif, title, action }: { icon?: IconName; gif?: ImageSource
  * Trending chips and the deals carousel.
  */
 const TRENDING = ['iphone 16', 'myntra', 'nike', 'flight tickets', 'best cashback card'];
+
+// Top-Stores grid — same Storepage tiles (Figma 611:3360) and key set as the Home
+// rail, so the section reads identically either side of the search tap. Built at
+// render time (not module scope) to stay clear of the catalog↔realData cycle.
+const TOP_STORE_KEYS = ['croma', 'nykaa', 'ajio', 'amazon', 'mamaearth', 'dotKey'];
 
 /** Cashback → short label, e.g. "Up to 3%" / "Flat ₹1,500". Null when none. */
 function rateLabel(cb: Cashback): { prefix: string; value: string } | null {
@@ -85,6 +91,11 @@ export function ExploreHome({
   onClearRecents: () => void;
   onRemoveRecent: (q: string) => void;
 }) {
+  const { width } = useWindowDimensions();
+  const TOP_STORES: ResultItem[] = storeTilesByKeys(TOP_STORE_KEYS, 'explore-top');
+  // Same 3-up maths as the Home rail — 16px gutter inside the 20px page padding.
+  const tileW = Math.floor((width - space.m20 * 2 - space.m * 2) / 3);
+
   // Recent pills stay ~2 lines by default; "View all" reveals the rest.
   const [showAllRecents, setShowAllRecents] = useState(false);
   const RECENT_CAP = 4;
@@ -185,6 +196,18 @@ export function ExploreHome({
           <DealsCarousel items={ALL_DEALS} />
         </Animated.View>
       )}
+
+      {/* Top stores — mirrors the Home rail so the section survives the search tap */}
+      <View style={styles.blockPad}>
+        <Head title="Top Stores" />
+        <View style={styles.storeGrid}>
+          {TOP_STORES.map((item, i) => (
+            <Animated.View key={item.id} entering={FadeInDown.delay(staggerDelay(i)).duration(220)}>
+              <StoreTile item={item} width={tileW} onPress={() => onOpenStore(item.title.toLowerCase())} />
+            </Animated.View>
+          ))}
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -278,6 +301,8 @@ const styles = StyleSheet.create({
     borderColor: color.aura.border,
     backgroundColor: color.surface,
   },
+  // Top-Stores grid — matches the Home rail's wrap + gutters
+  storeGrid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.m, rowGap: space.m },
   // Jump-back-in compact tile rail
   tileRow: { flexDirection: 'row', gap: space.m, paddingHorizontal: space.m20 },
   tile: { width: 104, alignItems: 'center', gap: space.s12 },

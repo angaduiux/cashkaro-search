@@ -9,6 +9,7 @@
  */
 import { SerpModel, ResultItem, Cashback } from './dataContract';
 import { BRAND, PRODUCT_IMG } from './realData';
+import { storeTileSlots } from './storeTiles';
 
 export type Cat =
   | 'Shopping'
@@ -35,26 +36,11 @@ export type Store = {
   ratingValue?: number;
   shoppers?: string;
   priorPct?: number;
-  offer?: string; // store-card max-discount line, e.g. "Upto 80% Off" (overrides the category default)
 };
 
-// Store-card "Upto X% Off" line (Figma 1646:7182). A storepage always surfaces
-// the merchant's headline discount; when a store doesn't carry an explicit
-// `offer`, fall back to a sensible per-category ceiling. Finance/payments
-// merchants have no product discount, so they show none.
-const CATEGORY_OFFER: Partial<Record<Cat, string>> = {
-  Shopping: 'Upto 80% Off',
-  Fashion: 'Upto 70% Off',
-  Beauty: 'Upto 60% Off',
-  Electronics: 'Upto 50% Off',
-  Home: 'Upto 65% Off',
-  Grocery: 'Upto 50% Off',
-  Nutrition: 'Upto 45% Off',
-  Pharmacy: 'Upto 40% Off',
-  Travel: 'Upto 40% Off',
-  Education: 'Upto 35% Off',
-};
-const storeOffer = (s: Store): string | undefined => s.offer ?? CATEGORY_OFFER[s.category];
+// The store card's "Upto X% Off" strip is no longer derived per category — every
+// card renders a Storepage tile, whose strip text ships with the tile
+// (./storeTiles.ts, transcribed from Figma 611:3360).
 
 // Standard CashKaro cashback mechanic (same structure across stores).
 const TL = { tracksIn: '48 Hours', confirmsIn: '60 Days', withdraw: 'UPI/Bank' };
@@ -169,30 +155,15 @@ export function searchStores(query: string): Store[] {
     .map((x) => x.s);
 }
 
-const storeItem = (s: Store, id: string): ResultItem => ({
-  id,
-  archetype: '01_store',
-  source: 'internal',
-  title: s.name,
-  subtitle: s.note,
-  logo: s.brand ? BRAND[s.brand].logo : null,
-  logoBg: s.brand ? BRAND[s.brand].bg : undefined,
-  heroTint: s.brand ? BRAND[s.brand].bg : undefined, // store-card gradient wash tint
-  cashback: s.cashback,
-  discount: storeOffer(s), // store-card "Upto X% Off" line (Figma 1646:7182)
-  ctaLabel: s.cashback.type === 'none' ? 'Visit Store' : undefined,
-});
-
-/** Curated Top-Stores rail for the Home landing — real catalog items so the
- *  store cards render identically to the SERP/category grids. */
-export function topStores(
-  slugs: string[] = ['beyoung', 'cleartrip', 'myntra', 'flipkart', 'nykaa', 'pharmeasy'],
-): ResultItem[] {
-  return slugs
-    .map((slug) => STORES.find((s) => s.slug === slug))
-    .filter((s): s is Store => !!s)
-    .map((s) => storeItem(s, `top-${s.slug}`));
-}
+/**
+ * Store cards render ONLY the brands in Figma "Storepage Tiles" (611:3360) —
+ * see ./storeTiles.ts. Each catalog store slot is mapped onto one of those 44
+ * tiles (stable per slug, distinct within a rail), so no card ever shows a
+ * favicon logo or a brand that isn't in the design. The search index above is
+ * untouched, so a matched store's card may carry a different brand.
+ */
+const storeRowItems = (stores: Store[], idPrefix: string): ResultItem[] =>
+  storeTileSlots(stores.map((s) => s.slug), idPrefix);
 
 /** Build a store SERP dynamically from real catalog data (§3.3 shell). */
 /** The store's money-card hero item (shared by the SERP and the store page). */
@@ -223,7 +194,7 @@ export function buildStoreSerp(store: Store, query?: string): SerpModel {
   const alternates = STORES.filter((x) => x.category === store.category && x.slug !== store.slug).slice(0, 4);
   const sections: SerpModel['sections'] = [];
 
-  const storeRows = [store, ...alternates].map((s, i) => storeItem(s, `store-${s.slug}-${i}`));
+  const storeRows = storeRowItems([store, ...alternates], 'store');
   sections.push({ kind: 'stores', title: 'Stores', count: storeRows.length, items: storeRows });
 
   // A scoped card for this store where one exists (co-branded), else generic deals.
@@ -356,7 +327,7 @@ export function buildSerp(query: string): SerpModel | undefined {
 
   const sections: SerpModel['sections'] = [];
   if (railStores.length) {
-    sections.push({ kind: 'stores', title: 'Stores', count: railStores.length, items: railStores.map((s, i) => storeItem(s, `st-${s.slug}-${i}`)) });
+    sections.push({ kind: 'stores', title: 'Stores', count: railStores.length, items: storeRowItems(railStores, 'st') });
   }
   if (products.length) {
     sections.push({ kind: 'products', title: 'Products', count: products.length, items: products.slice(0, 10) });
@@ -399,16 +370,16 @@ export function buildStorePage(store: Store): SerpModel {
 }
 
 /**
- * Catalog browse (View-All page) — the full set of stores in one category, as
- * plain `ResultItem`s ready for the store-tile grid. Reuses the same `storeItem`
- * mapping the SERP rails use, so the grid renders identical brand-logo tiles.
+ * Catalog browse (View-All page) — one card per store in the category, as plain
+ * `ResultItem`s ready for the store-tile grid. Goes through the same tile mapping
+ * the SERP rails use, so the grid renders identical Storepage tiles.
  */
 export function storesInCategory(cat: Cat): Store[] {
   return STORES.filter((s) => s.category === cat);
 }
 
 export function buildCategoryStores(cat: Cat): ResultItem[] {
-  return storesInCategory(cat).map((s, i) => storeItem(s, `cat-${cat}-${s.slug}-${i}`));
+  return storeRowItems(storesInCategory(cat), `cat-${cat}`);
 }
 
 /** Every catalog category that currently has at least one store (chip source). */

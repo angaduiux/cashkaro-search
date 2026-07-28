@@ -30,7 +30,7 @@ export type ResultSource = 'internal' | 'google_shopping';
  */
 export type Cashback =
   | { type: 'none' }
-  | { type: 'pct_single'; value: number } // "Upto {value}%"
+  | { type: 'pct_single'; value: number; prefix?: 'upto' | 'flat' } // "Upto {value}%" / "Flat {value}%"
   | { type: 'pct_range'; min: number; max: number } // D2C new-vs-existing
   | { type: 'flat_inr'; value: number; prefix?: 'upto' | 'flat' }; // card flat ₹
 
@@ -85,6 +85,10 @@ export interface ResultItem {
   bannerImage?: number; // bundled deal creative (require(...)); renders full-bleed
   bannerAspect?: number; // natural width/height of the banner image
   cashback: Cashback;
+  /** Store-tile footer caption under the cashback figure. Storepage tiles say
+   *  "CASHBACK" for retail/travel merchants and "REWARDS" for education & loan
+   *  merchants (Storepage Tiles 611:3360). Defaults to "CASHBACK". */
+  cashbackCaption?: 'CASHBACK' | 'REWARDS';
   rate?: Rate;
   fees?: Fees;
   rating?: Rating;

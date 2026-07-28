@@ -14,22 +14,55 @@ import { useInView } from './useInView';
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 /**
+ * Indian digit grouping (1,50,000) — hand-rolled because this runs inside a
+ * worklet, where `toLocaleString('en-IN')` is unavailable (no Intl on the UI
+ * runtime).
+ */
+function groupIN(n: number): string {
+  'worklet';
+  const s = String(Math.round(n));
+  if (s.length <= 3) return s;
+  const last3 = s.slice(-3);
+  let rest = s.slice(0, -3);
+  const parts: string[] = [];
+  while (rest.length > 2) {
+    parts.unshift(rest.slice(-2));
+    rest = rest.slice(0, -2);
+  }
+  if (rest.length) parts.unshift(rest);
+  return `${parts.join(',')},${last3}`;
+}
+
+/** Worklet-safe number → string. Must stay a worklet: the UI runtime calls it every frame. */
+function fmt(n: number, decimals: number, group: boolean): string {
+  'worklet';
+  if (decimals > 0) return n.toFixed(decimals);
+  return group ? groupIN(n) : String(Math.round(n));
+}
+
+/**
  * Hero cashback count-up (§9.5 signature moment). Animates 0 → value over ~700ms.
  * Under reduced motion we show the final value immediately (no animation) — the
  * accessibility non-negotiable from §9.6. Drives an editable-disabled TextInput
  * so the number updates on the UI thread without per-frame React renders.
+ *
+ * Formatting is expressed as `decimals`/`group` primitives rather than a `format`
+ * callback: the animated-props body is a worklet, and calling a plain JS closure
+ * from the UI runtime throws an uncaught error that aborts the app on native.
  */
 export function CountUp({
   value,
   prefix = '',
   suffix = '',
-  format = (n: number) => Math.round(n).toLocaleString('en-IN'),
+  decimals = 0,
+  group = false,
   style,
 }: {
   value: number;
   prefix?: string;
   suffix?: string;
-  format?: (n: number) => string;
+  decimals?: number;
+  group?: boolean;
   style?: StyleProp<TextStyle>;
 }) {
   const reduced = useReducedMotion();
@@ -47,7 +80,8 @@ export function CountUp({
   }, [value, reduced, tick]);
 
   const animatedProps = useAnimatedProps(() => {
-    return { text: `${prefix}${format(progress.value)}${suffix}`, defaultValue: `${prefix}${format(progress.value)}${suffix}` } as any;
+    const s = `${prefix}${fmt(progress.value, decimals, group)}${suffix}`;
+    return { text: s, defaultValue: s } as any;
   });
 
   return (
@@ -57,7 +91,7 @@ export function CountUp({
       underlineColorAndroid="transparent"
       style={style as any}
       animatedProps={animatedProps}
-      accessibilityLabel={`${prefix}${format(value)}${suffix}`}
+      accessibilityLabel={`${prefix}${fmt(value, decimals, group)}${suffix}`}
     />
   );
 }

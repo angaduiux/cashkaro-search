@@ -38,6 +38,7 @@ const palette = {
   auraBorder: '#e6e8ee', // hairline on tiles
   auraOffGreen: '#01ab4b', // storepage store-card "Upto X% Off" (Figma 1646:7182)
   auraCashbackCaption: 'rgba(99,99,99,0.44)', // store-card "CASHBACK" label
+  auraTileWash: '#eef2fb', // neutral store-tile wash (Storepage Tiles 611:3360)
   ink900: '#262626', // text/primary
   ink600: '#5c5c5c', // text/secondary
   ink400: '#878787', // text/tertiary
@@ -114,6 +115,7 @@ export const color = {
     border: palette.auraBorder,
     offGreen: palette.auraOffGreen, // store-card "Upto X% Off"
     cashbackCaption: palette.auraCashbackCaption, // store-card "CASHBACK" label
+    tileWash: palette.auraTileWash, // store-tile wash when the brand has no tint
     fieldIcon: palette.slate400, // search-field icons (search / clear)
     priceMuted: palette.slate400, // product current/strike price grey (Figma 1646:7869)
     cashbackPillFrom: palette.peach50, // product cashback-pill gradient start
