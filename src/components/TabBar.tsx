@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Text, Pressable, ScrollView, StyleSheet, LayoutRectangle, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { color, type as t, space, radius, MIN_TAP_TARGET } from '../theme/tokens';
+import { color, type as t, space, radius, MIN_TAP_TARGET, PILL_HEIGHT } from '../theme/tokens';
 import { TabKey } from '../data/dataContract';
 import { timingBase } from '../motion/motion';
 
@@ -17,6 +17,9 @@ const LABELS: Record<TabKey, string> = {
   loans: 'Loans',
   savings: 'Savings',
 };
+
+/** Vertical slop that lifts the 40px pill's tap target back to ≥44px. */
+const PILL_SLOP = Math.ceil((MIN_TAP_TARGET - PILL_HEIGHT) / 2);
 
 /**
  * Pill tab bar (§6.2). "All" first when shown. The active-indicator pill slides
@@ -78,6 +81,8 @@ export function TabBar({
                   accessibilityRole="tab"
                   accessibilityState={{ selected: isActive }}
                   accessibilityLabel={LABELS[key]}
+                  // Pill is 40px tall; slop restores the ≥44px effective tap target.
+                  hitSlop={{ top: PILL_SLOP, bottom: PILL_SLOP }}
                   style={[styles.pill, !isActive && styles.pillInactive]}
                 >
                   <Text
@@ -116,7 +121,7 @@ const styles = StyleSheet.create({
   container: { paddingVertical: space.s, paddingHorizontal: space.m20 },
   rowInner: { flexDirection: 'row', gap: space.s },
   pill: {
-    minHeight: MIN_TAP_TARGET, // §6.2 systemic tap-target fix
+    height: PILL_HEIGHT, // 40px pill; hitSlop above keeps the ≥44px tap target (§6.2)
     borderRadius: radius.full,
     paddingHorizontal: space.m,
     alignItems: 'center',

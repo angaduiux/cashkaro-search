@@ -282,5 +282,12 @@ export const stagger = { step: 35, cap: 210 } as const;
 // Minimum tap target (§6.2, §11; NN/g ≥ ~1cm ≈ 44px).
 export const MIN_TAP_TARGET = 44;
 
+// Canonical pill/chip height — every rounded selector pill (tabs, filter chips,
+// recent/trending, category, view-all switchers) is exactly this tall so the app
+// reads as one system. space.xxl = 40. Pair with hitSlop to keep the ≥44px tap
+// target (see TabBar). Does NOT apply to inline status badges/tags (% OFF,
+// cashback pills, LIVE, carousel indicators) — those are labels, not pills.
+export const PILL_HEIGHT = space.xxl;
+
 // Deal banner strip height (design spec).
 export const BANNER_HEIGHT = 118;

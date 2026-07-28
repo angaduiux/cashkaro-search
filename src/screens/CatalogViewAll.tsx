@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { color, type as t, space, radius, MIN_TAP_TARGET } from '../theme/tokens';
+import { color, type as t, space, radius, MIN_TAP_TARGET, PILL_HEIGHT } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 import { StoreTile } from '../components/ResultCards';
 import { buildCategoryStores, CATEGORIES, Cat } from '../data/catalog';
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   chipScroll: { flexGrow: 0, flexShrink: 0 },
   chipRow: { flexDirection: 'row', alignItems: 'center', gap: space.s, paddingHorizontal: space.m20, paddingVertical: space.s12 },
   chip: {
-    height: 34, // explicit height → chips never stretch vertically
+    height: PILL_HEIGHT, // 40px — canonical pill height (never stretches vertically)
     paddingHorizontal: space.m,
     borderRadius: radius.full,
     alignItems: 'center',

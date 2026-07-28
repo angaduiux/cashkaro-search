@@ -275,7 +275,7 @@ const PRODUCTS: Product[] = [
   { id: 'noisewatch', title: 'Noise ColorFit Pro 5 Smartwatch', brand: 'Noise', brandKey: 'noise', category: 'Electronics', mrp: 6999, price: 2499, cbFlat: 120, keywords: ['watch', 'smartwatch', 'noise', 'wearable'], imgKey: 'noiseWatch' },
   { id: 'boatwatch', title: 'boAt Wave Call 2 Smartwatch', brand: 'boAt', brandKey: 'boat', category: 'Electronics', mrp: 5499, price: 1599, cbFlat: 90, keywords: ['watch', 'smartwatch', 'boat', 'wearable'], imgKey: 'boatWatch' },
   // Shoes
-  { id: 'nikerevo', title: 'Nike Revolution 7 Running Shoes', brand: 'Nike', brandKey: 'nike', category: 'Fashion', mrp: 4995, price: 3496, cbPct: 6, keywords: ['shoes', 'nike', 'running', 'sneakers', 'footwear'], imgKey: 'nikeAf1' },
+  { id: 'nikerevo', title: 'Nike Revolution 7 Running Shoes', brand: 'Nike', brandKey: 'nike', category: 'Fashion', mrp: 4995, price: 3496, cbPct: 6, keywords: ['shoes', 'nike', 'running', 'sneakers', 'footwear'], imgKey: 'nikeRevolution' },
   { id: 'pumashoes', title: 'Puma Softride Running Shoes', brand: 'Puma', brandKey: 'puma', category: 'Fashion', mrp: 5999, price: 2999, cbPct: 7, keywords: ['shoes', 'puma', 'running', 'sneakers', 'footwear'], imgKey: 'pumaShoes' },
   { id: 'adidasshoes', title: 'Adidas Galaxy 6 Running Shoes', brand: 'Adidas', brandKey: 'adidas', category: 'Fashion', mrp: 5599, price: 3359, cbPct: 6.5, keywords: ['shoes', 'adidas', 'running', 'sneakers', 'footwear'], imgKey: 'adidas' },
   // Apparel

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Image, ImageSourcePropType } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { color, type as t, space, radius, fontFamily, MIN_TAP_TARGET } from '../theme/tokens';
+import { color, type as t, space, radius, fontFamily, MIN_TAP_TARGET, PILL_HEIGHT } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 import { IconName } from '../icons/iconMap';
 import { BrandThumb } from '../components/ImageSlot';
@@ -12,6 +12,9 @@ import { BRAND, ALL_DEALS, cardSbiCashback, cardAxisFlipkart, cardFederalScapia 
 import { searchStores } from '../data/catalog';
 import { Cashback, ResultItem } from '../data/dataContract';
 import { staggerDelay } from '../motion/motion';
+
+/** Vertical slop that lifts the 40px pill's tap target back to ≥44px (§6.2). */
+const PILL_SLOP = Math.ceil((MIN_TAP_TARGET - PILL_HEIGHT) / 2);
 
 /** Section header — title (Outfit SemiBold 14) + optional right-side action.
  *  `gif` (an animated source) takes precedence over the glyph `icon`. */
@@ -150,6 +153,7 @@ export function ExploreHome({
             {extraRecents > 0 && (
               <Pressable
                 onPress={() => setShowAllRecents((v) => !v)}
+                hitSlop={{ top: PILL_SLOP, bottom: PILL_SLOP }}
                 style={styles.moreChip}
                 accessibilityRole="button"
                 accessibilityLabel={showAllRecents ? 'Show fewer recent searches' : 'View all recent searches'}
@@ -229,6 +233,7 @@ function Chip({
   return (
     <Pressable
       onPress={onPress}
+      hitSlop={{ top: PILL_SLOP, bottom: PILL_SLOP }}
       style={[styles.chip, warm ? styles.chipWarm : styles.chipRecent]}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -256,9 +261,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.s, // breathing room between icon and label
-    minHeight: MIN_TAP_TARGET - space.s,
+    height: PILL_HEIGHT, // 40px — canonical pill height
     paddingHorizontal: space.s12,
-    paddingVertical: space.s,
     borderRadius: radius.full,
   },
   chipRecent: { backgroundColor: color.recentSurface },
@@ -267,9 +271,8 @@ const styles = StyleSheet.create({
   moreChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: MIN_TAP_TARGET - space.s,
+    height: PILL_HEIGHT, // 40px — canonical pill height
     paddingHorizontal: space.s12,
-    paddingVertical: space.s,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: color.aura.border,

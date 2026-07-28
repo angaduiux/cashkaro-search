@@ -134,6 +134,7 @@ export const PRODUCT_IMG = {
   faceCream: require('../../assets/products/face-cream.jpg'),
   muscleblazeWhey: require('../../assets/products/muscleblaze-whey.jpg'),
   optimumWhey: require('../../assets/products/optimum-whey.jpg'),
+  nikeRevolution: require('../../assets/products/nike-revolution.jpg'),
   // Catalog-coverage product photos (every catalog product shows a real image,
   // never a brand-logo fallback).
   iphone15pro: require('../../assets/products/iphone-15-pro.jpg'),

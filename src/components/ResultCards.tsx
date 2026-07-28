@@ -23,7 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ResultItem } from '../data/dataContract';
 import { categoryIcon } from '../data/categoryIcons';
-import { color, type as t, space, radius, elevation, fontFamily, letterSpacing, MIN_TAP_TARGET, spring } from '../theme/tokens';
+import { color, type as t, space, radius, elevation, fontFamily, letterSpacing, PILL_HEIGHT, spring } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 import { CashbackElement } from './CashbackElement';
 import { Badge } from './Badge';
@@ -797,9 +797,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.s,
+    height: PILL_HEIGHT, // 40px — canonical pill height (32px icon centred, 4px each side)
     paddingRight: space.m,
     paddingLeft: space.s6, // ~7px (Figma pl-[7px])
-    paddingVertical: space.s6, // 6px (Figma py-[6px]) → 32 icon + 12 = 44 tall
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: color.border, // hairline #d9e3ec

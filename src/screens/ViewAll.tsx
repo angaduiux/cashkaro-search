@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { color, type as t, space, radius, MIN_TAP_TARGET } from '../theme/tokens';
+import { color, type as t, space, radius, MIN_TAP_TARGET, PILL_HEIGHT } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 import {
   StoreTile,
@@ -118,13 +118,19 @@ const GRID_GAP = space.s12; // min inter-column gap; leftover splits evenly (spa
 
 function VerticalBody({ kind, items, width }: { kind: SectionKind; items: ResultItem[]; width: number }) {
   switch (kind) {
-    // Fixed-width tiles/cards spread with space-between so the first hugs the left
-    // page padding and the last hugs the right — equal inset on BOTH sides, on any
-    // frame width. Spacers fill the final row so its columns line up too.
-    case 'stores':
+    // Three columns that fill the row with a fixed 12px gap between them; the
+    // left edge hugs the page padding, tiles sized so the gap stays exactly 12.
+    case 'stores': {
+      const cols = 3;
+      const tileW = width > 0 ? Math.floor((width - space.s12 * (cols - 1)) / cols) : 96;
       return (
-        <Grid items={items} width={width} itemWidth={96} render={(item) => <StoreTile key={item.id} item={item} />} />
+        <View style={styles.tileGrid}>
+          {items.map((item) => (
+            <StoreTile key={item.id} item={item} width={tileW} />
+          ))}
+        </View>
       );
+    }
     case 'products': {
       // Two equal columns; the gap between them equals the page's side padding, so
       // the left, center, and right spacing all match (space.m20).
@@ -249,7 +255,7 @@ const styles = StyleSheet.create({
     paddingVertical: space.s12,
   },
   chip: {
-    height: 34,
+    height: PILL_HEIGHT, // 40px — canonical pill height
     paddingHorizontal: space.m,
     borderRadius: radius.full,
     alignItems: 'center',
@@ -262,6 +268,8 @@ const styles = StyleSheet.create({
   // Space-between grid: fixed-width tiles/cards spread so the first hugs the left
   // and the last hugs the right — equal padding on both sides. Rows breathe at 20px.
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: space.m20 },
+  // Fill grid: tiles sized to the column width, fixed 12px gap between them.
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.s12, rowGap: space.m20 },
   // Two-row wrap of category icon pills.
   categoryWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s },
   // Vertical comparison stack (finance / coupons / deals).
