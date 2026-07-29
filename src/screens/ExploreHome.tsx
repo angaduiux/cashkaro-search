@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Image, ImageSourcePropType, useWindowDimensions } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { color, type as t, space, radius, fontFamily, MIN_TAP_TARGET, PILL_HEIGHT } from '../theme/tokens';
+import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { color, type as t, space, radius, fontFamily, spring, MIN_TAP_TARGET, PILL_HEIGHT, TRENDING_PILL_HEIGHT } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 import { IconName } from '../icons/iconMap';
 import { BrandThumb } from '../components/ImageSlot';
@@ -11,8 +12,11 @@ import { CountUpText } from '../motion/CountUp';
 import { UserType } from '../components/UserTypeToggle';
 import { BRAND, ALL_DEALS, cardSbiCashback, cardAxisFlipkart, cardFederalScapia } from '../data/realData';
 import { searchStores } from '../data/catalog';
+import { trendingPills, type TrendingPill } from '../data/trendingPills';
 import { Cashback, ResultItem } from '../data/dataContract';
 import { staggerDelay } from '../motion/motion';
+import { RollingThumb } from '../motion/RollingThumb';
+import { LoopRail } from '../motion/LoopRail';
 
 /** Vertical slop that lifts the 40px pill's tap target back to ≥44px (§6.2). */
 const PILL_SLOP = Math.ceil((MIN_TAP_TARGET - PILL_HEIGHT) / 2);
@@ -22,7 +26,10 @@ const PILL_SLOP = Math.ceil((MIN_TAP_TARGET - PILL_HEIGHT) / 2);
 function Head({ icon, gif, title, action }: { icon?: IconName; gif?: ImageSourcePropType; title: string; action?: React.ReactNode }) {
   return (
     <View style={styles.head}>
-      <View style={styles.headLeft}>
+      {/* A gif mark sits tighter to its title than a glyph does (D085): the flame
+          art carries its own transparent margin, so the 6px a 18px glyph needs
+          reads as a gap at 30px. */}
+      <View style={[styles.headLeft, gif ? styles.headLeftGif : null]}>
         {gif ? (
           <Image source={gif} style={styles.headGif} resizeMode="contain" accessibilityLabel={`${title} icon`} />
         ) : (
@@ -42,7 +49,26 @@ function Head({ icon, gif, title, action }: { icon?: IconName; gif?: ImageSource
  * as removable pills (matches aren't always exact), with a Clear action. Then
  * Trending chips and the deals carousel.
  */
-const TRENDING = ['iphone 16', 'myntra', 'nike', 'flight tickets', 'best cashback card'];
+// Trending queries + the SKU reel each pill's thumb rolls through live in the data
+// layer (`data/trendingPills.ts`, D081) — a lazy memo, so this screen resolves it
+// at render time, never at module scope.
+
+/** Drift for both trending rails; the second runs it in reverse (D086). */
+const TREND_DRIFT = 10;
+
+/** Trending pills dealt into TWO rails, longest-first so the rows balance (D086). */
+function trendingRows(): TrendingPill[][] {
+  const rows: TrendingPill[][] = [[], []];
+  const widths = [0, 0];
+  // Greedy: each pill joins the currently shorter row, so neither row ends up
+  // carrying every long label. Length stands in for width — same type, same disc.
+  for (const pill of trendingPills()) {
+    const r = widths[0] <= widths[1] ? 0 : 1;
+    rows[r].push(pill);
+    widths[r] += pill.label.length;
+  }
+  return rows;
+}
 
 // Top-Stores grid — same Storepage tiles (Figma 611:3360) and key set as the Home
 // rail, so the section reads identically either side of the search tap. Built at
@@ -180,13 +206,20 @@ export function ExploreHome({
       {/* Trending */}
       <View style={styles.blockPad}>
         <Head gif={require('../../assets/anim/trending.gif')} title="Trending" />
-        <View style={styles.chips}>
-          {TRENDING.map((q, i) => (
-            <Animated.View key={q} entering={FadeInDown.delay(staggerDelay(i)).duration(200)}>
-              <Chip icon="search" label={q} onPress={() => onPick(q)} warm />
-            </Animated.View>
-          ))}
-        </View>
+        {/* Two rails, drifting opposite ways at a crawl (D086). Split rather than
+            wrapped: seven pills wrapped to four rows once the disc took them to
+            44px, and a rail keeps the section two lines tall at any pill count.
+            One speed for both rows — only the direction differs, so the pair reads
+            as one mechanism counter-rotating rather than as two loose rows. */}
+        {trendingRows().map((row, r) => (
+          <LoopRail key={r} speed={r % 2 ? -TREND_DRIFT : TREND_DRIFT} gap={space.s12} bleed={space.m20}>
+            {row.map((pill, i) => (
+              <Animated.View key={pill.query} entering={FadeInDown.delay(staggerDelay(i)).duration(200)}>
+                <Chip icon="search" label={pill.label} images={pill.images} onPress={() => onPick(pill.query)} warm />
+              </Animated.View>
+            ))}
+          </LoopRail>
+        ))}
       </View>
 
       {/* Deals carousel */}
@@ -244,25 +277,53 @@ function DestinationTile({ dest, onPress, trigger }: { dest: Dest; onPress: () =
 function Chip({
   icon,
   label,
+  images,
   onPress,
   onRemove,
   warm,
 }: {
   icon: IconName;
   label: string;
+  /** SKU reel for the leading circle (trending). Omitted → the glyph `icon`. */
+  images?: number[];
   onPress: () => void;
   onRemove?: () => void;
   warm?: boolean;
 }) {
+  // Press feedback: the same scale-spring as `Button` (§9.4 "card press / tap"),
+  // so a chip answers the finger instead of reading as a dead label.
+  const scale = useSharedValue(1);
+  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const thumb = images && images.length > 0;
+
   return (
+    <Animated.View style={pressStyle}>
     <Pressable
       onPress={onPress}
+      onPressIn={() => (scale.value = withSpring(0.97, spring.snappy))}
+      onPressOut={() => (scale.value = withSpring(1, spring.snappy))}
       hitSlop={{ top: PILL_SLOP, bottom: PILL_SLOP }}
-      style={[styles.chip, warm ? styles.chipWarm : styles.chipRecent]}
+      style={[styles.chip, warm ? styles.chipWarm : styles.chipRecent, thumb ? styles.chipThumb : null]}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <Icon name={icon} size={13} color={color.aura.fieldIcon} />
+      {/* Trending pills carry the category pill's treatment (Figma 1646:7349) —
+          white→tint vertical gradient under a hairline — in warm instead of cobalt,
+          so the two pill families read as one system without trending losing its
+          orange (D085). Height and padding are untouched: the border sits inside
+          the 36px box. */}
+      {warm && (
+        <LinearGradient
+          colors={[color.surface, color.trendingSurface]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      )}
+      {/* A trending pill leads with the SKU reel its query resolves to (D081);
+          recents keep the history glyph. */}
+      {thumb ? <RollingThumb images={images!} /> : <Icon name={icon} size={13} color={color.aura.fieldIcon} />}
       <Text style={[t.body14Regular, { color: color.aura.slate }]}>{label}</Text>
       {onRemove && (
         <Pressable hitSlop={8} onPress={onRemove} accessibilityRole="button" accessibilityLabel={`Remove ${label}`} style={styles.chipRemove}>
@@ -270,6 +331,7 @@ function Chip({
         </Pressable>
       )}
     </Pressable>
+    </Animated.View>
   );
 }
 
@@ -279,8 +341,11 @@ const styles = StyleSheet.create({
   blockPad: { paddingHorizontal: space.m20, gap: space.s12 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headLeft: { flexDirection: 'row', alignItems: 'center', gap: space.s6 },
-  headGif: { width: 20, height: 20 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s },
+  headLeftGif: { gap: space.xxs },
+  headGif: { width: 30, height: 30 }, // 1.5× the glyph size — the flame is the section's mark
+  // 12px between pills on both axes (D081) — at 44px tall with a 32px disc, the
+  // old 8px gutter let the rows read as one mass instead of as separate pills.
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s12 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -290,7 +355,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   chipRecent: { backgroundColor: color.recentSurface },
-  chipWarm: { backgroundColor: color.trendingSurface },
+  /** Gradient + hairline, the category pill's treatment in warm (D085). `overflow`
+   *  clips the gradient to the pill's radius; the flat `trendingSurface` stays as
+   *  the base under it so nothing shows through while the gradient rasterises. */
+  chipWarm: {
+    backgroundColor: color.trendingSurface,
+    borderWidth: 1,
+    borderColor: color.trendingBorder,
+    overflow: 'hidden',
+  },
+  /** A thumb pill stands taller than the canonical 36 so the 32px disc gets real
+   *  air (6px all round, D081) — and at 44 it clears MIN_TAP_TARGET unaided. The
+   *  left inset matches that ring so the disc sits optically centred. */
+  chipThumb: { height: TRENDING_PILL_HEIGHT, paddingLeft: space.s6 },
   chipRemove: { marginLeft: space.xs, alignItems: 'center', justifyContent: 'center' },
   moreChip: {
     flexDirection: 'row',

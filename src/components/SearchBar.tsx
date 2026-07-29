@@ -7,7 +7,7 @@ import Animated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
-import { color, type as t, space, radius, fontFamily, MIN_TAP_TARGET } from '../theme/tokens';
+import { color, type as t, space, radius, fontFamily, elevation, MIN_TAP_TARGET } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 import { EASE } from '../motion/motion';
 import { duration } from '../theme/tokens';
@@ -97,6 +97,7 @@ export function SearchBar({
   showBack,
   autoFocus,
   inputRef,
+  onWash,
   placeholder = 'Search stores, products, cards…',
 }: {
   value: string;
@@ -113,6 +114,12 @@ export function SearchBar({
    *  `autoFocus` only ever fires on first mount and can't raise the keyboard
    *  when search is entered from a chip, nav item, or back-out of the SERP. */
   inputRef?: React.RefObject<TextInput | null>;
+  /** The bar is sitting on a HeroBleed wash (store-hero SERP, D069): the wrap
+   *  drops its white so the wash runs behind it, and the field itself turns
+   *  WHITE — the flat #eef1f6 fill is a grey-on-grey tint that goes muddy over a
+   *  colour, where white reads as a clean floating field. Root fades a white
+   *  underlay back in on scroll, so content never slides visibly beneath it. */
+  onWash?: boolean;
   placeholder?: string;
 }) {
   const hasText = value.length > 0;
@@ -151,14 +158,14 @@ export function SearchBar({
   }));
 
   return (
-    <Animated.View style={styles.wrap}>
+    <Animated.View style={[styles.wrap, onWash && styles.wrapTransparent]}>
       {/* Always mounted so it can slide in/out; width collapses to 0 when hidden */}
       <Animated.View style={[styles.backWrap, backStyle]} pointerEvents={showBack ? 'auto' : 'none'}>
         <Pressable onPress={onBack} hitSlop={12} style={styles.back} accessibilityRole="button" accessibilityLabel="Back">
           <Icon name="back" size={22} color={color.aura.ink} />
         </Pressable>
       </Animated.View>
-      <Animated.View style={styles.field}>
+      <Animated.View style={[styles.field, onWash && styles.fieldOnWash]}>
         <Icon name="search" size={16} color={color.aura.fieldIcon} />
         <View style={styles.inputWrap}>
           {/* Rotating catalog-word placeholder; only while the field is empty. */}
@@ -206,6 +213,8 @@ const styles = StyleSheet.create({
     paddingVertical: space.s,
     backgroundColor: color.surface,
   },
+  // Over a HeroBleed wash (D069): no white band around the field.
+  wrapTransparent: { backgroundColor: 'transparent' },
   backWrap: { height: MIN_TAP_TARGET, overflow: 'hidden', justifyContent: 'center' },
   back: { width: 34, height: MIN_TAP_TARGET, alignItems: 'flex-start', justifyContent: 'center' },
   // Figma searchBar (1668:10754): flat #eef1f6 fill, radius 32, NO shadow.
@@ -219,6 +228,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.xxl,
     paddingHorizontal: space.m, // 16px side padding
   },
+  // On a wash: white field + a soft lift, so it floats on the colour instead of
+  // dissolving into it (the flat grey fill reads as a hole over a tint).
+  fieldOnWash: { backgroundColor: color.surface, ...elevation.soft },
   // Holds the TextInput plus the absolutely-positioned animated placeholder.
   inputWrap: { flex: 1, justifyContent: 'center' },
   // typed text: ink #0e1116, Outfit Medium 14; placeholder Regular (set inline)

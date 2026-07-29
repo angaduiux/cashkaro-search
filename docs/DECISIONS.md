@@ -59,6 +59,26 @@ narrow rule that stays true. The remaining app-side violations the checker repor
 are real drift, not exemptions.
 **Applies to:** scripts/check-context.mjs, src/os/, src/Root.tsx, ScreenNav.tsx.
 
+### D073 — Vertical measurements need REAL time; `--virtual-time-budget` freezes entering animations · 2026-07-29
+**Decision:** when measuring a rect that sits under a Reanimated `entering`
+animation (`FadeInDown` on the SERP hero, and every staggered card), do NOT read
+it from a `--dump-dom` run driven by `--virtual-time-budget`. Reanimated's web
+entering animations are CSS keyframes, which the compositor does not advance under
+virtual time — the element stays frozen part-way through its translate and every
+vertical number is wrong (the hero's 16px gap measured 34–36 three runs running,
+and held steady long enough to look settled). Instead: delay the `load` event with
+a slow subresource, run the probe from `DOMContentLoaded`, poll `getBoundingClientRect`
+until the value repeats, and have the page write the result into a fixed overlay
+that a plain real-time `--screenshot` then captures. Horizontal numbers are safe
+either way — a vertical translate doesn't move them, which is why the 20px
+alignment readings in D071 stood.
+**Why:** three consecutive probe runs reported a gap 18px larger than the code
+implied and stayed stable across samples, which reads exactly like a real layout
+bug — the temptation is to "fix" the padding until the number matches, breaking
+the real layout.
+**Applies to:** any measurement of `src/components/SerpShell.tsx` rows,
+`StoreHero`, or any animated card.
+
 ### D014 — Layout bugs are verified by measuring the DOM, not by eyeballing a screenshot · 2026-07-28
 **Decision:** to prove a layout fix on web: `npx expo export -p web --output-dir
 dist-<name>`, inject a probe script into the built `index.html` that walks the DOM
@@ -282,6 +302,191 @@ in from the same Y keeps the Home → Search handoff reading as one element.
 ---
 
 ## Layout
+
+### D075 — The AI band's air sits under the sheet edge, not above it · 2026-07-29
+**Decision:** [ExpandSearch](../src/components/ExpandSearch.tsx)'s band `marginTop`
+goes back to `space.m` (16, from 40 — superseding the `+24` in commit 8bfa427),
+and the clearance from the sheet's curved edge down to the band's first line of
+text goes from 12 to `SHEET_CLEAR` = `space.s12 + space.xl` (44). The same
+constant is used by both the pitch and the results heading, so the heading does
+not shift against that edge when the pitch settles into results.
+**Why:** the two gaps stack into one uninterrupted white column — 40 of page
+background, then the 40px white sheet end — so the deals carousel appeared to
+float a long way from anything while the AI copy sat tight under the curve,
+reading as the sheet's last line rather than the AI surface's first. Moving the
+air from above the band to below the curve closes the deals section up and puts
+the separation where it does semantic work. Total height barely moves (92 → 100);
+what changes is which element the space belongs to.
+**Applies to:** components/ExpandSearch.tsx.
+
+### D074 — The new-user chip's gift glyph is solid; the icon map stays regular · 2026-07-29
+**Decision:** the welcome-bonus chip in [StoreHero](../src/components/ResultCards.tsx)
+renders `<Icon name="gift" weight="solid" size={10} …>`. `ICON.gift` in
+[iconMap.ts](../src/icons/iconMap.ts) is unchanged (`regular`).
+**Why:** designer call — at 10px an outline gift is a few hairlines on a pale green
+field and reads as a smudge rather than a gift. Fixed at the call site rather than in
+the map because the map's other consumer is the Home clone's bottom tab bar, where
+`gift` sits at 18px beside four other outline tabs (home, rupee, search, user) — a
+solid glyph there would break a row that is pixel-matched to the production app. This
+is what `Icon`'s `weight` prop is for; the map still owns *which glyph*, the call site
+owns *how heavy* when the size demands it. Verified on the built page: the chip's
+glyph computes `font-family: FA6Pro-Solid` at U+F06B, and both bundled faces carry
+that code point (checked with fontTools, so the change can't silently render tofu).
+**Applies to:** the one `Icon` in `StoreHero`'s `isNew` chip. Not a general rule that
+small icons go solid — no other call site changed.
+
+### D077 — The deals rail's glow may not spill DOWNWARD, and the AI band sits 8px under it · 2026-07-29
+**Decision:** `dealGlow`'s bottom reach drops from `-space.huge` (64) to
+`-space.s` (8) — the other three sides keep their spill — and
+[ExpandSearch](../src/components/ExpandSearch.tsx)'s `band` marginTop goes 16 → 8.
+**Why:** the band paints an opaque white sheet directly under the deals section,
+so the half of the glow that spilled below the rail was covered rather than seen,
+ending the bloom in a hard horizontal line (the "glow is clipping from the bottom"
+report). Pulling the bed in lets the ramp reach zero above that edge, so there is
+nothing left to cut. The gap change is the same problem from the other side: the
+band's own sheet-end curve already reads as air below the deals, so an outer 16px
+on top of it stacked into ~60px of dead white between the pagination dots and the
+aura. Supersedes the 16 recorded on the band (itself superseding a +24).
+**Applies to:** components/ResultCards.tsx `dealGlow`, components/ExpandSearch.tsx `band`.
+
+### D076 — Web-search cards name the merchant in a muted footer; catalog cards don't · 2026-07-29
+**Decision:** `ResultItem` gains an optional `retailer { name, logo }`, set ONLY
+by [webResults.ts](../src/data/webResults.ts). `ProductCard` renders it as the
+card's last row — hairline rule, 14px mark, `caption10Medium` in `priceMuted`,
+reading "on Amazon". The merchant is chosen per product by the same stable hash
+the feed already uses, from a category → merchant map whose values are
+`storeTiles.ts` keys only, so the mark is the same Figma asset the store cards
+use and no off-design brand can reach the screen (AGENTS.md).
+**Why:** a Google-Shopping result's shop is the one fact a catalog card doesn't
+imply, and the grid mixes shops. Driving it off a contract field rather than a
+component flag keeps it off the SERP product rails and category pages, which
+share `ProductCard` and would otherwise all grow a footer. It is the quietest row
+on the card by design — the brief was "balanced and non-intrusive".
+**Applies to:** data/dataContract.ts (`retailer`), data/webResults.ts,
+components/ResultCards.tsx `ProductCard`.
+
+### D072 — `BrandThumb` takes a `scale`, and the store hero's logo runs at 0.65 · 2026-07-29
+**Decision:** [BrandThumb](../src/components/ImageSlot.tsx) gained an optional
+`scale` (default 1) that shrinks the logo inside the tile without touching the
+tile; `StoreHero`'s 88×60 thumb passes `scale={0.65}` (first shipped at 0.5, then
+taken up 30% on review). Every other BrandThumb
+(store rows, suggestions, finance cards) is unchanged.
+**Why:** designer call on the Myntra hero. The symbol-only assets (D066) are
+cropped tight to their ink box, so at the tile's default 0.96×0.86 they reach its
+edges where a lockup would have left air. A prop on the shared component keeps
+the change to the one call site that wanted it.
+**Applies to:** ImageSlot.tsx `BrandThumb`, ResultCards.tsx `StoreHero`.
+
+### D071 — In bleed mode the hero has no padding of its own; the page's 20px is the only inset · 2026-07-29
+**Decision:** `heroBleed` (ResultCards.tsx) drops the hero's `padding: space.m`
+for a `paddingTop` of `space.s` (8) only — no horizontal padding — so logo, title,
+figure, chip, CTA and timeline strip all inherit the page column's `space.m20` and
+sit at 20px like every other row. The "Cashback Timelines" label's 4px nudge is
+zeroed in bleed mode too. Measured on the built page (D014/D073) at 500px: context
+line, "Up to", timelines label, CTA box and brand tile all land on `left: 20`, and
+the context line's bottom → logo-tile top gap is 16.00 (the context row carries
+8px of its own bottom padding, so the hero adds only the other 8). The boxed
+(Gallery) variant keeps its 16px card padding.
+**Why:** the 16px hero padding was measured from a card edge. With the card gone
+it stacked on the page's 20 and pushed the whole hero to 36px — every hero row
+sat 16px right of the context line above it and the section heads below.
+**Applies to:** ResultCards.tsx `StoreHero` bleed mode.
+
+### D070 — The hero CTA follows the Store Page V2.0 sticky-button spec, and hero percentages carry 2 decimals · 2026-07-29
+**Decision:** [StoreHero](../src/components/ResultCards.tsx)'s CTA reads
+"Earn Cashback on {Store}" for every store with cashback (both user types;
+`ctaLabel`/"Visit Store" stays the no-cashback fallback), set in 16/SemiBold with
+a 12px solid arrow-up-right at gap 4 (Figma 1716:74837/74840) on the CK Orange
+`aura.ctaHero` fill, under a looping soft-light `Shine` sweep. The bundled
+FA6Pro subset has no `arrow-up-right` (e09f), so iconMap's `earn` maps to
+`arrow-up` (f062) and the call site rotates it 45° — the identical shape. Hero
+cashback *percentages* (big figure + "Up from" chip) always show 2 decimals
+("6.00%"); flat ₹ keeps Indian grouping with no decimals, because the formatter
+can't group and round at once without inventing paise.
+**Why:** designer-supplied screenshot + Figma spec for the store money page; the
+per-store CTA names the earn action, and 2-decimal rates match the production
+app's money formatting.
+**Applies to:** ResultCards.tsx `StoreHero`, [motion/Shine.tsx](../src/motion/Shine.tsx),
+[icons/iconMap.ts](../src/icons/iconMap.ts).
+
+### D069 — Store-hero SERPs paint a full-bleed HeroBleed backdrop, mounted above the status bar · 2026-07-29
+**Decision:** the store hero's wash/orbs no longer live in a rounded card. A
+non-scrolling [HeroBleed](../src/components/HeroBleed.tsx) layer (wash gradient +
+brand-tinted Aura orbs + a 300px white dissolve, 620 tall) is mounted by
+[Root](../src/Root.tsx) as the **first child of the app column — above the mock
+status bar, outside `stageBody`** — so one gradient runs from the device's
+physical top edge. Every chrome layer over it goes transparent on a store-hero
+SERP: `StatusBar` (`transparent`), the search-bar wrap (`onWash`, which also
+turns the field white), and `SearchBody`'s page fill. `StoreHero` renders
+content-only (`bleed`) and SerpShell's scroller is transparent. A `serpScrollY`
+shared value (written by SerpShell's animated scroll handler) drives the
+backdrop's 0.4× parallax + fade and fades white back in under BOTH chrome strips
+on one shared opacity (16→96px scroll): a veil behind the status-bar glyphs, and
+the in-stage underlay behind the search bar. Gated off while any full-page
+overlay is open. Finance/card heroes and the Gallery preview keep the old
+self-contained card (`isStoreHeroItem`). Known limit: on native the device's own
+status-bar inset stays white — the mock chrome is web-only.
+**Why:** the boxed hero read as a card floating on a white page; bleeding the
+scene to the physical edges is the W4 intent and reads dramatically better.
+Mounting inside the search layer (the first attempt) could never reach the top:
+`stageBody` sets `overflow: hidden` and starts below the status bar, so the wash
+was clipped at that line and a flat status-bar tint was needed to fake it — a
+flat fill can't stay seamless against a gradient, and the two desynced as the
+wash faded. One layer above all chrome removes the whole class of seam. The two
+white veils share one opacity for the same reason.
+**Applies to:** HeroBleed.tsx, Root.tsx, SearchBody.tsx, SerpShell.tsx,
+ResultCards.tsx `StoreHero`, SearchBar.tsx, os/StatusBar.tsx.
+
+### D067 — The hero cashback figure gets air on both sides, and "Cash Back" is 22 · 2026-07-29
+**Decision:** in [StoreHero](../src/components/ResultCards.tsx): the "Up to" / "Flat"
+qualifier's `marginBottom` is `space.s` (8, was `space.xxs`/2 → 12px total under it
+with the container's 4px gap), `heroBig`'s gap is `space.s` (8, was `space.xs`/4),
+and the "Cash Back" label is `t.heading22SemiBold` (was `heading18SemiBold`).
+**Why:** designer call on the Myntra hero. The 52px figure carries -0.52 tracking
+and ends on a `%`, whose open counter reads as space that isn't there — at 4px the
+"C" of "Cash Back" sat against it. Above it, the figure's tight lineHeight (54 on
+52) crops its ascent, so 6px let "Up to" read as the figure's hat rather than its
+own line. The label moving 18 → 22 is the same reason in reverse: at 18 against a
+52px figure it read as a caption on the number instead of the other half of the
+phrase. Measured on the built page (D014): qualifier-bottom → figure-top 12.00,
+figure-right → label-left 8.00, label 22px.
+**Applies to:** ResultCards.tsx `StoreHero` only — the compact cashback treatments
+(`CashbackElement`, store tiles, product pills) are untouched.
+
+### D066 — Myntra's logo is the symbol alone, not the lockup · 2026-07-29
+**Decision:** `BRAND.myntra` in [data/realData.ts](../src/data/realData.ts) points at
+`assets/brands/myntra-mark.png` — the M symbol cropped out of the full lockup at the
+widest column gap in its alpha profile (x 0–719 of 1520, the wordmark starts at 786),
+tight to its ink box at 720×495. The original `myntra.png` stays on disk as
+provenance.
+**Why:** designer call. The lockup printed the word "Myntra" beside the mark, which
+(a) repeated the store name already set in 22px next to the tile and (b) left the
+mark visually off-centre — a 3.07:1 image in an 88×60 tile is width-bound under
+`resizeMode: contain`, so the mark sat hard left with the tile's whole right half
+given to the word. At 1.45:1 the crop is height-bound instead, so `BrandThumb`'s
+existing centring does the rest and no layout change was needed. Cropping the ASSET
+rather than adding a per-brand inset keeps the fix where the problem is: every
+surface that shows Myntra (hero, suggestion rows, jump-back-in tiles) gets it.
+**Applies to:** assets/brands/myntra-mark.png + the one `BRAND.myntra` row. Other
+brands keep their lockups — this is not a rule that logos must be symbol-only; it is
+one brand whose wordmark duplicated adjacent copy.
+
+### D065 — A credit-card USP row is exactly one line, ellipsised · 2026-07-29
+**Decision:** the copy in [CreditCard](../src/components/CreditCard.tsx)
+`BenefitRow` renders `numberOfLines={1}`, so two USP rows are always two rows tall
+and a long benefit ends in "…" instead of wrapping.
+**Why:** designer call on the Flipkart card, whose two bullets ("5% cashback on
+Flipkart & Cleartrip (cap ₹4,000/quarter)", "₹250 Flipkart welcome voucher ·
+unlimited 1% everywhere else") each wrapped to two lines at phone width and pushed
+the fee strip and CTA down — so the card's height tracked how wordy the feed was
+rather than what the card contains, and two cards side by side in the finance stack
+ended on different baselines. It also moves the component *toward* the spec, which
+clips this copy at 280.4px on a fixed 328 frame; the header's deviation note is
+updated to match (the clip width is now whatever the fluid card leaves, measured at
+280px on a 390pt device — the mock's number, by coincidence).
+**Applies to:** CreditCard.tsx `BenefitRow` only. [FinanceCard](../src/components/FinanceCard.tsx)
+still allows 2 lines on its `full` variant (loans / savings) and 1 on `compact` —
+left as-is deliberately, since it was not the surface in question.
 
 ### D064 — Every priced product card ends on a Final Price, and grid cells hug their own content · 2026-07-29
 **Decision:** two changes that only make sense together. (1)
@@ -919,6 +1124,328 @@ components/SerpShell.tsx `couponRail`.
 ---
 
 ## Motion
+
+### D086 — Trending is TWO looping rails that drift, not a wrapping row · 2026-07-29
+**Decision:** the trending pills move into `motion/LoopRail.tsx` — a horizontal
+scroller whose children are laid out three times, parked in the middle copy, with
+the offset normalised into `[W, 2W)` on every tick. `ExploreHome` deals the pills
+into two rails (greedy by label length, so the rows balance) drifting opposite ways
+at ONE speed, ±10 px/s — only the direction differs, so the pair reads as one
+mechanism counter-rotating rather than as two loosely related rows. Gutters are `space.s12` (12) on both axes; the rails are
+full-bleed (`bleed={space.m20}`) and carry no content padding, so pills run off both
+edges the way a marquee should. Drift is a plain `requestAnimationFrame` loop
+writing `scrollTo`; a drag pauses it and hands back its end position.
+**Why:** seven pills at 44px tall wrapped to four rows once the disc landed (D081),
+and the brief was two lines at any pill count — a rail does that where a wrapping
+row cannot. Three copies rather than two is what makes a manual drag endless in
+BOTH directions: with two, dragging back stops at offset 0, because RN has no
+content to the left of it. Normalising by a full copy width is invisible precisely
+because the pixel under the finger is identical. rAF rather than a Reanimated
+worklet: `scrollTo` in a worklet is a native-only path and this rail has to move in
+the web preview too — the same reasoning that keeps count-ups on rAF (D068). At
+10px/s a frame moves a sixth of a pixel, so the loop costs one imperative call per
+frame and nothing else.
+**Copy count is derived, not fixed at three:** `Math.ceil(vw / W) + 3`. A scroller
+clamps at `content − viewport`, so with three copies a set narrower than the
+viewport puts offset 2W *past the end* — and a rail drifting RIGHT, which wraps to
+2W on its very first tick, sits pinned there looking frozen. That is exactly how the
+second rail presented ("bottom line is not moving"): the top rail drifts up from W
+and never reaches the clamp, so only the reversed one showed it.
+**Applies to:** motion/LoopRail.tsx, screens/ExploreHome.tsx (`trendingRows`, the
+Trending block, the `chips` gutter). Reduced motion arms no frame loop — the rails
+stay ordinary scrollers.
+**Verified:** web export at real elapsed time (see D081 on holding the load event
+open): row 1's content moved ~200px LEFT between 6s and 26s, row 2's the same
+distance RIGHT (measured while row 2 still ran at −8; the magnitudes were equalised
+after), gutters measured 12, and all 21 mounted discs (7 pills × 3 copies)
+carried both reel frames with the visible layer at opacity 1 — the three that read
+static are the savings pill, whose reel is a single illustration.
+
+### D085 — Trending pills wear the category pill's treatment in warm, and a gif mark sits tighter than a glyph · 2026-07-29
+**Decision:** `ExploreHome`'s trending (`warm`) chip gets the category pill's own
+treatment (Figma 1646:7349) — a white → tint vertical `LinearGradient` under a 1px
+hairline — in WARM rather than cobalt: `color.surface` → `color.trendingSurface`
+with `color.trendingBorder` (new token, `palette.borderSubtleWarm` `#f1e0d1`). Size
+is untouched: `PILL_HEIGHT` 36 with the border inside the box. Separately, a `Head`
+rendered with a `gif` mark paints it at 30×30 (1.5× the 18px glyph) and drops the
+row gap to `space.xxs` via `headLeftGif`; glyph heads keep `space.s6`.
+**Why:** the two pill families sat side by side reading as two systems — one
+gradient-and-hairline, one flat fill. Matching the treatment and keeping the hue is
+what makes trending part of the set without giving up the orange that says
+"trending". `#f1e0d1` is derived, not picked: the same step down from its surface
+that `borderSubtle` `#dddce7` is from `cobalt50`, applied to `#fff4e9` — a cool
+hairline around a warm pill is the one thing that reads as a mistake. The flame gif
+carries its own transparent margin, so at 30px the 6px a glyph needs reads as a gap.
+**Applies to:** screens/ExploreHome.tsx (`Chip` warm branch, `Head`, `chipWarm`,
+`headLeftGif`, `headGif`), theme/tokens.ts (`trendingBorder`, `borderSubtleWarm`).
+
+### D084 — The deals rail is scroll-driven, pages itself on web, loops through a second copy, and glows from UNDER the artwork · 2026-07-29
+**Decision:** `DealsCarousel` was rebuilt around one shared value — the live scroll
+offset — plus four things that follow from it:
+- **Everything reads that offset.** Artwork depth (`DealSlide`: the art trails its
+  page by 9% of a page width, scaling 1 → 0.93 and dimming to 0.55 on the way out,
+  clipped by `overflow: hidden` on the page) and the indicator both track the finger
+  frame by frame. The pages themselves never move — snap step stays the measured
+  integer (AGENTS.md).
+- **The indicator morphs.** Every page renders ONE capsule that grows from the
+  spec's dot (8→6→4→2 px at 80→60→40→20%) into the "n/total" pill as it takes the
+  middle of the screen, with the label's ink crossing from the outgoing page to the
+  incoming one. Distance wraps (`min(d, count − d)`) because the rail wraps. The
+  pill's width is the measured width of the widest label ("n/n"), so it never twitches.
+- **Auto-advance is a timed scroll**, `timingTravel` (new: `easing.spatial`
+  `[0.32, 0.72, 0, 1]` over `duration.hero`) written to the offset through
+  Reanimated's `scrollTo`, one page per move, held off for 6s after any touch.
+- **It loops.** Pages are rendered twice and any landing past the first copy is
+  moved back by one copy's width onto the identical banner, so the wrap is a
+  one-page move instead of a rewind across the whole strip. The second copy exists
+  only when the pager actually advances itself (not under reduced motion).
+Plus the glow: `bottomBloomFill` replaces `centredGlowFill` here — a wide, low,
+LIGHT bloom (`peak` 0.36, radii 100% × 24% of the bed, centre at 84% of its height)
+that rises from under the banner instead of sitting behind it, with `dealGlowFade`
+dissolving its bottom into the page.
+**Why:** every animation used to key off the `page` state, so it moved *after* the
+swipe was already over — the pill jumped a whole slot, the dots eased on a 260ms
+timer of their own, and the banner slid flat. Driving all of it from the offset is
+what makes it read as one continuous object. The travel needed its own curve because
+the platform's animated scroll has one fixed ease; `spatial` leaves fast and spends
+half the duration arriving, where `emphasized` eases IN first and over a whole page
+width looks like the content hesitated. Measured on the built page: 52–53 frames per
+525–534ms travel, no gaps. Two web-only findings are load-bearing and cost hours:
+`pagingEnabled` compiles to `scroll-snap-type: x mandatory`, and the browser
+re-snaps EVERY frame of a programmatic scroll — the travel collapsed to an instant
+jump (378 → 756 between two 40ms samples), and neither an inline style nor a
+re-render lifts snap in time for the frame the travel starts on, so on web paging is
+ours: the rail scrolls freely and settles to the nearest page 140ms after the last
+scroll event, on the same curve. And a travel that gets replaced must not release
+the rail — assigning `drive` a plain value cancels the previous animation, whose
+callback fires with `done=false` at the START of the next travel and dropped the
+driver 200ms into a 600ms move. The glow moved because a core hidden behind an
+opaque PNG (D036) is a glow you can only see in a 16px margin; centred low, its
+core lands in the open whitespace under the artwork, which is why `peak` drops from
+0.95 to 0.36 — measured ~33% alpha under the banner, ~10% at the screen edges, zero
+before the next section, so D077's no-spill-downward rule still holds.
+**Applies to:** components/ResultCards.tsx (`DealsCarousel`, `DealSlide`,
+`PageIndicator`, `IndicatorSlot`, `dealGlow`, `dealGlowFade`), motion/Aura.tsx
+(`bottomBloomFill`, `radialFill` explicit radii), motion/motion.ts (`timingTravel`,
+`EASE.spatial`), theme/tokens.ts (`easing.spatial`).
+
+### D082 — Every chip answers a press with the Button's scale spring · 2026-07-29
+**Decision:** `ExploreHome`'s `Chip` (recent AND trending) wraps its `Pressable` in
+an `Animated.View` and springs `scale` to 0.97 on press-in, back on release, with
+`spring.snappy` — the exact treatment `components/Button.tsx` already uses (§9.4
+"card press / tap"). No new curve, no opacity dip, no colour change.
+**Why:** the chips had NO press feedback at all, so a tap read as hitting a label
+until the screen changed ~150ms later. Reusing the button's spring rather than
+inventing a chip-specific one keeps every tappable surface answering the finger the
+same way, and it is transform-only, so it survives Reanimated's JS-only web path.
+**Applies to:** screens/ExploreHome.tsx `Chip`. The nested remove button on a
+recent pill still gets its own hit target; the scale wrapper does not intercept it.
+
+### D081 — A trending pill leads with a rolling SKU disc, reeled off one monotonic clock · 2026-07-29
+**Decision:** trending chips drop the `search` glyph for a 32px circular thumb
+(`PILL_THUMB`) that rolls to another real product image every 4.2–7.8s, and the
+pill grows to `TRENDING_PILL_HEIGHT` (44) to hold it — the only pill in the app
+that is not `PILL_HEIGHT` (D054). Three parts:
+
+1. **Content** — new `data/trendingPills.ts` owns the queries and resolves each
+   reel from the app's own resolvers (D004): `searchProducts`, narrowed to the top
+   hit's brand and topped up from that brand's catalog; else the matched store's
+   category, round-robined over `sub`; else a curated vertical set for queries with
+   no SKU — travel rolls its destination brands' tile logos, cards roll the real
+   card renders. Lazy memo, never module scope (D024).
+2. **Motion** — `motion/RollingThumb.tsx`. `p` counts steps monotonically and each
+   slot's position is a PURE function of it: `d = (i - p) mod 2`, wrapped into
+   (-1, +1]. Pacing is a self-scheduling timer; JS's only job is to set the image on
+   the slot that is currently invisible, one step ahead.
+3. **Surface** — a white disc with `elevation.xs` plus an overlay carrying an inset
+   well (`thumbWellShade` top cast, `thumbWellSheen` bottom return, `thumbWellRing`
+   hairline), so the photo sits *in* the disc.
+
+**Why:** asked for pills that don't read as static, then for 32px SKU imagery with
+a realistic inner shadow. The reel is arithmetic rather than callback-driven
+because the first build DID recycle slots from the timing callback, reading `p.value`
+back on the JS side: two settles fire per roll (touching `p.value` yourself finishes
+the running animation, which calls the callback again), JS-side reads of a shared
+value mid-animation are stale by design, and the bases walked past `p` until all
+five circles were empty. With modular positions there is no recycle step to drop.
+Cadence is randomised per instance so the five pills never pulse in lockstep, and
+the roll is `spatial` over `duration.slow` with a cosine opacity ramp — the two
+images cross at ~0.7 each, so mid-roll never dips towards an empty circle. Under
+reduced motion no timer is armed and the first image just sits there (§9.6).
+**Amended 2026-07-29 (same session), geometry + timing:** the disc is `PILL_THUMB`
+40 in a `TRENDING_PILL_HEIGHT` 52 pill (the same 6px ring of air), and the roll runs
+`duration.hero` (600) with a 6–11s dwell. At 400ms over a 40px disc the roll read as
+a flick rather than as a reel turning, and the disc is the section's whole point, so
+it takes the size and the pill follows.
+
+**Amended 2026-07-29 (same session):** the set grew to seven with two finance
+verticals — `personal loan` (matched on the word by `financeSerp` → the loans page,
+D052) and the savings case, whose full key is long, so `TrendingPill` gained a
+`label` distinct from `query`: the pill reads "savings account", the tap commits
+"zero balance savings account". Same `goto`-vs-`title` split the type-ahead rows
+use. Reel resolution now checks `VERTICAL_REELS` FIRST and stops there for a
+vertical query — `searchProducts` scores on "either string contains the other", so
+the long savings phrase picked up a stray `phone`-class keyword and rolled
+headphones. A vertical with no bundled art at all (savings: every bank on that page
+carries a favicon-CDN logo, which the app never puts on a tile) falls to its
+category illustration, so no pill can regress to the glyph the disc replaced.
+**Applies to:** motion/RollingThumb.tsx, data/trendingPills.ts,
+screens/ExploreHome.tsx (`Chip` gains `images`, `chipThumb`), theme/tokens.ts
+(`PILL_THUMB`, `TRENDING_PILL_HEIGHT`, `thumbWell*`).
+**Verified:** web export, measured in Chrome — pill 44h / padding-left 6, disc
+32×32 carrying both inset stops and the ring, and the reel showing a DIFFERENT
+frame per pill at 9s / 11s / 12s. Note for the next chat: a
+`--virtual-time-budget` screenshot shows every disc EMPTY even when the reel is
+correct (D035 again). Hold the load event open with a stalled `<img>` instead — a
+blocking `<script>` does not work, because the app bundle is `defer` and would not
+mount until the holder resolved.
+
+### D083 — The catalog grid's container measures WIDER than the frame; card widths may not be derived from it · 2026-07-29
+**Decision:** [CatalogViewAll](../src/screens/CatalogViewAll.tsx) keeps its fixed
+96px tiles with `justifyContent: 'space-between'`. Do NOT size those tiles from a
+measured or percentage width until the bug below is fixed. A request to widen the
+cards to a 16px gutter was attempted and REVERTED.
+**Why:** the grid's own box measures **~426px inside a 390pt frame** — the
+`gridContent` horizontal padding escapes the width computation, so the row is
+~76px wider than the screen. Anything derived from that width overflows and the
+third column is cut off at the screen edge. Four approaches were built and
+measured, all failing the same way: measuring the grid View (138px cards),
+measuring the scroller (132px), clipping the screen root and measuring it (132px),
+and a measurement-free percentage basis (129px — `30.28%` of a 426px box is 129,
+not the intended 106). Measuring the grid is additionally a feedback loop: an
+over-wide row inflates the box it is measured from, and it settles at a stable
+wrong answer.
+**Consequence worth knowing:** the gutters people see in that grid today are ~26-31px,
+and that is NOT a design value — it is the phantom width, spread by `space-between`
+across two gaps. Fixed 96px tiles are what hide the bug (3 × 96 = 288 fits inside
+even a 426px row), which is why it has gone unnoticed.
+**The real fix, for whoever takes it:** find why the ScrollView content container
+resolves ~40px wider than its frame (padding treated as content-box, most likely)
+rather than compensating in the cards.
+**Applies to:** screens/CatalogViewAll.tsx, and any future grid inside a padded
+`contentContainerStyle`.
+
+### D080 — The full-bleed hero has its own orb LAYOUT, clustered on the logo · 2026-07-29
+**Decision:** `AuraField` takes an optional `specs` (default the shared `ORBS`),
+and the hero passes a new exported `HERO_ORBS`: five centres between y 120 and
+300 — on the brand logo and the cashback figure — with smaller amplitudes so they
+drift within the cluster instead of sweeping the field. The hero also goes to
+`scale` 1.25 / `amp` 1.4, and `FAN_PEAKS` up to 0.85 → 0.5.
+**Why:** the shared layout puts its five centres at the CORNERS of the box, which
+is right for a control-sized card and wrong for a 620px scene: two orbs sat below
+the fold, the rest behind the search bar, so the light pooled where there was
+nothing to light. Asked for "down near the brand logo, bigger and brighter".
+At scale 1.25 each pool reaches ~184px, so the cluster covers the logo → figure
+band and still fades before the white dissolve at y 320.
+**Applies to:** motion/Aura.tsx (`HERO_ORBS`, exported `OrbSpec`, `specs` prop),
+components/HeroBleed.tsx. The shared `ORBS` set is untouched, so the AI Expand
+band and voice sheet keep their layout.
+
+### D079 — The hero's orbs are bright near-WHITE pools, not brand-coloured ones · 2026-07-29
+**Decision:** `brandOrbFan` returns five near-white fills — the brand hue at
+`FAN_SATS` 0–0.16 and `FAN_LIGHTS` 0.95–1.0, at peaks 0.62 → 0.36 — instead of a
+fan of brand hues. Supersedes the hue fan of D075 and the lightness band of D078
+(both were attempts to make colour-on-colour work). The boxed hero keeps
+`brandOrbFills`; only the full-bleed hero uses this.
+**Why:** the orbs take the wash's own hue by construction (D060), so on any brand
+they are the same colour as the thing behind them and can only separate on
+lightness — which is a knife-edge, and Myntra fell off it (D078). A near-white
+pool separates from ANY tinted wash regardless of the brand, and it LIFTS the
+field rather than adding more of the colour the page already has, which also
+serves the "less pink" note. Composited at each orb's peak over the real washes:
+14–31/255 of lightening on Myntra and Flipkart alike, against the 0.32 mean the
+coloured fan managed. A breath of brand saturation is kept so the pools belong to
+the page instead of reading as five grey smudges.
+**Applies to:** motion/Aura.tsx (`brandOrbFan`, `FAN_SATS`, `FAN_LIGHTS`,
+`FAN_PEAKS`); the now-unused hue-fan helpers were removed.
+**Still unverifiable in the harness:** radial gradients do not render in the web
+export (D078), so this was checked by computing the composite of each orb over
+each brand's wash, not from a screenshot.
+
+### D078 — Fan orbs are clamped into a mid-lightness band, because they share the wash's hue · 2026-07-29
+**Decision:** `fanHue` no longer follows the tint's own lightness. Every fan orb
+is pulled into `FAN_L_MIN`–`FAN_L_MAX` (0.44–0.62, ±lift), regardless of how pale
+the brand tint deepens to.
+**Why:** reported as "the blobs work on Flipkart but not on Myntra" — a
+data-dependent split, not a rendering bug. `deepenTint` amplifies CHROMA and
+leaves lightness alone, so a bright tint deepens to something very pale: Myntra's
+`#ff3f6c` lands at L 0.765, essentially the lightness of the wash it is painted
+on. An orb that shares its background's hue AND its lightness is invisible at any
+alpha or travel — which is why raising peaks from 0.34 to 1.0 moved the rendered
+page by a mean of 0.32/255. Orbs are same-hue by construction (D060), so
+lightness is the only axis left to separate them on. After the clamp every brand's
+orbs sit at L 0.56–0.68 against a wash at 0.76–0.79.
+**MEASUREMENT LIMIT — read before "verifying" any orb work:** radial gradients do
+NOT render in the web export. A probe pair inside `AuraField` — a solid-red View
+and an identical View with `radialFill` — showed the solid one painting and the
+gradient one invisible, so `backgroundImage` is being dropped by react-native-web.
+Every orb in the app is therefore absent from the web preview and from every
+headless screenshot, which is what made a data bug look like a frozen clock for
+several rounds (D075's stalled-clock note is probably the same illusion: nothing
+was moving because nothing was drawn). `radialFill`'s web branch was briefly
+switched to `experimental_backgroundImage`; that did NOT fix web either and it was
+REVERTED, because the structured native path is confirmed working on device
+(Flipkart) and must not be risked to chase a preview-only defect.
+**Applies to:** motion/Aura.tsx (`fanHue`, `FAN_L_MIN`/`FAN_L_MAX`).
+
+### D075 — The hero wash is half-alpha and its orb field is a five-hue fan; the chrome veil is not web-only · 2026-07-29
+**Decision:** three tuning changes to the full-bleed hero (D069), all additive so
+the AI Expand band and voice sheet keep their tuning:
+1. `HeroBleed`'s flat wash paints at `WASH_ALPHA` **0.3** — the base is a hint of
+   the brand; the field, not the wash, carries colour into the scene.
+2. New `brandOrbFan(tint)` in [Aura](../src/motion/Aura.tsx) gives five hues
+   (`FAN_OFFSETS`, each clamped inside the brand's hue family by `fanHue`, so
+   D060's one-temperature rule still holds) instead of `brandOrbFills`' two.
+3. `AuraField`/`Orb` take `amp` and `scale` (both default 1). The hero passes
+   `amp` 2.2, `scale` **0.8** and `rate` 1.6.
+4. `fanHue` FLIPS its rotation direction when the requested side is boxed in,
+   instead of clamping to no rotation, and each orb takes a `FAN_LIFTS`
+   lightness offset. Peaks came back down to `[0.34 … 0.20]`.
+Point 4 is the one that mattered: a brand sitting at its hue family's edge —
+Myntra's `#ff3f6c` is 344°, 4° from the top of the warm arc — had every negative
+offset collapse onto the brand hue, so THREE OF FIVE ORBS WERE THE SAME COLOUR as
+each other and as the wash. No amount of alpha or travel can make a blob visible
+against a field of its own colour; that, not the tuning, is why the hero read as
+one flat pink. The lightness fan does the same job without adding chroma, which
+is what let the field gain structure while getting less pink overall: measured
+background chroma 43.8 → 26.3 with spatial sd 21.6 → 13.0 (against 8.8 / 4.9 for
+the original two-hue field).
+`scale` is below 1 deliberately: five 320px orbs blanket a 500px-wide scene, so
+the first attempt (2× alpha, 1.3× size) just doubled the whole field's chroma —
+measured 31 → 62 mean — and read as a *stronger flat wash*. Prominence needed
+contrast and travel, not density: smaller orbs leave gaps, and gaps are what makes
+motion legible. Final measured background chroma 43.8 with spatial sd 21.6, against
+8.8 / 4.9 before — i.e. structure, not just more pink.
+**MEASURED CAVEAT, UNRESOLVED:** in the headless harness the Aura clock advances
+to ~480ms after mount and then stops — orb positions were byte-identical at t=4s,
+8s and 12s across separate loads, while `prefers-reduced-motion` was false and rAF
+ran at ~118fps. So the orbs may not be drifting at all, which would explain the
+"blobs are invisible" report better than any tuning. Two hypotheses were tested and RULED OUT: `prefers-reduced-motion`
+(measured false, rAF at ~118fps) and a disabled sibling clock stopping the shared
+loop (`StoreHero`'s `useAuraClock(!bleed)` forced to `true` changed nothing).
+`useFrameCallback` is shared by ExpandSearch and VoiceBlobs, and both retime it
+through `clock.rate`, so it was NOT rewritten on headless-only evidence. Note for
+whoever picks this up: a naive `withRepeat(withTiming(...))` clock is NOT a valid
+replacement — VoiceBlobs drives `rate` continuously from voice amplitude, and
+restarting a repeat on every rate change would pin it at zero. The accumulator is
+load-bearing; the driver is what needs fixing.
+**Applies to:** motion/Aura.tsx (additive: `brandOrbFan`, `fanHue`, `FAN_*`,
+`amp`/`scale`), components/HeroBleed.tsx, Root.tsx, os/StatusBar.tsx.
+
+### D068 — Count-ups roll a plain Text with rAF, never Reanimated `animatedProps.text` · 2026-07-29
+**Decision:** [CountUp](../src/motion/CountUp.tsx) no longer drives a disabled
+TextInput through `useAnimatedProps` — it re-renders a `<Text>` from a
+requestAnimationFrame loop (700ms, easeOutCubic), exactly like `CountUpText`.
+The sizer-overlay pattern in `StoreHero` is unchanged (the overlay is now a Text).
+The in-view gate stays: the roll starts on the first `useInView` tick (mount on
+native, first IntersectionObserver callback on web) and replays on scroll re-entry.
+**Why:** on the new RN architecture (Expo 57 / Fabric) and on RN-web ≥0.19,
+per-frame `text` updates from animatedProps are silently dropped — the hero's
+cashback figure never rolled on page load; it just sat at its final value. A
+state-driven Text is deterministic everywhere, and one figure re-rendering at
+60fps for 700ms costs nothing measurable. The original worklet rationale
+(no per-frame React renders) optimised a path that didn't work.
+**Applies to:** motion/CountUp.tsx; consumers unchanged (`StoreHero` figure).
 
 ### D060 — A brand aura carries TWO hues: the tint and its same-temperature neighbour · 2026-07-29
 **Decision:** `brandOrbFills` (motion/Aura.tsx) no longer paints all five orbs in one

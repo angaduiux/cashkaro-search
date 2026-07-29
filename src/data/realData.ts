@@ -28,7 +28,11 @@ export const BRAND: Record<string, { logo: string | number | null; bg: string }>
   pharmeasy: { logo: require('../../assets/brands/pharmeasy.png'), bg: '#10847e1a' },
   beyoung: { logo: require('../../assets/brands/beyoung.png'), bg: '#fde68a55' },
   cleartrip: { logo: require('../../assets/brands/cleartrip.png'), bg: '#ff6d1d1a' },
-  myntra: { logo: require('../../assets/brands/myntra.png'), bg: '#ff3f6c1a' },
+  // Symbol only. The full lockup (`myntra.png`, kept as provenance) put the word
+  // "Myntra" beside the mark, which repeated the store name printed next to the
+  // tile and left the mark off-centre in it — the wide art filled the box's width,
+  // so `contain` had nothing left to centre (D066).
+  myntra: { logo: require('../../assets/brands/myntra-mark.png'), bg: '#ff3f6c1a' },
   amazon: { logo: require('../../assets/brands/amazon.png'), bg: '#ff990022' },
   bodyshop: { logo: brandLogo('thebodyshop.com'), bg: '#00423614' },
   // Body Cupid: no reliable favicon found — honest initial-letter fallback.

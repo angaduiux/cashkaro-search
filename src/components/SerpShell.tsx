@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import Animated, { FadeIn, FadeInDown, useAnimatedScrollHandler, runOnJS, SharedValue } from 'react-native-reanimated';
 import { SerpModel, SerpSection, TabKey, ResultItem } from '../data/dataContract';
 import { color, type as t, space, duration } from '../theme/tokens';
 import { SectionHeader } from './atoms';
@@ -24,11 +24,21 @@ export function SerpShell({
   loading = false,
   preview = false,
   userType = 'existing',
+  heroBleed = false,
+  scrollY,
   onViewAllStores,
   onOpenCategory,
 }: {
   model: SerpModel;
   webResults?: ResultItem[];
+  /** Store-hero pages under a full-bleed HeroBleed backdrop (D069): the shell
+   *  goes transparent so the backdrop shows through, and the hero renders
+   *  content-only. The Gallery preview never sets it — there the hero keeps
+   *  its self-contained card wash. */
+  heroBleed?: boolean;
+  /** Written from the scroll handler — drives the HeroBleed parallax/fade and
+   *  the search bar's white underlay (Root). */
+  scrollY?: SharedValue<number>;
   /** Tap on a stores section's "View all" → open the catalog grid for its category. */
   onViewAllStores?: () => void;
   /** Tap a category row → open that product category page. */
@@ -51,12 +61,17 @@ export function SerpShell({
   const registerLoadMore = useCallback((fn: (() => void) | null) => {
     webLoadMore.current = fn;
   }, []);
-  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-    if (contentOffset.y + layoutMeasurement.height >= contentSize.height - END_REACH_PX) {
-      webLoadMore.current?.();
-    }
+  const pulseLoadMore = useCallback(() => {
+    webLoadMore.current?.();
   }, []);
+  // UI-thread scroll handler: feeds `scrollY` (HeroBleed parallax + bar underlay)
+  // every frame, and pulses the Expand-Search load-more on the JS thread.
+  const onScroll = useAnimatedScrollHandler((e) => {
+    if (scrollY) scrollY.value = e.contentOffset.y;
+    if (e.contentOffset.y + e.layoutMeasurement.height >= e.contentSize.height - END_REACH_PX) {
+      runOnJS(pulseLoadMore)();
+    }
+  });
 
   const visibleSections = useMemo(() => {
     if (!model.tabs || tab === 'all') return model.sections;
@@ -106,7 +121,7 @@ export function SerpShell({
           ) : isFinance(model.hero) ? (
             <FinanceCard item={model.hero} variant="full" />
           ) : (
-            <StoreHero item={model.hero} userType={userType} />
+            <StoreHero item={model.hero} userType={userType} bleed={heroBleed} />
           )}
         </Animated.View>,
       );
@@ -162,19 +177,19 @@ export function SerpShell({
   if (!expand) rows.push(<View key="tail" style={{ height: space.huge }} />);
 
   return (
-    <ScrollView
-      style={styles.scroll}
+    <Animated.ScrollView
+      style={[styles.scroll, heroBleed && styles.scrollBleed]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       scrollEnabled={!preview}
       onScroll={preview ? undefined : onScroll}
-      scrollEventThrottle={100}
+      scrollEventThrottle={16}
       // Pinned only when the bar exists AND the page scrolls: in the gallery's
       // static preview a pinned row would sit over content that never moves.
       stickyHeaderIndices={stickyIndex >= 0 && !preview ? [stickyIndex] : undefined}
     >
       {rows}
-    </ScrollView>
+    </Animated.ScrollView>
   );
 }
 
@@ -331,8 +346,16 @@ const isFinance = (item: ResultItem) =>
 const isCardArchetype = (item: ResultItem) =>
   ['05_credit_card', '06_cobranded_card'].includes(item.archetype);
 
+/** A hero that renders as StoreHero (not CreditCard / FinanceCard) — the only
+ *  archetypes that get the full-bleed HeroBleed backdrop (D069). Shared by
+ *  SearchBody (mounts the backdrop) and Root (bar/status-bar transparency). */
+export const isStoreHeroItem = (item: ResultItem) => !isFinance(item) && !isCardArchetype(item);
+
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: color.surface },
+  // Under a HeroBleed backdrop the shell must not paint the page — the wash
+  // lives on a layer behind it (D069).
+  scrollBleed: { backgroundColor: 'transparent' },
   content: { paddingHorizontal: space.m20, paddingTop: space.s },
   context: { paddingVertical: space.s },
   heroWrap: { marginBottom: space.s },

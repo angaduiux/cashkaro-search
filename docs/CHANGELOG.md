@@ -32,6 +32,267 @@ set. `src/theme/tokens.ts` is the only source of colour/type/space/radius/motion
 
 ---
 
+## 2026-07-29 · The deals rail became one continuous object, and its light moved under the card
+
+**Scroll offset drives everything (D084).** `DealsCarousel` no longer animates off
+its `page` state — one shared value, the live scroll offset, feeds the artwork's
+depth (each banner trails its own page by 9% of a page width, scaling and dimming on
+the way out, clipped to its page so the next creative can't peek past the screen
+edge), the indicator, and the glow's colour. The indicator stopped being a pill
+swapped between children: every page renders one capsule that grows from the spec's
+dot into the "n/total" pill as it takes the middle of the screen, its distance
+wrapping now that the rail wraps. Auto-advance is a timed scroll on a new
+`easing.spatial` curve (`timingTravel`) rather than the platform's fixed ease, one
+page per move, held off for six seconds after a touch — and the pages are rendered
+twice, so advancing off the last banner is a one-page move onto an identical banner
+instead of a rewind across the whole strip. Two web findings shaped the result:
+`pagingEnabled` becomes CSS scroll-snap, which re-quantises every frame of a
+programmatic scroll (the travel collapsed into an instant jump), so on web the rail
+scrolls freely and settles to the nearest page on the same curve; and a travel that
+gets replaced must not release the rail, or the driver drops 200ms into a 600ms
+move. Measured frame by frame on the built page: 52–53 frames per 525–534ms travel.
+
+**The bloom sits under the artwork now (D084).** `bottomBloomFill` replaces the
+centred glow for this rail — wide, low and light (peak 0.36 against 0.95), centred
+near the bottom of its bed so the colour rises out of the whitespace under the
+banner instead of hiding behind an opaque PNG, with a short fade dissolving its
+bottom into the page so D077's no-spill-downward rule still holds. `radialFill` grew
+explicit ellipse radii to make an off-centre light possible at all.
+
+**Trending pills joined the pill system (D085).** The warm chips took the category
+pill's own treatment — white → tint gradient under a hairline — in warm rather than
+cobalt, with `trendingBorder` derived from `borderSubtle`'s own step down from its
+surface. The Trending head's flame gif went to 30×30 with a tighter gap, since the
+art carries its own margin.
+
+## 2026-07-29 · Trending became two drifting rails
+
+**Two lines at any pill count (D086).** Adding the loans and savings verticals took
+Trending to seven pills, which — at 44px tall with a 12px gutter — wrapped to four
+rows. `motion/LoopRail.tsx` replaces the wrapping row: children laid out three
+times, parked in the middle copy, offset normalised into `[W, 2W)` each tick, so the
+drift never reaches an end and neither does a drag, in either direction. Two rails
+carry the pills at one speed in opposite directions (±10 px/s), over a copy count
+derived from the viewport (`ceil(vw / W) + 3`) — with a fixed three, a set narrower
+than the screen put the wrap target past the scroller's clamp and the reversed rail
+sat frozen at the end. The disc also went to 40px in a 52px pill, rolling over 600ms
+on a 6–11s beat. The savings pill reads "savings account" but
+commits the full `REAL_CASES` key, and reel resolution now answers a vertical query
+from its vertical alone — the long savings phrase had been matching a product
+keyword and rolling headphones.
+
+## 2026-07-29 · Trending pills lead with a rolling SKU disc
+
+**The search glyph became merchandising (D081, D082).** Each Trending chip now
+opens with a 32px circular product disc that rolls up to the next SKU on its own
+slow random beat, and every chip answers a press with the same scale spring the
+primary button uses. The reel runs on one monotonic step clock with the slot
+positions derived by modular arithmetic (`d = (i - p) mod 2`), so a dropped
+animation callback can't walk a layer out of frame — the bug that emptied all five
+circles before the arithmetic replaced the callback-driven "recycle" step. Content
+comes from the app's own resolvers in a new `data/trendingPills.ts`, narrowed to
+the top hit's brand so "iphone 16" rolls Apple and never a Galaxy that merely
+matched the shared `phone` keyword; travel and cards, which have no catalog SKUs,
+roll their destination brands and their real card renders. The disc carries a real
+inset well (`thumbWellShade` / `thumbWellSheen` / `thumbWellRing`) and stands in a
+44px pill — the one pill in the app that is not `PILL_HEIGHT`, since 32 + 6px of
+air does not fit in 36.
+
+## 2026-07-29 · The AI band's air moved under the curve
+
+**16 above, 44 below (D075).** The web-search band sat 40px below the deals
+carousel and its copy sat 12px under the sheet's curved edge, which stacked ~92px
+of unbroken white above the curve and left the AI pitch reading as the sheet's
+last line instead of the AI surface's first. The band's `marginTop` is back to 16
+(superseding the +24 in 8bfa427) and a new `SHEET_CLEAR` constant (12 + 32 = 44)
+separates the curve from the first line of text in **both** the pitch and the
+results heading, so the heading holds its position against that edge when the
+band changes state. Measured per D073 rather than D014's simpler recipe, because
+the band carries a `FadeInDown`: the load event was held open with a slow
+subresource while a real-time probe polled `getBoundingClientRect` until the value
+repeated 8 times, then painted it into a fixed overlay for a plain screenshot —
+`deals→band=16`, `sheetEdge→text=44`, agreeing with the virtual-time reading.
+
+## 2026-07-29 · The welcome-bonus gift got filled in
+
+**Solid at the call site, regular in the map (D074).** At 10px the outline gift on the
+new-user chip was a few hairlines over pale green and read as a smudge, so
+`StoreHero`'s chip now passes `weight="solid"` — the override `Icon` already has for
+exactly this. `ICON.gift` stays `regular`, because its other consumer is the Home
+clone's bottom tab bar, where the glyph sits at 18px beside four other outline tabs
+and a filled one would break a row matched to the production app. Checked the bundled
+FA6 Pro Solid face actually carries U+F06B with fontTools before trusting it (a
+missing code point renders tofu, not a fallback), then confirmed on the built page
+that the chip's glyph computes `FA6Pro-Solid`.
+
+## 2026-07-29 · A wider catalog grid was attempted and reverted
+
+**The container is ~426px wide inside a 390pt frame (D083).** Widening the store
+tiles to sit on a 16px gutter failed four ways — measuring the grid, measuring the
+scroller, clipping the screen root and measuring that, and a measurement-free
+percentage basis — each overflowing the third column off-screen, because every one of
+them derives from a box whose width already includes the page padding twice.
+`CatalogViewAll` is back to fixed 96px tiles with `space-between`. The finding worth
+keeping: the ~26-31px gutters in that grid are the phantom width spread across two
+gaps, not a chosen value, and the fixed-width tiles are what have been hiding it.
+
+## 2026-07-29 · The hero's light pooled where nothing needed lighting
+
+**Its own orb layout (D080).** `AuraField` gained an optional `specs`, and the
+full-bleed hero passes `HERO_ORBS` — five centres between y 120 and 300, on the brand
+logo and the cashback figure, with tighter amplitudes so they drift within the cluster.
+The shared `ORBS` set anchors its centres to the box's CORNERS, which suits a
+control-sized card but in a 620px scene left two orbs below the fold and the rest up
+behind the search bar. With `scale` 1.25 and peaks to 0.85 each pool reaches ~184px and
+covers the logo → figure band, still fading before the dissolve. The AI band and voice
+sheet keep the corner layout.
+
+## 2026-07-29 · The hero's blobs became white light instead of brand colour
+
+**Colour-on-colour was the wrong premise (D079).** Two rounds went into making
+brand-hued orbs visible on a wash of their own hue — a wider hue fan (D075), then a
+lightness band (D078) — when the orbs only ever had one axis to separate on, because
+they inherit the wash's hue by construction. `brandOrbFan` now returns five bright
+near-white pools (brand saturation 0–0.16 at lightness 0.95–1.0, peaks 0.62 → 0.36).
+White separates from any tinted wash on any brand, and it lifts the field rather than
+adding more of the colour the page already has. Composited over the real washes that
+is 14–31/255 of lightening on both Myntra and Flipkart, against the 0.32 mean the
+coloured fan achieved. The dead hue-fan helpers went with it.
+
+## 2026-07-29 · Why Myntra had no blobs but Flipkart did
+
+**A lightness collision, not a broken animation (D078).** `deepenTint` amplifies a
+brand tint's chroma and leaves its lightness untouched, so a bright tint deepens to
+something very pale — Myntra's `#ff3f6c` lands at L 0.765, the same lightness as the
+wash painted under it. Same hue by construction, same lightness by accident: the orbs
+were invisible at any alpha, which is why tripling their peak moved the page by a mean
+of 0.32/255. `fanHue` now clamps every orb into L 0.44–0.62, so they sit at 0.56–0.68
+against a 0.76+ wash on every brand. Also learned the hard way: **radial gradients do
+not render in the web export at all** (a solid-colour probe painted, an identical
+`radialFill` probe did not), so no headless screenshot can ever verify orb work — which
+is what disguised this as a stalled clock for several rounds.
+
+## 2026-07-29 · The hero's blobs were three copies of one colour; the deals glow stopped being cut
+
+**The fan was collapsing (D075).** With the wash halved and the orbs strengthened
+the hero still read as flat pink, and the reason was in `fanHue`, not the tuning:
+a brand hue sitting at the edge of its family arc — Myntra's `#ff3f6c` is 344°, 4°
+from the top of the warm arc — had every negative offset clamp to zero rotation, so
+three of the five orbs came out the SAME hue as each other and as the wash. Nothing
+that is the colour of its background can read as a blob. `fanHue` now flips
+direction when a side is boxed in, and a `FAN_LIFTS` lightness fan separates the
+orbs without adding chroma. Wash alpha 0.5 → 0.3 and peaks back down to
+`[0.34 … 0.20]` per the "less pink" note: measured background chroma 43.8 → 26.3,
+spatial sd 21.6 → 13.0, against 8.8 / 4.9 for the original field. The clock stall
+is still open — `prefers-reduced-motion` and a disabled sibling clock have both been
+ruled out by measurement.
+
+**The deals glow stopped being cut, and the band moved up (D077).** The Expand
+Search band paints an opaque sheet right under the deals rail, so the glow's
+downward spill was covered instead of seen and ended in a hard line; its bottom
+reach is now 8px instead of 64, and the band's own top margin 8 instead of 16,
+which also closes the ~60px of dead white under the pagination dots.
+
+## 2026-07-29 · The hero field got colour and contrast; web cards name their shop
+
+**Half the wash, five hues, smaller-but-faster orbs (D075).** `HeroBleed` paints
+its flat tint at 0.5 alpha and drives a new five-hue `brandOrbFan` — each hue
+clamped inside the brand's own family, so D060's one-temperature rule survives —
+through `AuraField`'s new `amp`/`scale` knobs (2.2 / 0.8) at rate 1.6. The first
+attempt (2× alpha, 1.3× size) was wrong and measured so: five 320px orbs already
+blanket a 500px scene, so it just doubled the field's mean chroma (31 → 62) into a
+stronger FLAT wash. Shrinking the orbs to leave gaps and swinging them further is
+what buys legible structure — final background chroma 43.8 at spatial sd 21.6,
+versus 8.8 / 4.9 before. **Open:** in the headless harness the Aura clock stalls at
+~480ms (orbs byte-identical at t=4/8/12s, reduced-motion false, rAF at 118fps), so
+the drift may not be running at all; `useFrameCallback` is shared with ExpandSearch
+and VoiceBlobs, so it was left alone pending a check on a real device.
+
+**The status-bar strip whitens with the search bar (D069, amended).** The white
+veil was inside the `Platform.OS === 'web'` branch, so on a device the wash kept
+tinting the real status bar while the bar beneath it had already gone white. It is
+now a plain layer sized to `STATUS_BAR_H` on web and `insets.top` on native,
+declared between the backdrop and the status bar so the clock and icons still
+paint over it, and sharing one opacity with the search bar's underlay.
+
+**Web-search cards say where to buy (D076).** `ResultItem.retailer` — set only by
+the web feed, from a category → `storeTiles` merchant map on the feed's existing
+stable hash — renders as `ProductCard`'s last row: hairline, 14px mark, "on Nykaa"
+in muted 10px. Catalog rails and category pages share `ProductCard` and are
+deliberately untouched, because the shop is only news on a Google-Shopping result.
+
+## 2026-07-29 · The store hero became a full-bleed scene, and its CTA took the sticky-button spec
+
+**The wash left the card (D069).** A new non-scrolling
+[HeroBleed](../src/components/HeroBleed.tsx) layer paints the store hero's tinted
+Aura wash + brand orbs as one gradient from the device's physical top edge,
+dissolving into the page over a 300px white ramp — no box, no radius, no cut
+edge. It is mounted in `Root` **above the mock status bar**, outside the clipped
+`stageBody`: the first attempt mounted it inside the search layer, where
+`overflow: hidden` cut it off at the status-bar line and a flat status-bar tint
+had to fake the rest (a flat fill can't stay seamless against a gradient). Every
+chrome layer over it goes transparent — status bar, the search-bar wrap (whose
+field also turns white), and SearchBody's page fill. `StoreHero` gained a
+content-only `bleed` mode that drops its own horizontal padding so the hero lines
+up on the page's 20px like every other row (D071); SerpShell's scroller is
+transparent and reports its offset through a `serpScrollY` shared value, driving
+the backdrop's 0.4× parallax + fade and fading white back in under both chrome
+strips on one shared opacity. Orbs bloom in over ~1.4s on mount. Finance/card
+heroes and the Gallery preview keep the boxed hero. Verified by measuring the
+built page: every hero row lands on `left: 20`, and at scroll 300 both chrome
+strips are opaque white with no content leaking beneath them.
+
+**The CTA and the figures matched the Store Page V2.0 spec (D070).** The hero
+CTA now reads "Earn Cashback on {Store}" in 16/SemiBold with a 12px solid
+arrow-up-right at gap 4 (Figma 1716:74837/74840; the bundled FA subset lacks
+e09f, so it's `arrow-up` rotated 45°), under a looping soft-light
+[Shine](../src/motion/Shine.tsx) sweep (Shine gained `repeat`/`blend`/`period`).
+Hero cashback percentages carry 2 decimals ("6.00%") on the big figure and the
+"Up from" chip.
+
+**The count-up rolls again (D068).** On Fabric / RN-web, Reanimated
+`animatedProps.text` updates are silently dropped, so the hero figure never
+animated on page load. `CountUp` now re-renders a plain `<Text>` from a rAF loop
+(the `CountUpText` mechanism) behind the same sizer-overlay layout.
+
+---
+
+## 2026-07-29 · The Myntra tile lost its wordmark; the hero figure got air
+
+**Symbol only, and centred by geometry rather than by a nudge (D066).**
+`BRAND.myntra` now points at `assets/brands/myntra-mark.png`, the M cropped out of
+the full lockup at the widest gap in the image's own alpha column-profile (the mark
+ends at x 719 of 1520; the word starts at 786), tight to its ink box at 720×495. The
+word was doing two bad things at once: repeating the store name already set in 22px
+beside the tile, and — as a 3.07:1 image in an 88×60 box — making the art width-bound
+under `contain`, which pinned the mark hard left with the tile's right half spent on
+type. At 1.45:1 it is height-bound, so `BrandThumb`'s existing centring is all that's
+needed and no component changed. The original PNG stays as provenance.
+
+**And the big cashback number stopped touching its own words (D067).** In
+[StoreHero](../src/components/ResultCards.tsx) the qualifier now clears 12px above
+the figure (was 6), "Cash Back" sits 8px off it (was 4), and the label went
+`heading18SemiBold` → `heading22SemiBold`. The 52px figure tracks at -0.52 and ends
+on a `%` whose open counter reads as space that isn't there, so 4px let the "C" sit
+against it; and at 18px the label read as a caption on the number rather than the
+other half of the phrase. Verified per D014 on the Myntra hero — 12.00 above, 8.00
+between, label computed 22px.
+
+## 2026-07-29 · Credit-card USP rows stopped wrapping
+
+**One line each, ellipsised (D065).** The Flipkart card's two bullets both ran to two
+lines at phone width, which pushed the fee strip and the CTA down — the card's height
+was tracking how wordy the feed was rather than what the card contains, so two cards
+in the finance stack ended on different baselines. `BenefitRow` in
+[CreditCard](../src/components/CreditCard.tsx) now renders `numberOfLines={1}`, which
+also moves the component toward the spec it was transcribed from (D061): the mock
+clips that copy at 280.4px, and the fluid card measures 280px of room for it on a
+390pt device. Verified per D014 — both rows come back 14px tall (one 12/14 line),
+`white-space: nowrap` with `text-overflow: ellipsis`, and genuinely over-flowing
+(304px and 325px of text in 280px), plus a screenshot of the card mid-page.
+FinanceCard's loans/savings rows still allow two lines; they weren't the surface in
+question.
+
 ## 2026-07-29 · Expand Search results became an endless 2-up grid
 
 **From a rail of curated matches to a browse surface that never runs dry (D063).**

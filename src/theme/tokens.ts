@@ -103,6 +103,10 @@ const palette = {
   // Modal scrim — auraInk at 45%; the only dimming layer in the app (bottom sheets).
   scrim: 'rgba(14,17,22,0.45)',
   borderSubtle: '#dddce7',
+  // The warm twin of `borderSubtle`: the same step down from its surface that
+  // #dddce7 is from cobalt50, taken from #fff4e9 instead. A cool hairline around
+  // a warm pill is the one thing that reads as a mistake rather than as a system.
+  borderSubtleWarm: '#f1e0d1',
   successSubtle: '#edfbf8',
   errorSubtle: '#fef1f1',
 } as const;
@@ -129,8 +133,16 @@ export const color = {
   actionPrimary: palette.orange,
   actionPrimaryText: palette.white,
   saffron: '#ffe6d6', // saffron/200 — legacy warm cashback-pill gradient start (DS); see D056
-  trendingSurface: '#fff4e9', // trending chip bg (W4 home)
+  trendingSurface: '#fff4e9', // trending chip bg (W4 home) — the gradient's warm end
+  trendingBorder: palette.borderSubtleWarm, // trending chip hairline (category-pill treatment, warm)
   recentSurface: '#f6f7f9', // recent chip / slot bg (W4 home)
+  // SKU thumb well (trending pill, D081). A recessed disc, lit from above: a soft
+  // dark cast off the TOP inner edge, a faint light return off the BOTTOM one, and a
+  // hairline ring so the well still reads if inset shadows are dropped. Ink-blue
+  // rather than black, matching the logo-tile shadow (#121726) the app already casts.
+  thumbWellShade: 'rgba(18,23,38,0.16)',
+  thumbWellSheen: 'rgba(255,255,255,0.65)',
+  thumbWellRing: 'rgba(18,23,38,0.08)',
   actionSurface: palette.orangeTint, // light warm tint (trending chips, deal strips)
 
   // neutral field fill (search bar, inputs)
@@ -522,6 +534,14 @@ export const easing = {
   emphasized: [0.05, 0.7, 0.1, 1],
   accelerate: [0.3, 0, 1, 1],
   inout: [0.4, 0, 0.2, 1],
+  /**
+   * Long on-screen TRAVEL — a full-width carousel page, a card crossing the
+   * viewport. Leaves immediately, spends most of its time arriving: the last
+   * third of the distance takes half the duration, so a 390px move reads as
+   * weight settling rather than as a slide that stops. `emphasized` eases IN
+   * first, which over a whole page width looks like the content hesitated.
+   */
+  spatial: [0.32, 0.72, 0, 1],
 } as const;
 
 export const spring = {
@@ -544,6 +564,14 @@ export const MIN_TAP_TARGET = 44;
 // status badges/tags (% OFF, cashback pills, LIVE, carousel indicators) — those
 // are labels, not pills.
 export const PILL_HEIGHT = 36;
+
+// Circular SKU thumb that leads a pill in place of a glyph (trending chips, D081),
+// and the pill height that carries it. The disc is the section's whole point, so it
+// takes the size and the pill follows: 40 with the same 6px ring of air puts the
+// trending pill at 52. Well clear of MIN_TAP_TARGET on its own. Every OTHER pill
+// stays PILL_HEIGHT (D054); these are component metrics, not spacing steps.
+export const PILL_THUMB = 40;
+export const TRENDING_PILL_HEIGHT = 52;
 
 // Deal banner strip height (design spec).
 export const BANNER_HEIGHT = 118;

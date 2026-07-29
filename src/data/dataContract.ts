@@ -112,6 +112,10 @@ export interface ResultItem {
   topPick?: TopPick;
   ctaLabel?: string;
   mappedPartnerId?: string | null; // gates Google-Shopping cashback (Q-010)
+  /** The merchant this result can be bought from — rendered as the muted
+   *  "Available on <name>" footer on a web-search card (D076). Only the web feed
+   *  sets it, so catalog product rails are unaffected. */
+  retailer?: { name: string; logo: string | number | null };
   isPlaceholder?: boolean; // loud dev-only styling when true (§7)
 }
 

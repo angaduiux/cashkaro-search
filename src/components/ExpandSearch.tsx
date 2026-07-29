@@ -77,6 +77,14 @@ const PRESS_SCALE = 0.03;
  * the middle and the edge reads as a lozenge, not as the bottom of a sheet.
  */
 const SHEET_END_H = space.xxl;
+/**
+ * Clearance from the sheet's curved edge down to the band's first line of text —
+ * 12 to breathe, plus 32 of real separation. At 12 alone the copy sat tight under
+ * the curve and read as the last line of the sheet above it rather than the first
+ * line of the AI surface below. The same value in both states, so the heading
+ * doesn't shift against that edge when the pitch settles into results.
+ */
+const SHEET_CLEAR = space.s12 + space.xl;
 /** The results heading's compact mark — the 64px pitch mark, settled. */
 const HEADING_MARK = 20;
 
@@ -373,7 +381,12 @@ const styles = StyleSheet.create({
   // result grid's field reach both screen edges; hairlines top and bottom stand
   // in for the card's border, and the section above no longer needs a Divider.
   band: {
-    marginTop: space.xxl, // 16 + 24px extra breathing room above the web-search band
+    // 8 — the band's own white sheet-end curve already reads as space below the
+    // deals, so an outer gap on top of it stacked into ~60px of dead white
+    // between the pagination dots and the aura. The air that separates the AI
+    // copy from the sheet still lives INSIDE the band (SHEET_CLEAR). Was 16,
+    // which superseded the +24 added on 2026-07-29 (D077).
+    marginTop: space.s,
     marginHorizontal: -space.m20,
     backgroundColor: color.surface,
     // No hairline at either end. The top edge is the `sheetEnd` curve below — a
@@ -400,7 +413,7 @@ const styles = StyleSheet.create({
     ...elevation.soft, // the sheet floats a little above the canvas it uncovers
   },
   /** The copy + CTA sit back on the page column, clear of the sheet edge above. */
-  pitch: { paddingHorizontal: space.m20, paddingTop: SHEET_END_H + space.s12 },
+  pitch: { paddingHorizontal: space.m20, paddingTop: SHEET_END_H + SHEET_CLEAR },
 
   head: { flexDirection: 'row', alignItems: 'center', gap: space.s12 },
   mark: {
@@ -453,7 +466,7 @@ const styles = StyleSheet.create({
   dotStill: { opacity: 0.6 },
 
   /** Results state — one heading + the grid, back on the page column. */
-  results: { paddingHorizontal: space.m20, paddingTop: SHEET_END_H + space.s12, gap: space.m },
+  results: { paddingHorizontal: space.m20, paddingTop: SHEET_END_H + SHEET_CLEAR, gap: space.m },
   headingRow: { flexDirection: 'row', alignItems: 'center', gap: space.s },
   heading: { ...t.body16SemiBold, color: color.aura.ink, flex: 1 },
   headingCount: { ...t.body12Medium, color: color.aura.slateMuted },

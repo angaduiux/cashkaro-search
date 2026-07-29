@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { color, type as t, space, radius, elevation } from './theme/tokens';
 import { EASE } from './motion/motion';
 import { SearchBar } from './components/SearchBar';
+import { isStoreHeroItem } from './components/SerpShell';
+import { HeroBleed } from './components/HeroBleed';
 import { HomeScreen } from './screens/HomeScreen';
 import { SearchBody } from './screens/SearchBody';
 import { Gallery } from './screens/Gallery';
@@ -21,7 +23,7 @@ import { ProductCategory } from './screens/ProductCategory';
 import { ScreenNav, NavSection } from './components/ScreenNav';
 import { Keyboard } from './os/Keyboard';
 import { VoiceSheet } from './components/VoiceSheet';
-import { StatusBar } from './os/StatusBar';
+import { StatusBar, STATUS_BAR_H } from './os/StatusBar';
 import { NavChrome, NAV_CHROME_H } from './os/NavChrome';
 import { DEVICES, DEFAULT_DEVICE, Device } from './os/devices';
 import { REAL_CASES, financeSerp, webResultsForWhey, buildSuggestions, ALL_DEALS, VIEW_ALL_VERTICALS } from './data/realData';
@@ -67,6 +69,7 @@ export function Root() {
   const [osKbH, setOsKbH] = useState(0); // real OS keyboard height (native)
   const reduced = useReducedMotion();
   const g = useSharedValue(0); // 0 = Home, 1 = searching
+  const serpScrollY = useSharedValue(0); // SERP scroll — HeroBleed parallax + bar underlay (D069)
   const inputRef = useRef<TextInput | null>(null); // the one search field, for imperative focus
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -127,6 +130,7 @@ export function Root() {
     setMode('serp');
     setActive(true);
     setSerpLoading(true);
+    serpScrollY.value = 0; // fresh page → HeroBleed fully visible again
     inputRef.current?.blur(); // results are showing — get the keyboard out of the way
     glide(1);
     timers.current.push(setTimeout(() => setSerpLoading(false), 650));
@@ -141,6 +145,7 @@ export function Root() {
     setMode('serp');
     setActive(true);
     setSerpLoading(true);
+    serpScrollY.value = 0; // fresh page → HeroBleed fully visible again
     inputRef.current?.blur();
     glide(1);
     timers.current.push(setTimeout(() => setSerpLoading(false), 500));
@@ -254,7 +259,6 @@ export function Root() {
     resetOverlays();
     openStore(q);
   };
-
   const activeScreen = gallery
     ? 'gallery'
     : catPage
@@ -327,6 +331,31 @@ export function Root() {
     },
   ];
 
+  // Full-bleed store-hero SERP (D069). The HeroBleed layer is mounted HERE, as a
+  // sibling ABOVE the mock status bar rather than inside the stage — `stageBody`
+  // clips (`overflow: hidden`) and starts below the status bar, so a wash mounted
+  // inside it could only ever be cut off at that line. From here one gradient
+  // runs from the physical top of the device, and every chrome layer over it goes
+  // transparent: the status bar, the search bar wrap (whose white underlay fades
+  // back in on scroll), and the search body's page fill.
+  // Any full-page overlay (category, View-all, gallery) covers the stage, so the
+  // scene must not keep tinting the status bar above it.
+  const overlayOpen = !!catPage || !!viewAllCat || !!viewAllKey || gallery;
+  const heroBleed =
+    active && mode === 'serp' && !!model?.hero && isStoreHeroItem(model.hero) && !overlayOpen;
+  // White comes back under BOTH chrome strips together as the page scrolls: the
+  // search bar (from inside the stage, so it also hides content passing beneath
+  // it) and the status bar (from outside it, since `stageBody` can't paint up
+  // there). One opacity drives both, or they desync into a white bar under a
+  // still-tinted status bar. Nearly immediate — 16px of travel is all the slack
+  // there is before hero content reaches the underside of the field.
+  const chromeVeilStyle = useAnimatedStyle(
+    () => ({
+      opacity: heroBleed ? interpolate(serpScrollY.value, [16, 96], [0, 1], Extrapolation.CLAMP) : 0,
+    }),
+    [heroBleed],
+  );
+
   const barStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: interpolate(g.value, [0, 1], [REST_Y, TOP_Y], Extrapolation.CLAMP) }],
   }));
@@ -348,9 +377,23 @@ export function Root() {
 
   const app = (
     <>
+      {/* The store hero's living wash, from the physical top of the device (D069).
+          First child → every layer below paints over it. */}
+      {heroBleed && model?.hero && <HeroBleed item={model.hero} scrollY={serpScrollY} />}
+
+      {/* White for the status-bar strip, fading in on scroll in lockstep with the
+          search bar's underlay. It is NOT inside the web-only branch below: on a
+          device there is no mock bar to tint, but the wash still runs up into
+          `insets.top`, so without this the real OS status bar kept its tint while
+          the search bar under it had already gone white (D069). */}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.statusVeil, { height: Platform.OS === 'web' ? STATUS_BAR_H : insets.top }, chromeVeilStyle]}
+      />
+
       {/* Mock OS chrome is for the web device frame only — on a real device the
           OS draws its own status bar and `insets.top` already reserves its space. */}
-      {Platform.OS === 'web' && <StatusBar os={device.os} notch={device.notch} />}
+      {Platform.OS === 'web' && <StatusBar os={device.os} notch={device.notch} transparent={heroBleed} />}
       <View style={styles.stageBody}>
         {/* Home layer */}
         <Animated.View style={[StyleSheet.absoluteFill, homeStyle]} pointerEvents={active ? 'none' : 'auto'}>
@@ -373,6 +416,8 @@ export function Root() {
             recents={recents}
             enterTick={enterTick}
             userType={userType}
+            scrollY={serpScrollY}
+            heroBleed={heroBleed}
             onClearRecents={() => setRecents([])}
             onRemoveRecent={(q) => setRecents((r) => r.filter((x) => x !== q))}
             webResults={committed.trim().toLowerCase() === 'whey' ? webResultsForWhey : []}
@@ -385,7 +430,11 @@ export function Root() {
 
         {/* THE one search bar — hoisted here, glides between Home + Search */}
         <Animated.View style={[styles.barHost, barStyle]} pointerEvents="box-none">
+          {/* White comes back under the transparent bar as the SERP scrolls, so
+              content never slides visibly beneath the naked field (D069). */}
+          <Animated.View pointerEvents="none" style={[styles.barUnderlay, chromeVeilStyle]} />
           <SearchBar
+            onWash={heroBleed}
             value={text}
             onChangeText={(s) => {
               setText(s);
@@ -545,6 +594,12 @@ const styles = StyleSheet.create({
   stage: { flex: 1, backgroundColor: '#0f0f14' },
   stageBody: { flex: 1, overflow: 'hidden' },
   barHost: { position: 'absolute', top: 0, left: 0, right: 0 },
+  // Reaches TOP_Y above the bar so it also covers the sliver between the docked
+  // bar and the status bar once the HeroBleed wash has faded out (D069).
+  barUnderlay: { position: 'absolute', top: -TOP_Y, left: 0, right: 0, bottom: 0, backgroundColor: color.surface },
+  // No zIndex: it is declared after HeroBleed (so it covers the wash) and before
+  // the status bar (so the clock and icons still paint on top of it).
+  statusVeil: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: color.surface },
   keyboardWrap: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   toolbar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

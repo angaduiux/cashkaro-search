@@ -11,7 +11,8 @@
  *   ─ 19 ─
  *   USP tags (0.86px cool stroke over a blue→white wash)              ← gap 4, wraps
  *   ─ 7 ─
- *   USP rows: an 18px stroked glyph from the spec's own icon set + 12/14 copy
+ *   USP rows: an 18px stroked glyph from the spec's own icon set + 12/14 copy,
+ *   one line each, ellipsised (D065)
  *   ─ 10 ─
  *   the closing strip: either the two fee columns split by a fading 45px hairline,
  *   or the LIFETIME FREE band — both ending in the same 108×40 gradient CTA
@@ -20,9 +21,9 @@
  * frame and this card is fluid inside the SERP's 20px column:
  *
  *  1. **Width is fluid**, so the info column and the strips flex instead of sitting
- *     at 161 / 318 / 312 px, and the USP copy wraps instead of being clipped at
- *     280.4. Every fixed metric that reads as a *size* — artwork, pill height, CTA,
- *     glyph, hairline — is exact.
+ *     at 161 / 318 / 312 px, and the USP copy clips to one line at whatever width
+ *     that leaves rather than at the mock's 280.4 (D065). Every fixed metric that
+ *     reads as a *size* — artwork, pill height, CTA, glyph, hairline — is exact.
  *  2. **Insets are symmetric** (16 for content, 8 for the strip). The mock's
  *     absolute frames drift: its details box sits 2px off the left edge and 8 off
  *     the right, and its LIFETIME FREE band is centred 3px right of centre.
@@ -129,12 +130,19 @@ function Tag({ label }: { label: string }) {
   );
 }
 
-/** One USP row: the spec's own glyph for what the line is about, then the copy. */
+/**
+ * One USP row: the spec's own glyph for what the line is about, then the copy on a
+ * SINGLE line, ellipsised (D065). Two rows are two rows tall, whatever the feed
+ * writes — a long benefit used to wrap to two lines and shift the whole closing
+ * strip down, so a card's height depended on its copy rather than its content.
+ */
 function BenefitRow({ benefit }: { benefit: Benefit }) {
   return (
     <View style={styles.bulletRow}>
       <CardBenefitIcon name={benefitIconFor(benefit.text, benefit.icon)} />
-      <Text style={styles.bulletText}>{benefit.text}</Text>
+      <Text style={styles.bulletText} numberOfLines={1}>
+        {benefit.text}
+      </Text>
     </View>
   );
 }
