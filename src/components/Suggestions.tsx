@@ -14,7 +14,7 @@ import { staggerDelay } from '../motion/motion';
  * to that result-page type, so it doubles as the "what leads where" guide.
  *
  * Row kinds:
- *  - 'store'  → 40px brand thumbnail + name + cashback (Flat/Up to + orange value)
+ *  - 'store'  → 40px brand thumbnail + name + cashback (Flat/Up to + blue value)
  *  - 'query'  → 40px slot + "<typed> <completion>" + "in <scope> · N results"
  *  - 'tile'   → 44px coloured icon tile + title + meta (+ optional LIVE badge)
  */

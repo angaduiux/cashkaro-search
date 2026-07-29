@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.s, // breathing room between icon and label
-    height: PILL_HEIGHT, // 40px — canonical pill height
+    height: PILL_HEIGHT, // 36px — canonical pill height
     paddingHorizontal: space.s12,
     borderRadius: radius.full,
   },
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   moreChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: PILL_HEIGHT, // 40px — canonical pill height
+    height: PILL_HEIGHT, // 36px — canonical pill height
     paddingHorizontal: space.s12,
     borderRadius: radius.full,
     borderWidth: 1,

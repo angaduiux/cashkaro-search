@@ -139,6 +139,16 @@ const orbStops = (rgb: readonly [number, number, number], peak: number): Stop[] 
   SOFT_RAMP.map(([a, at]) => [`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${+(a * peak).toFixed(3)})`, at] as Stop);
 
 /**
+ * One soft orb fill from a hex hue at an explicit peak alpha — the same
+ * edgeless falloff the AI field uses, exposed so other surfaces (the voice
+ * sheet's blob orb) build their gradients from this ramp rather than
+ * re-deriving one that would feather differently.
+ */
+export function softOrbFill(hex: string, peak: number): ViewStyle {
+  return radialFill(orbStops(parseHex(hex) ?? [124, 58, 237], peak));
+}
+
+/**
  * Peak alpha per orb. Five soft orbs overlap, so each one stays low — the
  * richness comes from where they cross, not from any single orb's density.
  */
@@ -231,12 +241,6 @@ export function auraWashTint(hex: string | null | undefined): string {
 }
 
 /**
- * Three orb fills from ONE brand hue, differing only in alpha — the geometry
- * below already gives them separate paths, so a single hue reads as one moving
- * brand-coloured mist with depth rather than three flat discs. Falls back to the
- * AI set when the brand tint isn't a hex we can read.
- */
-/**
  * A single STATIC glow, centred in its box — colour without motion, for surfaces
  * that sit behind content (the deals rail) where drift would pull the eye.
  *
@@ -265,12 +269,94 @@ export function centredGlowFill(tint?: string | null, peak = 0.95): ViewStyle {
   return radialFill([...stops, [rgba(0), '100%']], { shape: 'ellipse', size: 'farthest-side' });
 }
 
+/**
+ * Hue arcs that read as ONE temperature. A companion hue is always rotated
+ * *inside* the arc its brand hue falls in, so a warm brand gains a warm second
+ * colour (Cleartrip's orange → amber) and a cool one a cool second colour
+ * (sky → indigo). Rotating across an arc boundary is what would put a cold
+ * highlight in a warm field, which reads as two unrelated lights.
+ */
+const HUE_FAMILIES: readonly (readonly [from: number, to: number])[] = [
+  [340, 62], // warm — crimson → red → orange → yellow (wraps through 0)
+  [62, 168], // green — lime → emerald → teal
+  [168, 268], // cool — cyan → azure → blue → indigo
+  [268, 340], // violet → orchid → magenta
+];
+/** Degrees between the two hues: a neighbour you can tell apart, not a contrast. */
+const COMPANION_SHIFT = 34;
+/** Least rotation that still reads as a second colour rather than a brightness. */
+const COMPANION_MIN = 16;
+/**
+ * Room needed to rotate clockwise; with less, rotate the other way. A yellow
+ * brand's companion is orange, not chartreuse — 8° short of its arc's end would
+ * leave the family, which is the one thing this must not do.
+ */
+const COMPANION_ROOM = 24;
+/** Which of the five orbs carry the second hue — spread, so every crossing mixes. */
+const COMPANION_ORBS = [1, 3];
+
+/** Clockwise distance a → b, in degrees. */
+const cw = (a: number, b: number) => (b - a + 360) % 360;
+
+function rgbToHsl([r, g, b]: readonly [number, number, number]): [h: number, s: number, l: number] {
+  const [rn, gn, bn] = [r / 255, g / 255, b / 255];
+  const hi = Math.max(rn, gn, bn);
+  const lo = Math.min(rn, gn, bn);
+  const l = (hi + lo) / 2;
+  const d = hi - lo;
+  if (d === 0) return [0, 0, l];
+  const s = l > 0.5 ? d / (2 - hi - lo) : d / (hi + lo);
+  const h = hi === rn ? ((gn - bn) / d + (gn < bn ? 6 : 0)) : hi === gn ? (bn - rn) / d + 2 : (rn - gn) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = ((h % 360) + 360) % 360 / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  const [r1, g1, b1] =
+    hp < 1 ? [c, x, 0] : hp < 2 ? [x, c, 0] : hp < 3 ? [0, c, x] : hp < 4 ? [0, x, c] : hp < 5 ? [x, 0, c] : [c, 0, x];
+  const m = l - c / 2;
+  return [Math.round((r1 + m) * 255), Math.round((g1 + m) * 255), Math.round((b1 + m) * 255)];
+}
+
+/**
+ * The brand hue's neighbour, same temperature: rotate clockwise inside the hue's
+ * own family (orange → yellow, azure → indigo), or anticlockwise when the hue
+ * already sits at that end of its arc (a yellow brand rotates back to orange).
+ * Lightness lifts a touch so the second orb reads as light crossing the field
+ * rather than as a second stain of the same weight.
+ */
+function companionRgb(rgb: readonly [number, number, number]): [number, number, number] {
+  const [h, s, l] = rgbToHsl(rgb);
+  const arc = HUE_FAMILIES.find(([from, to]) => cw(from, h) < cw(from, to)) ?? HUE_FAMILIES[0];
+  const up = cw(h, arc[1]);
+  const down = cw(arc[0], h);
+  const dir = up >= COMPANION_ROOM ? 1 : -1;
+  const room = dir > 0 ? up : down;
+  const shift = Math.min(COMPANION_SHIFT, Math.max(COMPANION_MIN, room - 4));
+  return hslToRgb(h + dir * shift, s, Math.min(0.78, l + 0.05));
+}
+
+/**
+ * Five orb fills in TWO hues — the brand tint and its same-temperature neighbour
+ * from `companionRgb` — differing again in alpha. The geometry below gives each
+ * orb its own path, so the pair reads as one brand-coloured mist that shifts hue
+ * where the orbs cross (Cleartrip: orange through amber), which one hue at five
+ * alphas could only do in brightness. The companion carries slightly less alpha,
+ * so the brand colour still leads. Falls back to the AI set when the brand tint
+ * isn't a hex we can read.
+ */
 export function brandOrbFills(tint?: string | null): ViewStyle[] {
   const rgb = deepenTint(tint);
   if (!rgb) return AI_FILLS;
-  // A brand field is one hue, so it can carry a little more alpha than the
-  // five-hue AI field without turning muddy.
-  return ORB_PEAKS.map((peak) => radialFill(orbStops(rgb, Math.min(1, peak * 1.35))));
+  const companion = companionRgb(rgb);
+  // A two-hue brand field still carries more alpha than the five-hue AI field
+  // without turning muddy — the hues are neighbours, so their overlaps blend.
+  return ORB_PEAKS.map((peak, i) => {
+    const second = COMPANION_ORBS.includes(i);
+    return radialFill(orbStops(second ? companion : rgb, Math.min(1, peak * (second ? 1.2 : 1.35))));
+  });
 }
 
 /**

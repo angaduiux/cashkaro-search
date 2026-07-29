@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { SerpModel, SerpSection, TabKey, ResultItem } from '../data/dataContract';
 import { color, type as t, space, duration } from '../theme/tokens';
@@ -43,6 +43,21 @@ export function SerpShell({
 }) {
   const [tab, setTab] = useState<TabKey>(model.tabs?.[0] ?? 'all');
 
+  // Infinite growth for the Expand Search grid: the band registers a load-more
+  // while it is showing results, and the page's own scroll pulses it whenever
+  // the reader nears the end. The band self-throttles (it extends only after
+  // the previous batch has fully streamed in), so pulsing every frame is fine.
+  const webLoadMore = useRef<(() => void) | null>(null);
+  const registerLoadMore = useCallback((fn: (() => void) | null) => {
+    webLoadMore.current = fn;
+  }, []);
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    if (contentOffset.y + layoutMeasurement.height >= contentSize.height - END_REACH_PX) {
+      webLoadMore.current?.();
+    }
+  }, []);
+
   const visibleSections = useMemo(() => {
     if (!model.tabs || tab === 'all') return model.sections;
     return model.sections.filter((s) => sectionMatchesTab(s, tab));
@@ -51,6 +66,100 @@ export function SerpShell({
   const financeOnly = model.sections.every((s) =>
     ['cards', 'similar_cards', 'loans', 'savings'].includes(s.kind)
   );
+  const expand = !!model.expandSearch && !financeOnly;
+
+  /**
+   * The page's rows, as a FLAT array rather than JSX nested in a fragment, because
+   * `stickyHeaderIndices` addresses the ScrollView's children **by index** and a
+   * fragment would hide the tab bar inside one child (D059). Falsy rows are dropped
+   * as they are pushed, not left in place: native counts children with
+   * `Children.toArray`, which discards nulls, while RN-web counts them with
+   * `Children.map`, which does not — so a conditional hero would shift the index on
+   * one platform only. Building the list here makes one index correct on both.
+   */
+  const rows: React.ReactNode[] = [];
+  let stickyIndex = -1;
+
+  // Context line (§3.3): count for broad match, "Best match for…" for single entity.
+  rows.push(
+    <Animated.View key="context" entering={FadeIn.duration(duration.fast)} style={styles.context}>
+      <Text style={[t.body14Regular, { color: color.textSecondary }]}>{model.context.label}</Text>
+    </Animated.View>,
+  );
+
+  if (loading) {
+    rows.push(
+      <View key="skeletons" style={{ gap: space.m, paddingTop: space.s }}>
+        <SkeletonCard />
+        <SkeletonBlock width={'55%'} height={22} />
+        <SkeletonCard />
+        <SkeletonCard />
+      </View>,
+    );
+  } else {
+    // Hero — single resolved entity only; rises slightly ahead (§9.4).
+    if (model.hero) {
+      rows.push(
+        <Animated.View key="hero" entering={FadeInDown.duration(duration.moderate)} style={styles.heroWrap}>
+          {isCardArchetype(model.hero) ? (
+            <CreditCard item={model.hero} />
+          ) : isFinance(model.hero) ? (
+            <FinanceCard item={model.hero} variant="full" />
+          ) : (
+            <StoreHero item={model.hero} userType={userType} />
+          )}
+        </Animated.View>,
+      );
+    }
+
+    // After the best-match hero: a heading that frames everything below as the full
+    // set of matched results (§3.3).
+    if (model.hero && model.tabs) {
+      rows.push(
+        <View key="allResults" style={styles.allResults}>
+          <Text style={[t.body14Regular, { color: color.textSecondary }]}>
+            All matched results for “{model.query.charAt(0).toUpperCase() + model.query.slice(1)}”
+          </Text>
+        </View>,
+      );
+    }
+
+    // Tab bar — only when adjacent categories are plausible. This row is the sticky
+    // one: scroll past it and it pins under the shared search bar (D059).
+    if (model.tabs) {
+      stickyIndex = rows.length;
+      rows.push(<TabBar key="tabs" tabs={model.tabs} active={tab} onChange={setTab} />);
+    }
+
+    // Content sections — crossfade when the tab filter changes (the key remounts them).
+    rows.push(
+      <Animated.View key={'sections-' + tab} entering={FadeIn.duration(duration.fast)}>
+        {visibleSections.map((section, si) => (
+          <SectionView
+            key={section.kind + si}
+            section={section}
+            // Under the tab bar the first section owns the whole gap below the
+            // hairline, and that gap is 16 (D055); section-to-section is 24.
+            first={si === 0 && !!model.tabs}
+            onViewAllStores={onViewAllStores}
+            onOpenCategory={onOpenCategory}
+          />
+        ))}
+      </Animated.View>,
+    );
+
+    // Expand Search — product pages only, never finance-only (§3.3).
+    if (expand) {
+      rows.push(
+        <ExpandSearchCard key="expand" webResults={webResults} query={model.query} registerLoadMore={registerLoadMore} />,
+      );
+    }
+  }
+
+  // The Expand-Search band ends the page itself: its own field runs to the bottom of
+  // the screen, so the usual trailing spacer would put a white gap under it. Every
+  // other page still gets the scroll breathing room.
+  if (!expand) rows.push(<View key="tail" style={{ height: space.huge }} />);
 
   return (
     <ScrollView
@@ -58,68 +167,13 @@ export function SerpShell({
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       scrollEnabled={!preview}
+      onScroll={preview ? undefined : onScroll}
+      scrollEventThrottle={100}
+      // Pinned only when the bar exists AND the page scrolls: in the gallery's
+      // static preview a pinned row would sit over content that never moves.
+      stickyHeaderIndices={stickyIndex >= 0 && !preview ? [stickyIndex] : undefined}
     >
-      {/* Context line (§3.3): count for broad match, "Best match for…" for single entity */}
-      <Animated.View entering={FadeIn.duration(duration.fast)} style={styles.context}>
-        <Text style={[t.body14Regular, { color: color.textSecondary }]}>{model.context.label}</Text>
-      </Animated.View>
-
-      {loading ? (
-        <View style={{ gap: space.m, paddingTop: space.s }}>
-          <SkeletonCard />
-          <SkeletonBlock width={'55%'} height={22} />
-          <SkeletonCard />
-          <SkeletonCard />
-        </View>
-      ) : (
-        <>
-          {/* Hero — single resolved entity only; rises slightly ahead (§9.4) */}
-          {model.hero && (
-            <Animated.View entering={FadeInDown.duration(duration.moderate)} style={styles.heroWrap}>
-              {isCardArchetype(model.hero) ? (
-                <CreditCard item={model.hero} />
-              ) : isFinance(model.hero) ? (
-                <FinanceCard item={model.hero} variant="full" />
-              ) : (
-                <StoreHero item={model.hero} userType={userType} />
-              )}
-            </Animated.View>
-          )}
-
-          {/* After the best-match hero: a heading that frames everything below as
-              the full set of matched results (§3.3). */}
-          {model.hero && model.tabs && (
-            <View style={styles.allResults}>
-              <Text style={[t.body14Regular, { color: color.textSecondary }]}>
-                All matched results for “{model.query.charAt(0).toUpperCase() + model.query.slice(1)}”
-              </Text>
-            </View>
-          )}
-
-          {/* Tab bar — only when adjacent categories are plausible */}
-          {model.tabs && <TabBar tabs={model.tabs} active={tab} onChange={setTab} />}
-
-          {/* Content sections — crossfade when the tab filter changes */}
-          <Animated.View key={tab} entering={FadeIn.duration(duration.fast)}>
-            {visibleSections.map((section, si) => (
-              <SectionView
-                key={section.kind + si}
-                section={section}
-                onViewAllStores={onViewAllStores}
-                onOpenCategory={onOpenCategory}
-              />
-            ))}
-          </Animated.View>
-
-          {/* Expand Search — product pages only, never finance-only (§3.3) */}
-          {model.expandSearch && !financeOnly && <ExpandSearchCard webResults={webResults} />}
-        </>
-      )}
-
-      {/* The Expand-Search band ends the page itself: its own field runs to the
-          bottom of the screen, so the usual trailing spacer would put a white
-          gap under it. Every other page still gets the scroll breathing room. */}
-      {!(model.expandSearch && !financeOnly) && <View style={{ height: space.huge }} />}
+      {rows}
     </ScrollView>
   );
 }
@@ -139,12 +193,29 @@ function dedupeStores(items: ResultItem[]): ResultItem[] {
   });
 }
 
+/**
+ * Top padding each section body carries of its own, purely to clear the shadows /
+ * overhanging badges of the cards inside it. It sits between the header and the
+ * first *visible* pixel of content, so it is netted off the header's gap — that's
+ * what makes the measured title→element distance 12px on every section kind and
+ * not "12 plus whatever this body happens to pad" (D055).
+ */
+const BODY_TOP_INSET: Partial<Record<SerpSection['kind'], number>> = {
+  stores: space.xs, // hScroll paddingVertical
+  products: space.xs, // hScroll paddingVertical
+  coupons: space.s12, // couponRail paddingVertical (expiry badge + 0 6 5 shadow)
+  similar_cards: space.s, // cardsRail paddingVertical (ResultCards)
+};
+
 function SectionView({
   section,
+  first = false,
   onViewAllStores,
   onOpenCategory,
 }: {
   section: SerpSection;
+  /** First section under the tab bar — 16px from the hairline, not 24 (D055). */
+  first?: boolean;
   onViewAllStores?: () => void;
   onOpenCategory?: (title: string) => void;
 }) {
@@ -154,8 +225,13 @@ function SectionView({
   // Only the stores rail has a wired destination (the catalog View-all grid).
   const viewAll = section.kind === 'stores' ? onViewAllStores : undefined;
   return (
-    <View style={styles.section}>
-      <SectionHeader title={resolved.title} count={count} onViewAll={viewAll && resolved.items.length > 2 ? viewAll : undefined} />
+    <View style={first ? styles.sectionFirst : styles.section}>
+      <SectionHeader
+        title={resolved.title}
+        count={count}
+        onViewAll={viewAll && resolved.items.length > 2 ? viewAll : undefined}
+        gap={space.s12 - (BODY_TOP_INSET[section.kind] ?? 0)}
+      />
       {renderSectionBody(resolved, onOpenCategory)}
     </View>
   );
@@ -225,12 +301,15 @@ function renderSectionBody(section: SerpSection, onOpenCategory?: (title: string
         </View>
       );
     case 'similar_cards':
-      // CashKaro DS card carousel (artwork + name + saffron cashback pill).
+      // CashKaro DS card carousel (artwork + name + blue cashback pill, D056).
       return <SimilarCardsRail items={section.items} />;
     default:
       return null;
   }
 }
+
+/** How close to the page end (px) the Expand Search grid starts loading more. */
+const END_REACH_PX = 480;
 
 function sectionMatchesTab(s: SerpSection, tab: TabKey): boolean {
   const map: Record<string, TabKey[]> = {
@@ -258,7 +337,11 @@ const styles = StyleSheet.create({
   context: { paddingVertical: space.s },
   heroWrap: { marginBottom: space.s },
   allResults: { gap: space.xxs, marginTop: space.s, marginBottom: space.s12 },
-  section: { marginTop: space.m },
+  // Section rhythm (D055). SectionHeader has no vertical padding of its own, so
+  // these margins ARE the measured gaps: 24 between sections, and 16 from the tab
+  // bar's hairline down to the first section's title.
+  section: { marginTop: space.l },
+  sectionFirst: { marginTop: space.m },
   // Rails must be FULL-BLEED (AGENTS.md): cancel the page column's 20px padding so
   // a mid-scroll card is cut by the screen edge, then re-inset the content on BOTH
   // sides so the first card aligns with the page and the last scrolls to the edge.

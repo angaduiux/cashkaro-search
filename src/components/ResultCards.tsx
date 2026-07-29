@@ -90,8 +90,9 @@ export function StoreRow({ item, index = 0 }: { item: ResultItem; index?: number
  * Product card — typography & structure per Figma 1646:7850: image (h96, r16),
  * brand caps (Outfit Bold 10 / #262626), 2-line title (Outfit Regular 12 /
  * #5b6470), a price row (current ₹ Outfit SemiBold 14 + strike Outfit Medium 10,
- * both #9aa3b2) with an 8px green "% OFF" chip, a full-width peach→white cashback
- * pill (Outfit SemiBold 12 / #e55a0e), and a Final Price block (label 10 /
+ * both #9aa3b2) with an 8px green "% OFF" chip, a full-width cobalt-tint→white
+ * cashback pill (Outfit SemiBold 12 / #0036da — the spec's peach/#e55a0e re-hued
+ * blue, D056), and a Final Price block (label 10 /
  * #9aa3b2, value Outfit SemiBold 15 / #0e1116). 132 px wide for the products rail.
  */
 const parsePrice = (s?: string | null) => {
@@ -99,6 +100,10 @@ const parsePrice = (s?: string | null) => {
   const n = Number(s.replace(/[^\d.]/g, ''));
   return Number.isFinite(n) ? n : NaN;
 };
+
+/** The photo box's normalised ratio (132×96, D050). A widened card scales the
+ *  box with it, so the photo fills the width instead of letterboxing at 132. */
+const PRODUCT_IMG_RATIO = 132 / 96;
 
 export function ProductCard({
   item,
@@ -131,8 +136,12 @@ export function ProductCard({
       : item.cashback.type === 'pct_single' && cur > 0
       ? Math.round((cur * item.cashback.value) / 100)
       : 0;
+  // Every priced card ends on a Final Price — the amount actually payable. With
+  // cashback that is price − cashback; WITHOUT cashback it is the price itself,
+  // not nothing (D064), so no card in a grid trails off short of the number every
+  // card beside it ends on. Only a card with no price at all omits the block.
   const finalPrice =
-    item.finalPrice ?? (cbAmt > 0 && cur > 0 ? `₹${(cur - cbAmt).toLocaleString('en-IN')}` : null);
+    item.finalPrice ?? (cur > 0 ? `₹${(cur - cbAmt).toLocaleString('en-IN')}` : null);
 
   const card = (
     <Animated.View
@@ -144,7 +153,12 @@ export function ProductCard({
         // photos are normalised to this box's own 1.375 ratio with the subject at a
         // fixed 85% of the height, so contained they fill it AND read the same size
         // card to card; anything not yet normalised letterboxes instead of cropping.
-        <Image source={item.productImage} style={[styles.productImg, width != null && { width }]} resizeMode="contain" accessibilityLabel={item.title} />
+        <Image
+          source={item.productImage}
+          style={[styles.productImg, width != null && { width, height: Math.round(width / PRODUCT_IMG_RATIO) }]}
+          resizeMode="contain"
+          accessibilityLabel={item.title}
+        />
       ) : (
         // Never fall back to the brand logo as the product image — show a neutral
         // photo slot (tag glyph) instead so a logo never stands in for a product.
@@ -450,8 +464,8 @@ export function DealCard({ item, width = 320 }: { item: ResultItem; width?: numb
 
 /**
  * Similar-cards rail — CashKaro DS card carousel (Figma 6573:13413): skewed card
- * artwork (151×96, radius 10) with a shine, a 2-line card name, and a saffron→
- * white gradient "Upto ₹X Cashback" pill in orange. Horizontal scroll.
+ * artwork (151×96, radius 10) with a shine, a 2-line card name, and a cobalt-tint→
+ * white gradient "Upto ₹X Cashback" pill in blue (D056). Horizontal scroll.
  */
 export function SimilarCardsRail({ items }: { items: ResultItem[] }) {
   return (
@@ -481,13 +495,13 @@ export function SimilarCardsRail({ items }: { items: ResultItem[] }) {
               </Text>
               {!!value && (
                 <LinearGradient
-                  colors={[color.saffron, color.surface]}
+                  colors={[color.aura.cashbackPillFrom, color.surface]}
                   start={{ x: 0, y: 0.5 }}
                   end={{ x: 1, y: 0.5 }}
                   style={styles.simPill}
                 >
-                  <Text style={[t.body12Regular, { color: color.actionPrimary }]} numberOfLines={1}>Upto </Text>
-                  <Text style={[t.body12SemiBold, { color: color.actionPrimary, flexShrink: 1 }]} numberOfLines={1}>{value}</Text>
+                  <Text style={[t.body12Regular, { color: color.aura.cashback }]} numberOfLines={1}>Upto </Text>
+                  <Text style={[t.body12SemiBold, { color: color.aura.cashback, flexShrink: 1 }]} numberOfLines={1}>{value}</Text>
                 </LinearGradient>
               )}
             </View>
@@ -586,7 +600,7 @@ export function CategoryChip({ item, onPress }: { item: ResultItem; onPress?: ()
 
 /**
  * Store money-card hero — matches the W4 design (Figma 1646:7197): lavender→grey
- * gradient panel (radius 24), logo + name + rating, big orange cashback figure
+ * gradient panel (radius 24), logo + name + rating, big blue cashback figure (D056)
  * with count-up, green "Up from x%" chip, blue "Shop & Earn" CTA, and the
  * 3-cell Cashback Timelines row.
  */
@@ -876,7 +890,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.s,
-    height: PILL_HEIGHT, // 40px — canonical pill height (32px icon centred, 4px each side)
+    height: PILL_HEIGHT, // 36px — canonical pill height (32px icon centred, 2px each side)
     paddingRight: space.m,
     paddingLeft: space.s6, // ~7px (Figma pl-[7px])
     borderRadius: radius.full,
@@ -958,12 +972,13 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
     marginTop: space.xxs,
   },
-  // Flat cobalt CTA (Figma 1646:7220 — #0036da, 15/SemiBold, radius 12)
+  // Flat CTA (Figma 1646:7220 — 15/SemiBold, radius 12), painted in the brand
+  // action orange rather than the frame's cobalt (D058).
   heroCta: {
     alignSelf: 'stretch',
     height: 48,
     borderRadius: radius.lg,
-    backgroundColor: color.aura.cta,
+    backgroundColor: color.aura.ctaHero,
     alignItems: 'center',
     justifyContent: 'center',
   },

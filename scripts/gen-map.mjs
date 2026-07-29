@@ -207,7 +207,8 @@ if (cases.length) {
   L.push('## Hand-written SERP cases');
   L.push('');
   L.push('Transcribed design cases in `src/data/realData.ts`. A query hits one of these when');
-  L.push('`REAL_CASES` has its key; anything else is generated from the catalog by `buildSerp()`.');
+  L.push('`REAL_CASES` has its key, then when `financeSerp()` reads finance-vertical intent');
+  L.push('from it (D052); anything else is generated from the catalog by `buildSerp()`.');
   L.push('');
   L.push('| Export | Query | Archetype | Routed via REAL_CASES |');
   L.push('| --- | --- | --- | --- |');

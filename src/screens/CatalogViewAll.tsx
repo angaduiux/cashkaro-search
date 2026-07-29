@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   chipScroll: { flexGrow: 0, flexShrink: 0 },
   chipRow: { flexDirection: 'row', alignItems: 'center', gap: space.s, paddingHorizontal: space.m20, paddingVertical: space.s12 },
   chip: {
-    height: PILL_HEIGHT, // 40px — canonical pill height (never stretches vertically)
+    height: PILL_HEIGHT, // 36px — canonical pill height (never stretches vertically)
     paddingHorizontal: space.m,
     borderRadius: radius.full,
     alignItems: 'center',

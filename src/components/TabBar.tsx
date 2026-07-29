@@ -18,7 +18,7 @@ const LABELS: Record<TabKey, string> = {
   savings: 'Savings',
 };
 
-/** Vertical slop that lifts the 40px pill's tap target back to ≥44px. */
+/** Vertical slop that lifts the 36px pill's tap target back to ≥44px. */
 const PILL_SLOP = Math.ceil((MIN_TAP_TARGET - PILL_HEIGHT) / 2);
 
 /**
@@ -81,7 +81,7 @@ export function TabBar({
                   accessibilityRole="tab"
                   accessibilityState={{ selected: isActive }}
                   accessibilityLabel={LABELS[key]}
-                  // Pill is 40px tall; slop restores the ≥44px effective tap target.
+                  // Pill is 36px tall; slop restores the ≥44px effective tap target.
                   hitSlop={{ top: PILL_SLOP, bottom: PILL_SLOP }}
                   style={[styles.pill, !isActive && styles.pillInactive]}
                 >
@@ -112,20 +112,27 @@ const styles = StyleSheet.create({
   // Full-bleed: cancel the page's 20px side padding so pills align with the page
   // on the left and scroll cleanly off the physical screen edge on the right
   // (rather than clipping at an arbitrary inset). The hairline spans full width.
-  // No marginBottom. The bar's own hairline already separates it from the content,
-  // and the first section below brings its `marginTop` (16) plus its header's
-  // `paddingVertical` (8) — so a margin here made the tab→first-section gap 40px
-  // while every section-to-section gap is 24px. Zero keeps the whole page on one
-  // rhythm; the divider does the separating.
+  // No marginBottom (D036) — the hairline is what separates the tabs from the
+  // content, so the bar owns no space at all. The first section below owns the
+  // whole gap: SerpShell's `sectionFirst` marginTop IS the hairline→section-title
+  // distance (16px, D055), because SectionHeader carries no vertical padding.
+  // Opaque, because SerpShell pins this row under the search bar once you scroll
+  // past it (D059) and the sections then travel underneath it. The hairline is what
+  // separates them — no shadow appears on pin, so the bar reads the same docked as
+  // it does in flow.
   wrap: {
     borderBottomWidth: 1,
     borderBottomColor: color.border,
     marginHorizontal: -space.m20,
+    backgroundColor: color.surface,
   },
-  container: { paddingVertical: space.s, paddingHorizontal: space.m20 },
+  // Asymmetric on purpose (D057): 8 above the pills, 16 below. The 8 the row used
+  // to carry underneath put the hairline right on the pill's shadowless edge, so
+  // the divider read as part of the bar rather than as the end of it.
+  container: { paddingTop: space.s, paddingBottom: space.m, paddingHorizontal: space.m20 },
   rowInner: { flexDirection: 'row', gap: space.s },
   pill: {
-    height: PILL_HEIGHT, // 40px pill; hitSlop above keeps the ≥44px tap target (§6.2)
+    height: PILL_HEIGHT, // 36px pill (D054); hitSlop above keeps the ≥44px tap target (§6.2)
     borderRadius: radius.full,
     paddingHorizontal: space.m,
     alignItems: 'center',

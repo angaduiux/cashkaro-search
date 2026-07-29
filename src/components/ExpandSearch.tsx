@@ -5,26 +5,25 @@
  * with an orbiting highlight, and a CTA whose cobalt→indigo→violet→orchid→magenta→
  * aqua ramp flows with no seam.
  *
- * A band rather than a card because the result set is unbounded (D031): copy and
- * CTA sit on the 20px page column, web results stream into a full-bleed rail whose
- * last card scrolls off the true screen edge. It is the last section on the page,
- * so its field runs off the bottom of the screen rather than closing with a line
- * (D034) — SerpShell drops its trailing spacer when this band is present.
+ * A band rather than a card because the result set is unbounded (D031). The band
+ * opens with `sheetEnd`: the white bottom edge of the local results, 32px corners,
+ * laid over the top of the aura — the web search reads as the same canvas
+ * expanding out from underneath the local results (D050). It is the last section
+ * on the page, so its field runs off the bottom of the screen (D034).
  *
- * The band opens with `sheetEnd`: the white bottom edge of the local results, 32px
- * corners, laid over the top of the aura. The web search then reads as the same
- * canvas expanding out from underneath the local results instead of a second block
- * stacked below them (D050).
- *
- * One display-linked clock drives every layer on the UI thread, so the band
- * keeps flowing at 120 Hz while the results above it scroll. Tapping the CTA
- * does not swap it out: the label crossfades in place, the whole surface's
- * motion quickens while it thinks (~2× rate), then settles as web results
- * stream in one at a time (§9.4). Under reduced motion the clock never starts
- * and every layer renders a composed still frame (§9.6).
+ * Tapping the CTA crossfades its label in place and quickens the whole surface
+ * (~2× rate) while it thinks; then the ENTIRE pitch (mark, question, CTA)
+ * collapses into one minimal heading — "From across the web" with a live count —
+ * and results stream one at a time into a vertical two-column grid of floating
+ * white cards (D063). The feed (`data/webResults.ts`) wraps the real catalog, so
+ * the grid is never empty and keeps growing: SerpShell pulses `registerLoadMore`
+ * when the page nears its end, a shimmering skeleton pair marks the frontier
+ * where the next cards will land, and the count ticks up as they do. Cards may
+ * or may not carry a cashback pill (unmapped merchants don't — Q-010). Under
+ * reduced motion the clock never starts and results land instantly (§9.6).
  */
-import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, AccessibilityInfo } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, AccessibilityInfo } from 'react-native';
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -52,6 +51,8 @@ import { Icon } from '../icons/Icon';
 import { AiMark } from '../icons/AiMark';
 import { ProductCard } from './ResultCards';
 import { ResultItem } from '../data/dataContract';
+import { webFeed } from '../data/webResults';
+import { SkeletonBlock } from '../motion/Skeleton';
 import { AuraClock, AuraField, AURA_LOOP, FlowStrip, Orbit, radialFill, Sweep, useAuraClock } from '../motion/Aura';
 import { EASE } from '../motion/motion';
 
@@ -61,6 +62,11 @@ type Phase = 'idle' | 'searching' | 'results';
 const THINK_MS = 1150;
 /** Gap between streamed web results (§9.4 — one at a time, never a batch). */
 const STREAM_MS = 220;
+/** Stream cadence for load-more batches — quicker, the reveal already happened. */
+const STREAM_MORE_MS = 130;
+/** First reveal fills four grid rows; each scroll-triggered batch adds three. */
+const INITIAL_COUNT = 8;
+const BATCH_COUNT = 6;
 /** Clock rate while searching: the surface visibly quickens, then settles. */
 const THINK_RATE = 2.2;
 /** Press depth — matches the DS card/button press (§9.4). */
@@ -71,6 +77,8 @@ const PRESS_SCALE = 0.03;
  * the middle and the edge reads as a lozenge, not as the bottom of a sheet.
  */
 const SHEET_END_H = space.xxl;
+/** The results heading's compact mark — the 64px pitch mark, settled. */
+const HEADING_MARK = 20;
 
 /** Soft platter behind the mark — cobalt core fading to nothing (matches the
  *  blue glass body; a violet platter under a blue mark read as a second object). */
@@ -81,15 +89,37 @@ const MARK_GLOW = radialFill([
   [color.aura.aiGlowBlue0, '100%'],
 ]);
 
-export function ExpandSearchCard({ webResults = [] }: { webResults?: ResultItem[] }) {
+export function ExpandSearchCard({
+  webResults = [],
+  query = '',
+  registerLoadMore,
+}: {
+  /** Curated seed results (e.g. the transcribed whey case) — lead the feed. */
+  webResults?: ResultItem[];
+  /** The committed query — seeds the generated feed's ordering. */
+  query?: string;
+  /** SerpShell calls the registered fn when the page scrolls near its end; the
+   *  band answers by extending the grid. Registered only while in results. */
+  registerLoadMore?: (fn: (() => void) | null) => void;
+}) {
   const [phase, setPhase] = useState<Phase>('idle');
-  const [shown, setShown] = useState(0);
+  const [target, setTarget] = useState(0); // how many results the grid is growing toward
+  const [shown, setShown] = useState(0); // how many have actually landed
   const [ctaW, setCtaW] = useState(0);
+  const [gridW, setGridW] = useState(0);
   const reduced = useReducedMotion();
 
   const clock = useAuraClock();
   const gain = useSharedValue(1); // aura brightness
   const press = useSharedValue(0); // 0 → 1 while a finger is down
+
+  // The endless feed continues the curated seed instead of repeating it.
+  const feed = useMemo(() => webFeed(query, webResults), [query, webResults]);
+  const items = useMemo(() => {
+    const out = webResults.slice(0, target);
+    for (let i = out.length; i < target; i++) out.push(feed(i - webResults.length));
+    return out;
+  }, [webResults, feed, target]);
 
   // Phase retimes the whole surface. Nothing is keyframed to a fixed duration,
   // so `rate` can be animated mid-flight and no layer jumps.
@@ -102,26 +132,40 @@ export function ExpandSearchCard({ webResults = [] }: { webResults?: ResultItem[
     });
   }, [phase]);
 
-  // Timed phases: think → stream.
+  // Timed phases: think → stream. Results open with the first grid fill.
   useEffect(() => {
     if (phase !== 'searching') return;
-    const to = setTimeout(() => setPhase('results'), reduced ? 0 : THINK_MS);
+    const to = setTimeout(() => {
+      setTarget(INITIAL_COUNT);
+      setPhase('results');
+    }, reduced ? 0 : THINK_MS);
     return () => clearTimeout(to);
   }, [phase, reduced]);
   useEffect(() => {
-    if (phase !== 'results' || shown >= webResults.length) return;
-    const to = setTimeout(() => setShown((n) => n + 1), reduced ? 0 : STREAM_MS);
+    if (phase !== 'results' || shown >= target) return;
+    const cadence = shown < INITIAL_COUNT ? STREAM_MS : STREAM_MORE_MS;
+    const to = setTimeout(() => setShown((n) => n + 1), reduced ? 0 : cadence);
     return () => clearTimeout(to);
-  }, [phase, shown, webResults.length, reduced]);
+  }, [phase, shown, target, reduced]);
+
+  // Infinite growth: while in results, hand SerpShell a load-more. Extends only
+  // once the previous batch has fully landed, so scroll pulses self-throttle.
+  const shownRef = useRef(0);
+  shownRef.current = shown;
+  useEffect(() => {
+    if (!registerLoadMore) return;
+    registerLoadMore(
+      phase === 'results' ? () => setTarget((n) => (shownRef.current >= n ? n + BATCH_COUNT : n)) : null,
+    );
+    return () => registerLoadMore(null);
+  }, [phase, registerLoadMore]);
 
   // VoiceOver: a purely visual state change is no state change at all.
   useEffect(() => {
     if (phase === 'searching') AccessibilityInfo.announceForAccessibility('Searching the whole web');
     if (phase === 'results') {
       AccessibilityInfo.announceForAccessibility(
-        webResults.length
-          ? `${webResults.length} matching products found on the web`
-          : 'No matching products on the web',
+        'Matching products found across the web. The list keeps growing as you scroll.',
       );
     }
   }, [phase]);
@@ -130,6 +174,23 @@ export function ExpandSearchCard({ webResults = [] }: { webResults?: ResultItem[
   const veilStyle = useAnimatedStyle(() => ({ opacity: press.value }));
 
   const busy = phase === 'searching';
+  // Grid cell: two columns split one 12px gutter; the card fits inside the cell's padding.
+  const cellW = gridW > 0 ? Math.floor((gridW - space.s12) / 2) : 0;
+  const cardW = cellW - space.s12 * 2;
+  // The shimmer frontier: up to two skeleton cells where the next cards will land.
+  const pending = phase === 'results' && !reduced ? Math.min(2, target - shown) : 0;
+
+  // TWO INDEPENDENT COLUMNS, not a wrapping row: in a wrapping row every cell
+  // stretches to the tallest in its row, so a card with no cashback pill (or a
+  // one-line title) carried dead white space to match its neighbour. Alternating
+  // by index keeps the streaming order readable left → right while letting each
+  // card be exactly as tall as its own content (D064).
+  const columns: ResultItem[][] = [[], []];
+  items.slice(0, shown).forEach((r, i) => columns[i % 2].push(r));
+  // Skeletons continue that alternation, so the shimmer sits where the next card lands.
+  const pendingPerCol = [0, 1].map((c) =>
+    Array.from({ length: pending }, (_, i) => (shown + i) % 2).filter((x) => x === c).length,
+  );
 
   return (
     <Animated.View
@@ -138,9 +199,9 @@ export function ExpandSearchCard({ webResults = [] }: { webResults?: ResultItem[
       style={styles.band}
     >
       {/* Full-bleed band, not a card: the aura runs to both screen edges and the
-          result rail can carry any number of products off the right edge. Only
-          the copy + CTA are re-inset to the page column (AGENTS.md full-bleed
-          rule — cancel the 20px page padding, re-add it inside). */}
+          result grid can grow to any length inside it. Only the copy + grid are
+          re-inset to the page column (AGENTS.md full-bleed rule — cancel the
+          20px page padding, re-add it inside). */}
       <AuraField clock={clock} gain={gain} />
 
       {/* Where the local results END. A white sheet edge with 32px bottom corners,
@@ -151,33 +212,30 @@ export function ExpandSearchCard({ webResults = [] }: { webResults?: ResultItem[
           rounding the content above would only cut a white corner out of white. */}
       <View style={styles.sheetEnd} pointerEvents="none" />
 
-      <View style={styles.pitch}>
-        <View style={styles.head}>
-          {/* Vector glass mark on a soft glow platter (not a hard gradient tile —
-              the platter lets the aura read through). Sky→mint→violet body under
-              white specular layers; see icons/AiMark.tsx. */}
-          <View style={styles.mark}>
-            <View style={[StyleSheet.absoluteFill, MARK_GLOW]} pointerEvents="none" />
-            {!reduced && <Orbit clock={clock} size={AI_MARK_SIZE} />}
-            <AiMark size={AI_MARK_SIZE} />
+      {phase !== 'results' && (
+        <Animated.View exiting={reduced ? undefined : FadeOut.duration(duration.fast)} style={styles.pitch}>
+          <View style={styles.head}>
+            {/* Vector glass mark on a soft glow platter (not a hard gradient tile —
+                the platter lets the aura read through). Sky→mint→violet body under
+                white specular layers; see icons/AiMark.tsx. */}
+            <View style={styles.mark}>
+              <View style={[StyleSheet.absoluteFill, MARK_GLOW]} pointerEvents="none" />
+              {!reduced && <Orbit clock={clock} size={AI_MARK_SIZE} />}
+              <AiMark size={AI_MARK_SIZE} />
+            </View>
+            {/* Title + pitch share one column beside the mark. The pitch breaks at a
+                chosen point rather than wherever the column width happens to run out,
+                so it is two balanced lines on every screen size (a 500px-wide preview
+                would otherwise fit it on one). */}
+            <View style={styles.headText}>
+              <Text style={styles.title}>Didn’t find what you’re looking for?</Text>
+              <Text style={styles.body} numberOfLines={2}>
+                We can search the whole web{'\n'}and find matching products.
+              </Text>
+            </View>
           </View>
-          {/* Title + pitch share one column beside the mark. The pitch breaks at a
-              chosen point rather than wherever the column width happens to run out,
-              so it is two balanced lines on every screen size (a 500px-wide preview
-              would otherwise fit it on one). */}
-          <View style={styles.headText}>
-            <Text style={styles.title}>Didn’t find what you’re looking for?</Text>
-            <Text style={styles.body} numberOfLines={2}>
-              We can search the whole web{'\n'}and find matching products.
-            </Text>
-          </View>
-        </View>
 
-        {phase !== 'results' && (
-          <Animated.View
-            style={[styles.ctaShadow, liftStyle]}
-            exiting={reduced ? undefined : FadeOut.duration(duration.fast)}
-          >
+          <Animated.View style={[styles.ctaShadow, liftStyle]}>
             <Pressable
               disabled={busy}
               onPress={() => setPhase('searching')}
@@ -228,41 +286,61 @@ export function ExpandSearchCard({ webResults = [] }: { webResults?: ResultItem[
               )}
             </Pressable>
           </Animated.View>
-        )}
-      </View>
+        </Animated.View>
+      )}
 
       {phase === 'results' && (
         <Animated.View entering={reduced ? undefined : FadeIn.duration(duration.base)} style={styles.results}>
-          <View style={styles.provenance}>
-            <View style={styles.webChip}>
-              <Icon name="globe" size={10} color={color.aura.slateMuted} />
-              <Text style={styles.webChipLabel}>FROM ACROSS THE WEB</Text>
-            </View>
-            {webResults.length > 0 && (
-              <Text style={styles.matchCount}>
-                {webResults.length} {webResults.length === 1 ? 'match' : 'matches'}
-              </Text>
+          {/* The whole pitch settles into ONE minimal heading: compact mark,
+              provenance, and a count that ticks up as the grid grows. */}
+          <View style={styles.headingRow}>
+            <AiMark size={HEADING_MARK} />
+            <Text style={styles.heading}>From across the web</Text>
+            {shown > 0 && (
+              <Animated.Text
+                key={`n-${shown}`}
+                entering={reduced ? undefined : FadeIn.duration(duration.fast)}
+                style={styles.headingCount}
+              >
+                {shown}
+              </Animated.Text>
             )}
           </View>
 
-          {webResults.length === 0 ? (
-            <Text style={styles.empty}>No matching products turned up on the web this time.</Text>
-          ) : (
-            // Full-bleed rail: any number of results, the last one scrolling off
-            // the true screen edge instead of being cut at a 20px inset.
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.rail}
-              // Streaming means the content grows while it is on screen; keep the
-              // first card pinned left rather than letting the frame jump.
-              contentOffset={{ x: 0, y: 0 }}
-            >
-              {webResults.slice(0, shown).map((r, i) => (
-                <ProductCard key={r.id} item={r} index={i} />
-              ))}
-            </ScrollView>
-          )}
+          {/* Vertical two-column grid of floating white cards over the aura.
+              Cards stream in one at a time; the page's own scroll (SerpShell)
+              extends `target`, so the grid keeps getting longer on scroll. */}
+          <View style={styles.grid} onLayout={(e) => setGridW(Math.round(e.nativeEvent.layout.width))}>
+            {[0, 1].map((c) => (
+              <View key={c} style={[styles.col, cellW > 0 && { width: cellW }]}>
+                {cellW > 0 &&
+                  columns[c].map((r) => (
+                    <Animated.View
+                      key={r.id}
+                      entering={reduced ? undefined : FadeInDown.duration(duration.moderate)}
+                      layout={reduced ? undefined : LinearTransition.duration(duration.fast)}
+                      style={styles.cell}
+                    >
+                      <ProductCard item={r} index={0} width={cardW} />
+                    </Animated.View>
+                  ))}
+                {cellW > 0 &&
+                  Array.from({ length: pendingPerCol[c] }, (_, i) => (
+                    <Animated.View
+                      key={`sk-${c}-${i}`}
+                      layout={LinearTransition.duration(duration.fast)}
+                      exiting={FadeOut.duration(duration.fast)}
+                      style={styles.cell}
+                    >
+                      {/* Same box the landing card's photo will occupy (132×96 ratio, D050). */}
+                      <SkeletonBlock width={'100%'} height={Math.round(cardW / (132 / 96))} radiusToken={radius.md} />
+                      <SkeletonBlock width={'70%'} height={12} />
+                      <SkeletonBlock width={'45%'} height={12} />
+                    </Animated.View>
+                  ))}
+              </View>
+            ))}
+          </View>
         </Animated.View>
       )}
     </Animated.View>
@@ -292,8 +370,8 @@ function Dot({ clock, index, reduced }: { clock: AuraClock; index: number; reduc
 
 const styles = StyleSheet.create({
   // Full-bleed band. Cancels the page column's 20px padding so the aura and the
-  // result rail reach both screen edges; hairlines top and bottom stand in for
-  // the card's border, and the section above no longer needs a Divider.
+  // result grid's field reach both screen edges; hairlines top and bottom stand
+  // in for the card's border, and the section above no longer needs a Divider.
   band: {
     marginTop: space.xxl, // 16 + 24px extra breathing room above the web-search band
     marginHorizontal: -space.m20,
@@ -338,7 +416,6 @@ const styles = StyleSheet.create({
 
   title: { ...t.body16SemiBold, color: color.aura.ink },
   body: { ...t.body14Regular, color: color.aura.slate, marginTop: space.xs },
-  empty: { ...t.body14Regular, color: color.aura.slate, paddingHorizontal: space.m20 },
 
   ctaShadow: {
     marginTop: space.m,
@@ -375,26 +452,26 @@ const styles = StyleSheet.create({
   dot: { width: space.xs, height: space.xs, borderRadius: space.xxs, backgroundColor: color.textInverse },
   dotStill: { opacity: 0.6 },
 
-  results: { marginTop: space.m, gap: space.s },
-  provenance: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: space.m20, // back on the page column; the rail below is not
+  /** Results state — one heading + the grid, back on the page column. */
+  results: { paddingHorizontal: space.m20, paddingTop: SHEET_END_H + space.s12, gap: space.m },
+  headingRow: { flexDirection: 'row', alignItems: 'center', gap: space.s },
+  heading: { ...t.body16SemiBold, color: color.aura.ink, flex: 1 },
+  headingCount: { ...t.body12Medium, color: color.aura.slateMuted },
+  /**
+   * 2-up grid as two INDEPENDENT columns splitting one 12px gutter — not a
+   * wrapping row, whose cells all stretch to the tallest in the row. `flex-start`
+   * so the shorter column never stretches either (D064).
+   */
+  grid: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  col: { gap: space.s12 },
+  /** A floating white card cell over the aura — the card content sits inside, and
+   *  the cell is exactly as tall as that content. */
+  cell: {
+    backgroundColor: color.surface,
+    borderRadius: radius.xl,
+    borderCurve: 'continuous',
+    padding: space.s12,
+    gap: space.s,
+    ...elevation.soft,
   },
-  /** Re-inset on BOTH sides so card 1 aligns with the page and card N scrolls to the edge. */
-  rail: { gap: space.s12, paddingHorizontal: space.m20, paddingVertical: space.xs },
-  webChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.s6,
-    paddingHorizontal: space.s,
-    paddingVertical: space.xs,
-    borderRadius: radius.full,
-    backgroundColor: color.aura.aiChip,
-    borderWidth: 1,
-    borderColor: color.aura.aiEdge,
-  },
-  webChipLabel: { ...t.caption8SemiBoldCaps, color: color.aura.slateMuted },
-  matchCount: { ...t.body12Medium, color: color.aura.slateMuted },
 });

@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     paddingVertical: space.s12,
   },
   chip: {
-    height: PILL_HEIGHT, // 40px — canonical pill height
+    height: PILL_HEIGHT, // 36px — canonical pill height
     paddingHorizontal: space.m,
     borderRadius: radius.full,
     alignItems: 'center',

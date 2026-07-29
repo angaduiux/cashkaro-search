@@ -676,7 +676,10 @@ export const caseCredit: SerpModel = {
   archetype: '05_credit_card',
   context: { label: '3 cards for “credit” · ranked by CashKaro reward', count: 3 },
   hero: null,
-  tabs: ['all', 'credit_cards', 'cobranded'],
+  // No tab row on a cards page (D062): the only split it offered was Credit Cards
+  // vs Co-branded, and there are no co-branded cards in the product, so both pills
+  // resolved to the same three cards. `caseCards` reads this, so it follows.
+  tabs: null,
   sections: [
     {
       kind: 'cards',
@@ -788,6 +791,42 @@ export const caseAmountLoan: SerpModel = {
       disclaimer: 'Rates & fees are indicative and subject to change by the respective bank/NBFC.',
     },
   ],
+  expandSearch: false,
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Broad finance-intent queries — "loans", "cards". Category-level searches with
+// no store or product to match, so without these they fell through `buildSerp`
+// to the recovery screen. Both REUSE the transcribed sections above (single
+// source for every rate, EMI and fee — nothing is restated here) and only
+// re-label the context line: the amount-specific header ("Lowest EMI for
+// ₹5,00,000") and the "for “credit”" echo are both wrong for a broad query.
+// ═════════════════════════════════════════════════════════════════════════════
+const loanSection = caseAmountLoan.sections[0];
+export const caseLoans: SerpModel = {
+  query: 'loans',
+  archetype: '07_loan',
+  context: {
+    label: `${loanSection.items.length} personal loans · ranked by rate (low → high)`,
+    count: loanSection.items.length,
+  },
+  hero: null,
+  tabs: null,
+  sections: [loanSection],
+  expandSearch: false,
+};
+
+const cardSection = caseCredit.sections[0];
+export const caseCards: SerpModel = {
+  query: 'cards',
+  archetype: '05_credit_card',
+  context: {
+    label: `${cardSection.items.length} credit cards · ranked by CashKaro reward`,
+    count: cardSection.items.length,
+  },
+  hero: null,
+  tabs: caseCredit.tabs,
+  sections: [cardSection],
   expandSearch: false,
 };
 
@@ -944,6 +983,22 @@ export const REAL_CASES: Record<string, SerpModel> = {
   '₹5,00,000 personal loan': caseAmountLoan,
   'zero balance savings account': caseSavings,
 };
+
+/**
+ * Finance-vertical intent → that vertical's results page. Runs AFTER `REAL_CASES`
+ * (so "sbi cashback card", "credit" and "₹5,00,000 personal loan" keep their own
+ * pages) and BEFORE `buildSerp`, which has nothing to match a bare "loans" or
+ * "credit cards" against and would drop the query on the recovery screen.
+ * Word-boundary matched, so it fires on the word — "loan", "loans", "personal
+ * loans", "card", "credit cards" — and never on a substring of a store or
+ * product name.
+ */
+export function financeSerp(query: string): SerpModel | undefined {
+  const q = query.trim().toLowerCase();
+  if (/\bloans?\b/.test(q)) return caseLoans;
+  if (/\bcards?\b/.test(q)) return caseCards;
+  return undefined;
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Suggestions (W3 · Aura, Figma 1646:7462) — result-type-grouped type-ahead.

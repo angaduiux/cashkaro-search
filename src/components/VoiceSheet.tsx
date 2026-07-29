@@ -3,13 +3,17 @@
  *
  * Composition follows the reference pattern: a scrim, a white sheet with rounded top
  * corners, and everything centred on one vertical axis — prompt, the thing being
- * said, one accent mic disc, one hint. No left-aligned labels, no control row; the
- * disc IS the control, so the sheet has a single focal point.
+ * said, one orb, one hint. No left-aligned labels, no control row; the orb IS the
+ * control, so the sheet has a single focal point.
  *
- * The meter lives **inside** the disc rather than beside it. Five bars, each on its
- * own frequency band from [motion/useVoiceLevel](../motion/useVoiceLevel.ts), plus two
- * concentric rings scaled by loudness — the button breathes with the room and spikes
- * on every syllable.
+ * The meter **is** the orb — a gradient-blob sphere in a blooming aura
+ * ([motion/VoiceBlobs](../motion/VoiceBlobs.tsx)), Siri/Gemini-style, where every
+ * blob rides its own frequency band from
+ * [motion/useVoiceLevel](../motion/useVoiceLevel.ts). Bars and pulse rings are gone:
+ * a bar meter quantises a voice into five numbers, where blobs crossing at
+ * different rates read as the voice itself. The orb keeps its silhouette through
+ * all six phases and only its glyph changes, so the beats below never cost the
+ * person their focal point.
  *
  * Six states. The first two are driven by the signal; the three after the phrase lands
  * are timed beats, because a voice search that jumps straight from the last syllable to
@@ -45,7 +49,6 @@ import Animated, {
   cancelAnimation,
   interpolate,
   useAnimatedStyle,
-  useDerivedValue,
   useReducedMotion,
   useSharedValue,
   withRepeat,
@@ -55,7 +58,8 @@ import Animated, {
 import { color, type as t, space, radius, duration, MIN_TAP_TARGET } from '../theme/tokens';
 import { EASE } from '../motion/motion';
 import { Icon } from '../icons/Icon';
-import { BAND_COUNT, useVoiceLevel } from '../motion/useVoiceLevel';
+import { useVoiceLevel } from '../motion/useVoiceLevel';
+import { VoiceBlobs } from '../motion/VoiceBlobs';
 
 export type VoicePhase = 'listening' | 'hearing' | 'settling' | 'processing' | 'searching' | 'nomatch';
 
@@ -102,13 +106,10 @@ const HINTS: Record<VoicePhase, string> = {
   nomatch: 'Tap microphone to try again',
 };
 
-/** Bars inside the disc. Fewer than the analyser's nine bands: the disc is small, and
- *  five reads as a voice meter where nine reads as noise. */
-const DISC_BARS = 5;
-const DISC = 76;
-const BAR_W = 4;
-const BAR_MAX = 30;
-const BAR_MIN = 4;
+/** Glyph sizes on the orb — the mic is the resting state, the beats are smaller so
+ *  the sphere's own light stays the loudest thing in the sheet. */
+const GLYPH_MIC = 30;
+const GLYPH_BEAT = 26;
 
 export function VoiceSheet({
   visible,
@@ -307,8 +308,12 @@ function Suggestion({ index, reduced }: { index: number; reduced: boolean }) {
 }
 
 /**
- * The accent disc: two pulse rings scaled by loudness, five band-driven bars inside,
- * and a spring to a check once the phrase lands.
+ * The orb: a blob sphere in a blooming aura, with one glyph per phase on top.
+ *
+ * The blobs carry the signal, so nothing here quantises it — the tap target is the
+ * sphere itself (96px, well clear of MIN_TAP_TARGET) and the glyph only ever says
+ * *which beat* the sheet is on. `live` parks the field once the phrase has landed,
+ * so the orb visibly settles under "Got it" instead of chasing room noise.
  */
 function MicDisc({
   bands,
@@ -326,16 +331,6 @@ function MicDisc({
   const nomatch = phase === 'nomatch';
   const live = phase === 'listening' || phase === 'hearing';
   const done = !live && !nomatch;
-  // The outer ring travels further than the inner one, so the pulse reads as a wave
-  // leaving the disc rather than the disc simply getting bigger.
-  const ring1 = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + level.value * 0.34 }],
-    opacity: 0.5 + level.value * 0.5,
-  }));
-  const ring2 = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + level.value * 0.62 }],
-    opacity: 0.25 + level.value * 0.4,
-  }));
 
   const breath = useSharedValue(0);
   useEffect(() => {
@@ -349,39 +344,29 @@ function MicDisc({
   }, [reduced]);
 
   return (
-    <View style={styles.discWrap}>
-      {live && (
-        <>
-          <Animated.View style={[styles.ring, styles.ringOuter, ring2]} pointerEvents="none" />
-          <Animated.View style={[styles.ring, ring1]} pointerEvents="none" />
-        </>
-      )}
-      <Pressable
-        onPress={onPress}
-        disabled={!onPress}
-        style={[styles.disc, done && styles.discDone]}
-        accessibilityRole="button"
-        accessibilityLabel={done ? HINTS[phase] : nomatch ? 'Tap microphone to try again' : 'Listening, tap to cancel'}
-        accessibilityState={{ busy: phase === 'processing' || phase === 'searching' }}
-      >
-        {/* One glyph per beat, so "heard → understood → searching" is legible at a
-            glance and not just a change of caption. */}
-        {phase === 'settling' ? (
-          <Icon name="check" size={30} color={color.voice.micGlyph} weight="solid" />
-        ) : phase === 'processing' ? (
-          <ThinkingDots breath={breath} reduced={reduced} />
-        ) : phase === 'searching' ? (
-          <Icon name="search" size={26} color={color.voice.micGlyph} weight="solid" />
-        ) : nomatch ? (
-          <Icon name="mic" size={28} color={color.voice.micGlyph} weight="solid" />
-        ) : (
-          <View style={styles.barRow}>
-            {Array.from({ length: DISC_BARS }, (_, i) => (
-              <DiscBar key={i} band={bands[bandFor(i)]} breath={breath} reduced={reduced} index={i} />
-            ))}
-          </View>
-        )}
-      </Pressable>
+    <View style={styles.orbSlot}>
+      <VoiceBlobs level={level} bands={bands} live={live}>
+        <Pressable
+          onPress={onPress}
+          disabled={!onPress}
+          style={styles.orbTap}
+          accessibilityRole="button"
+          accessibilityLabel={done ? HINTS[phase] : nomatch ? 'Tap microphone to try again' : 'Listening, tap to cancel'}
+          accessibilityState={{ busy: phase === 'processing' || phase === 'searching' }}
+        >
+          {/* One glyph per beat, so "heard → understood → searching" is legible at a
+              glance and not just a change of caption. */}
+          {phase === 'settling' ? (
+            <Icon name="check" size={GLYPH_MIC} color={color.voice.micGlyph} weight="solid" />
+          ) : phase === 'processing' ? (
+            <ThinkingDots breath={breath} reduced={reduced} />
+          ) : phase === 'searching' ? (
+            <Icon name="search" size={GLYPH_BEAT} color={color.voice.micGlyph} weight="solid" />
+          ) : (
+            <Icon name="mic" size={GLYPH_MIC} color={color.voice.micGlyph} weight="solid" />
+          )}
+        </Pressable>
+      </VoiceBlobs>
     </View>
   );
 }
@@ -408,34 +393,6 @@ function ThinkingDot({ breath, index, reduced }: { breath: SharedValue<number>; 
   return <Animated.View style={[styles.thinkDot, style]} />;
 }
 
-/** Map five bars onto the analyser's nine bands, keeping the speech-heavy middle. */
-function bandFor(i: number) {
-  return Math.min(BAND_COUNT - 1, 1 + Math.round((i * (BAND_COUNT - 3)) / (DISC_BARS - 1)));
-}
-
-function DiscBar({
-  band,
-  breath,
-  reduced,
-  index,
-}: {
-  band: SharedValue<number>;
-  breath: SharedValue<number>;
-  reduced: boolean;
-  index: number;
-}) {
-  const idle = useDerivedValue(() => {
-    if (reduced) return 0.2;
-    const phase = (breath.value + index / DISC_BARS) % 1;
-    return 0.16 + Math.sin(phase * Math.PI) * 0.14;
-  });
-  const style = useAnimatedStyle(() => {
-    const v = Math.max(band.value, idle.value);
-    return { height: BAR_MIN + interpolate(v, [0, 1], [0, BAR_MAX - BAR_MIN]) };
-  });
-  return <Animated.View style={[styles.bar, style]} />;
-}
-
 const styles = StyleSheet.create({
   scrimFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: color.voice.scrim },
   sheet: {
@@ -460,7 +417,10 @@ const styles = StyleSheet.create({
   centre: { alignItems: 'center', gap: space.s, height: 104, justifyContent: 'center' },
   prompt: { color: color.voice.label, textAlign: 'center' },
   said: { color: color.voice.transcript, textAlign: 'center' },
-  hint: { color: color.voice.action, textAlign: 'center' },
+  // Muted, not the brand orange it used to be: the orb is the only saturated thing
+  // in the sheet, and an orange caption under a violet sphere read as a second,
+  // unrelated accent.
+  hint: { color: color.voice.labelMuted, textAlign: 'center' },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s12 },
   chip: {
@@ -472,26 +432,13 @@ const styles = StyleSheet.create({
     borderColor: color.voice.chipBorder,
   },
 
-  discWrap: { width: DISC * 2, height: DISC * 1.4, alignItems: 'center', justifyContent: 'center' },
-  ring: {
-    position: 'absolute',
-    width: DISC,
-    height: DISC,
-    borderRadius: radius.full,
-    backgroundColor: color.voice.pulse,
-  },
-  ringOuter: { backgroundColor: color.voice.pulseFaint },
-  disc: {
-    width: DISC,
-    height: DISC,
-    borderRadius: radius.full,
-    backgroundColor: color.voice.micBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  discDone: { backgroundColor: color.success },
-  barRow: { flexDirection: 'row', alignItems: 'center', gap: 4, height: BAR_MAX },
-  bar: { width: BAR_W, borderRadius: radius.full, backgroundColor: color.voice.micGlyph },
-  dotRow: { flexDirection: 'row', alignItems: 'center', gap: space.s6, height: BAR_MAX },
+  // The orb's field box is mostly transparent margin — room for the aura to travel
+  // without being clipped. Pulled in so that margin doesn't read as dead space on
+  // top of the sheet's own 20px gaps; the glow it holds is meant to reach the text.
+  orbSlot: { marginVertical: -space.xxl, alignItems: 'center', justifyContent: 'center' },
+  // The tap target fills the sphere, so the whole orb is pressable and the glyph
+  // sits dead-centre on it.
+  orbTap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  dotRow: { flexDirection: 'row', alignItems: 'center', gap: space.s6 },
   thinkDot: { width: space.s, height: space.s, borderRadius: radius.full, backgroundColor: color.voice.micGlyph },
 });

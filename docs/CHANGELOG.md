@@ -32,6 +32,213 @@ set. `src/theme/tokens.ts` is the only source of colour/type/space/radius/motion
 
 ---
 
+## 2026-07-29 · Expand Search results became an endless 2-up grid
+
+**From a rail of curated matches to a browse surface that never runs dry (D063).**
+Tapping "Expand Search with AI" now collapses the band's entire pitch into one
+minimal heading — compact `AiMark`, "From across the web", a count that ticks up —
+and streams results one at a time into a vertical two-column grid of floating white
+cards over the aura field. The feed is a new module,
+[data/webResults.ts](../src/data/webResults.ts): a deterministic, endless pager
+over the real catalog (query matches lead, the remainder rotates on a query-seeded
+offset, indices wrap the pool) that continues the curated whey seed and dedupes
+against it by title and photo asset. Mapped merchants (~2/3, stable per product)
+keep their catalog cashback; the rest carry `{ type: 'none' }` — so the grid mixes
+cards with and without a cashback pill, the honest Q-010 behaviour (D032). Infinite
+growth rides the page's own scroll: SerpShell pulses a registered load-more within
+480px of the page end, the band extends only after the previous batch has fully
+landed, and a two-cell shimmer frontier marks where the next cards will appear.
+`ProductCard` also learned to scale its photo box to the 132×96 ratio when widened,
+so grid cards fill instead of letterboxing. Verified per D014: headless build,
+scroll probe pulsing the page bottom, screenshots of the sheet-edge transition,
+heading, mixed-cashback cells, and a count grown 8 → 20 across three pulses.
+
+**Then the cards stopped stretching, and every one of them got a Final Price
+(D064).** The grid became two independent columns rather than one wrapping row —
+a wrapping row stretches each cell to the tallest in its row, so a card without a
+cashback pill carried a hole of white space to match its neighbour. Items
+alternate into the columns by index parity, so the streamed order still reads
+left → right while each card is exactly as tall as its own content and the columns
+pack independently. In the same pass `ProductCard` began deriving a Final Price
+whenever it has a price at all — price − cashback where there is cashback, the
+price itself where there isn't — so an unmapped merchant's card ends on the same
+labelled payable number as every card beside it, and the only height difference
+left between two cards is the cashback pill, which is real information. That one
+is app-wide: the SERP products rail and the category grid gained the line too.
+
+## 2026-07-29 · The credit-card card, transcribed from Mini App Main
+
+**The spec's own numbers, colours and vectors (D061, D062).** [CreditCard](../src/components/CreditCard.tsx)
+is rebuilt against Figma "Mini App Main" `9RfW1gNewOnFDsNqaHsRoF` frame 4007:57107
+(component 731:33245, five instances): artwork 132×84 r6 bottom-aligned with the
+name and a CK-Orange cashback pill (100°, 0.2 → 0.08 → 0.02), USP tags on a 0.859px
+cool stroke over a 4%-alpha blue→white wash, USP rows built from the frame's **whole**
+"Card Icons" set (714:32723 — Cashback, Discounts, Food, Fuels, Lounge, Vouchers,
+reward, the variant names doubling as the mapping), and a closing strip that is
+either the two fee columns — Annual then Joining, split by a 45px hairline that fades
+to white at both ends — or the cream→mint LIFETIME FREE band, both ending in the same
+108×40 cobalt-ramp CTA with its 6.14×9.94 chevron. Metrics live in `CARD_SPEC`,
+colours in `color.card`, the shadow in a new `elevation.card`; the vectors are inlined
+byte-for-byte as react-native-svg in [icons/cardIcons](../src/icons/cardIcons.tsx),
+which also retires the `#000000` literal this component used to carry.
+
+The pill is orange even though every cashback figure in the app went cobalt the day
+before (D056) — the spec paints the CK Orange variable, and matching it was the ask;
+the cobalt tokens stay in place, so nothing else moved. Three knowing deviations:
+the card is fluid rather than 328 wide, its insets are symmetric where the mock's
+frames drift 2-8px, and "LIFETIME FREE" takes its gradient's mid colour because RN
+can't gradient text without a mask layer. Separately, the cards page lost its tab row
+(D062): Credit Cards vs Co-branded partitioned nothing, since there are no
+co-branded cards. Verified by driving the built page over CDP on a real clock and
+comparing both strip variants against the Figma renders side by side.
+
+## 2026-07-29 · The store hero's aura got a second hue
+
+**One colour more, same temperature (D060).** The hero's drifting field used to be the
+brand tint at five alphas, which could only get brighter and dimmer; two of its five orbs
+now carry a companion hue derived from the tint — the same hue rotated 34° inside its own
+temperature family, a touch lighter and slightly weaker in alpha so the brand still leads.
+Cleartrip's orange field now shifts through amber where the orbs cross, Croma's teal
+through green, and a colourless brand's sky fallback through indigo; nothing warm ever
+gains a cold highlight, which is what would have made the field read as two lights instead
+of one. `companionRgb` picks the rotation direction by how much arc is left, so a hue
+already at its family's edge (a yellow brand) turns back toward orange rather than
+crossing into chartreuse. Verified on the Cleartrip and Croma heroes at several points in
+the 16s loop, clipping the capture to the hero card at 2× — the field is too subtle to
+judge in a full-stage screenshot, and (cf. D035) the frames were taken over CDP in real
+time, not under `--virtual-time-budget`.
+
+## 2026-07-29 · The tab pills dock under the search bar
+
+**One prop, and the rows that had to be flattened for it (D059).** Scrolling a SERP
+past its pills now pins the tab row directly under the shared search bar:
+[SerpShell](../src/components/SerpShell.tsx) passes the row's index as
+`stickyHeaderIndices`, which RN implements natively and RN-web maps to
+`position: sticky; top: 0` — so there is no scroll handler, no measured offset and no
+duplicate TabBar holding a second copy of `active`. Getting there meant assembling
+the page's rows as a flat array (context → hero → all-results line → tabs → sections
+→ Expand Search → tail spacer) with falsy rows dropped as they're pushed, because
+sticky indices address direct children and the old fragment buried the bar inside
+one; nulls are filtered rather than left in place since native counts children with
+`Children.toArray` and RN-web with `Children.map`, which disagree about them.
+[TabBar](../src/components/TabBar.tsx)'s wrap also had to go opaque
+(`color.surface`) — full-bleed and transparent, the sections scrolled visibly through
+the pills. The gallery's static previews opt out. Verified by driving the built page
+over CDP on a real clock (Reanimated doesn't settle under `--virtual-time-budget`):
+at `scrollTop: 700` the pill row moved from 488px down the scroller to 8px from its
+top edge, wrapper `position: sticky`, `top: 0px`, fill white.
+
+## 2026-07-28 · The hero CTA went orange
+
+**One button, one new token (D058).** The store hero's Sign Up & Earn / Shop & Earn
+button now paints `color.aura.ctaHero` (`palette.orange` #ff6d1d) instead of the
+cobalt `color.aura.cta`, which completes the rule "Cashback went blue" already
+stated — cashback = cobalt, CTA = orange — by recolouring the last cobalt CTA left.
+It took a new semantic role rather than a repoint because `aura.cta` is shared by
+the mic, the SERP tab pills, the facet chips, the sheet checkmarks, the user-type
+toggle and every inline "Shop & Earn ›" link. Verified on the built page by seeding
+the controller onto the Amazon hero and shooting it headless (D011, D014), then
+restoring the seed.
+
+## 2026-07-28 · The tab hairline got its own air
+
+**8 above the pills, 16 below (D057).** [TabBar](../src/components/TabBar.tsx)'s
+scroll container traded `paddingVertical: space.s` for `paddingTop: space.s` +
+`paddingBottom: space.m`, so the divider no longer runs along the pill's own edge —
+with no shadow on the pill and a pale cobalt wash inside it, 8px read as one piece of
+chrome rather than as the end of the bar. The row stays tight to the context line
+above it, and nothing below the bar moves: this is padding inside a bar that still
+owns no margin (D036), so the hairline→section-title distance is the same 16px
+`sectionFirst` margin from D055. Measured on the built page rather than eyeballed
+(D014): pill 36.00, above 8.00, below 16.00, hairline 1.00.
+
+## 2026-07-28 · Pills went 36, and section spacing became the number in the style
+
+**Three measured numbers, from the designer's spec on the "Flip" SERP: 12px title→
+elements, 16px tab-divider→title, 36px pills everywhere (D054, D055).** The pill
+height was the easy one — `PILL_HEIGHT` in
+[theme/tokens.ts](../src/theme/tokens.ts) is now a plain `36` instead of an alias
+for `space.xxl`, so the SERP tabs, the three filter-chip rows, Explore's
+recent/trending/more chips and the category chip all moved together, and `PILL_SLOP`
+recomputed to keep the ≥44px tap target.
+
+The spacing needed the header rebuilt. `SectionHeader`
+([atoms.tsx](../src/components/atoms.tsx)) had `paddingVertical: space.s` *and* a
+View-all `Pressable` with `minHeight: 44`, which stretched the whole row to 44 and
+let `alignItems: center` split the leftover 20px above and below the title — so the
+gap a designer actually measures was 18px on any section with a View-all and 8px on
+any without, before the body's own padding was added on top. Now the header is just
+its title's line box, keeps its ≥44px target from `hitSlop` alone (the same pattern
+TabBar's pills use), and OWNS the gap to its body through a `gap` prop defaulting to
+12. [SerpShell](../src/components/SerpShell.tsx) nets each body's shadow-clearance
+padding off that gap (`BODY_TOP_INSET`: rails 4, coupon rail 12, cards rail 8), so
+12 means twelve *visible* pixels on every section kind — and sets the rhythm above
+it: 24 section-to-section, 16 for the first section under the tab bar, which extends
+"The SERP tab bar stopped double-spacing the first section" (D036) — the bar still
+owns no space, so that one margin IS the hairline→title distance.
+[ProductCategory](../src/screens/ProductCategory.tsx) gave up its `block`
+`gap: space.s` for the same reason: two owners of one gap always double it in RN.
+Verified with a DOM probe on the built page rather than by eye (D014) — hairline→
+title 16.00, title→first store tile 12.00, all four pills 36.00.
+
+## 2026-07-28 · Cashback went blue
+
+**One colour for the number, everywhere (D056).** Every cashback figure now reads
+cobalt #0036da instead of the W4 design's orange #e55a0e — the type-ahead rows,
+the store hero's count-up, the product card and credit-card pills, the similar-cards
+rail, the Explore destination tiles and the category page's "Earn up to" hero. The
+warm gradient tints those numbers sat on went cool with them: `aura.cashbackPillFrom`
+and `card.pillFrom` are both cobalt/50 #ebf0ff now (was peach #fff0e8 / saffron
+#ffe6d6). The change is one token repoint plus two components that had hard-wired
+`color.actionPrimary` into their pill (`CreditCard`, `SimilarCardsRail`); the legacy
+orange/peach/saffron entries stay in tokens.ts, commented as superseded. Verified
+across the type-ahead, store page, card SERP, product view-all and a category page
+by driving the served preview build over CDP in real time — Reanimated does not
+settle under `--virtual-time-budget`, so the nav-tap screenshots need a real clock
+(cf. D035).
+
+## 2026-07-28 · Voice search got the Siri/Gemini orb
+
+**The meter became a gradient-blob sphere (D053).** The voice sheet's flat orange
+disc — five band bars inside it, two orange pulse rings behind it — is gone, replaced
+by [motion/VoiceBlobs.tsx](../src/motion/VoiceBlobs.tsx): a 112px circular-clipped
+core (aqua → indigo → violet base ramp, four near-opaque blobs drifting inside it, an
+orbiting specular, a lit rim and a bottom inner shade) standing in a 236px field of
+three soft aura blobs that bloom outward as the room gets louder. Each blob rides one
+of `useVoiceLevel`'s nine bands and is thrown along its own radius by it, so a
+sibilant moves the magenta blob while a vowel swells the aqua one; `level` also
+brightens and scales the aura, scales the core 8%, and speeds the whole field up by
+retiming the shared clock rather than restarting anything.
+
+It is built on the existing Aura engine rather than beside it — same
+`useAuraClock`, same integer harmonics of `AURA_LOOP`, and one new additive
+`softOrbFill` export so the blobs feather on the same eight-stop ramp as every other
+AI surface (D017: real radial gradients, never a blur filter, every falloff ending on
+its own hue at zero alpha). The orb holds its silhouette through all six phases and
+only its glyph changes, so `settling`'s green disc went away and the hint line
+dropped to `labelMuted`; `color.voice.micBg`/`pulse` are kept, not repurposed. New
+tokens: `color.voice.orb*` plus the `VOICE_*` sizes and hue sets. Verified headless
+per D014 by driving the built bundle's mic button and shooting the listening,
+hearing, settling and processing beats — the seeded controller belonged to a parallel
+chat, so the build went to a scratch directory and `Root.tsx` was never touched
+(D011).
+
+## 2026-07-28 · "loans" and "cards" answer with their vertical, not the recovery screen
+
+**Intent routing between the hand-written cases and the catalog (D052).** Searching
+`loans` or `cards` matched no store and no product, so `buildSerp` returned
+undefined and the two broadest BFSI queries landed on recovery. `Root`'s `model`
+memo now falls through `REAL_CASES` → `financeSerp` → `buildSerp`, where
+`financeSerp` word-boundary matches the vertical's word (`loan`/`loans`,
+`card`/`cards`, so "personal loans" and "credit cards" resolve too) onto two new
+broad cases in [realData.ts](../src/data/realData.ts): `caseLoans` and `caseCards`.
+Both reuse the existing `caseAmountLoan` / `caseCredit` sections item-for-item and
+only restate the context line, so no rate, EMI or fee is duplicated and the
+View-all verticals still count 3 loans and 3 cards. Exact keys still win first —
+`sbi cashback card`, `credit` and `₹5,00,000 personal loan` are unchanged — and the
+preview nav gained a jump for each new page. Verified by seeding the controller and
+screenshotting both queries headless (D011, D014).
+
 ## 2026-07-28 · The cashback-timeline strip gets its Figma icons
 
 **Three gradient glyphs, inlined as SVG (D051).** The strip's newer spec (Figma

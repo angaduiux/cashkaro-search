@@ -24,7 +24,7 @@ import { VoiceSheet } from './components/VoiceSheet';
 import { StatusBar } from './os/StatusBar';
 import { NavChrome, NAV_CHROME_H } from './os/NavChrome';
 import { DEVICES, DEFAULT_DEVICE, Device } from './os/devices';
-import { REAL_CASES, webResultsForWhey, buildSuggestions, ALL_DEALS, VIEW_ALL_VERTICALS } from './data/realData';
+import { REAL_CASES, financeSerp, webResultsForWhey, buildSuggestions, ALL_DEALS, VIEW_ALL_VERTICALS } from './data/realData';
 import { searchStores, buildSerp, buildStorePage, _setDealItems, Cat } from './data/catalog';
 import { productCategories, categoryByKey, resolveCategoryTarget, categoryStats, CategoryTarget } from './data/productCategories';
 
@@ -189,7 +189,10 @@ export function Root() {
     if (!committed) return undefined;
     const key = committed.trim().toLowerCase();
     if (REAL_CASES[key]) return REAL_CASES[key];
-    return buildSerp(committed);
+    // Finance verticals resolve by intent ("loans" → the loans page, "cards" →
+    // the credit-cards page); the catalog has no store or product to match them
+    // with, so this sits ahead of buildSerp (D052).
+    return financeSerp(key) ?? buildSerp(committed);
   }, [committed, directStore]);
 
   // Category of the currently resolved store — drives the "View all" catalog grid.
@@ -311,7 +314,9 @@ export function Root() {
         { key: 'tira', label: 'A · Thin store', sub: 'tira', onPress: () => goSerp('tira') },
         { key: 'sbi cashback card', label: 'B · Resolved card', sub: 'sbi cashback card', onPress: () => goSerp('sbi cashback card') },
         { key: 'credit', label: 'C · Cards category', sub: 'credit', onPress: () => goSerp('credit') },
+        { key: 'cards', label: 'C · Cards vertical', sub: 'cards → all credit cards', onPress: () => goSerp('cards') },
         { key: '₹5,00,000 personal loan', label: 'D · Amount loan', sub: '₹5,00,000 loan', onPress: () => goSerp('₹5,00,000 personal loan') },
+        { key: 'loans', label: 'D · Loans vertical', sub: 'loans → all personal loans', onPress: () => goSerp('loans') },
         { key: 'zero balance savings account', label: 'E · Savings feature', sub: 'zero balance savings', onPress: () => goSerp('zero balance savings account') },
         { key: 'whey', label: 'G · Web expand', sub: 'whey → products', onPress: () => goSerp('whey') },
       ],

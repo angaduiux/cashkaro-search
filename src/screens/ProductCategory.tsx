@@ -262,7 +262,9 @@ export function ProductCategory({
             {/* No count here: the rail shows the on-design tiles for the category
                 while "View all" opens the catalog's full store list for it, so a
                 number next to the title would contradict the destination. */}
-            <SectionHeader title={`Earn at these ${cat} stores`} onViewAll={onViewAllStores} />
+            {/* `rail` pads 4px vertically to clear the tile shadows, so the header's
+                gap nets down to 8 to keep the visible title→tile distance at 12 (D055). */}
+            <SectionHeader title={`Earn at these ${cat} stores`} onViewAll={onViewAllStores} gap={space.s12 - space.xs} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railBleed} contentContainerStyle={styles.rail}>
               {stores.map((item) => (
                 <StoreTile key={item.id} item={item} onPress={() => onOpenStore?.(item.title.toLowerCase())} />
@@ -715,7 +717,9 @@ const styles = StyleSheet.create({
   },
   heroChipNeutral: { backgroundColor: color.surface },
 
-  block: { marginTop: space.m20, gap: space.s },
+  // No `gap`: SectionHeader owns the 12px down to its body (D055), and a gap here
+  // would stack on top of it (RN has no margin collapsing).
+  block: { marginTop: space.m20 },
   railBleed: { marginHorizontal: -space.m20 },
   rail: { gap: space.s12, paddingVertical: space.xs, paddingHorizontal: space.m20 },
 

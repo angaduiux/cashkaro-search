@@ -30,8 +30,8 @@ const palette = {
   auraBg: '#f6f7f9', // page / tile surface
   auraHeroFrom: '#f6e5ff', // hero gradient top (lavender)
   auraHeroTo: '#f6f7f9', // hero gradient bottom
-  auraOrange: '#e55a0e', // cashback figure
-  auraBlue: '#0036da', // primary CTA (Shop & Earn)
+  auraOrange: '#e55a0e', // legacy cashback-figure hue — superseded by auraBlue (D056)
+  auraBlue: '#0036da', // primary CTA (Shop & Earn) + every cashback figure (D056)
   auraGold: '#fabf2e', // rating star
   auraGreen: '#047857', // "up from" reward text
   auraGreenSurface: '#e7f7f1', // "up from" chip bg
@@ -98,7 +98,7 @@ const palette = {
   ink600: '#5c5c5c', // text/secondary
   ink400: '#878787', // text/tertiary
   slate400: '#9aa3b2', // muted price / field-icon grey (aura)
-  peach50: '#fff0e8', // product cashback-pill gradient start (Figma 1646:7877)
+  peach50: '#fff0e8', // legacy warm cashback-pill gradient start (Figma 1646:7877) — see D056
   white: '#ffffff',
   // Modal scrim — auraInk at 45%; the only dimming layer in the app (bottom sheets).
   scrim: 'rgba(14,17,22,0.45)',
@@ -128,7 +128,7 @@ export const color = {
   // action
   actionPrimary: palette.orange,
   actionPrimaryText: palette.white,
-  saffron: '#ffe6d6', // saffron/200 — cashback-pill gradient start (DS)
+  saffron: '#ffe6d6', // saffron/200 — legacy warm cashback-pill gradient start (DS); see D056
   trendingSurface: '#fff4e9', // trending chip bg (W4 home)
   recentSurface: '#f6f7f9', // recent chip / slot bg (W4 home)
   actionSurface: palette.orangeTint, // light warm tint (trending chips, deal strips)
@@ -165,8 +165,17 @@ export const color = {
     bg: palette.auraBg,
     heroFrom: palette.auraHeroFrom,
     heroTo: palette.auraHeroTo,
-    cashback: palette.auraOrange,
+    // Cashback figures are BLUE app-wide (D056) — the same cobalt the store card's
+    // "Upto X%" footer and the Shop & Earn CTA already use, so one number can never
+    // appear in two colours depending on which surface renders it.
+    cashback: palette.auraBlue,
     cta: palette.auraBlue,
+    // The store hero's own filled CTA (Sign Up & Earn / Shop & Earn) is the brand
+    // ACTION orange, not the cobalt every other aura control uses (D058). It has
+    // its own role because `cta` above also paints the mic, the tab pills, the
+    // facet chips and every inline "Shop & Earn ›" link — repointing that would
+    // recolour half the app to make one button warm.
+    ctaHero: palette.orange,
     star: palette.auraGold,
     green: palette.auraGreen,
     greenSurface: palette.auraGreenSurface,
@@ -176,7 +185,7 @@ export const color = {
     tileWash: palette.auraTileWash, // store-tile wash when the brand has no tint
     fieldIcon: palette.slate400, // search-field icons (search / clear)
     priceMuted: palette.slate400, // product current/strike price grey (Figma 1646:7869)
-    cashbackPillFrom: palette.peach50, // product cashback-pill gradient start
+    cashbackPillFrom: palette.cobalt50, // cashback-pill gradient start — cool tint of the blue figure (D056)
     searchField: '#eef1f6', // search-bar fill (Figma searchBar 1668:10754, flat, no shadow)
     indicator: '#325065', // carousel page indicator (Swiggy-style pill + dots)
     // AI Expand gradient set (Figma 1646:7445). aiFrom→aiVia→aiTo→aiWash1 is a
@@ -228,15 +237,50 @@ export const color = {
   card: {
     name: '#262626', // card name (text/primary)
     border: '#eeeeee', // border/subtle-3
-    pillFrom: '#ffe6d6', // saffron/200 cashback pill gradient start
+    pillFrom: '#ebf0ff', // cobalt/50 cashback-pill gradient start (was saffron/200 #ffe6d6 — D056)
     tagBg: '#edfbff', // sky tone/bg-subtle
     tagBorder: '#a6e2f4', // sky tone/border
     tagText: 'rgba(0,0,0,0.8)', // transparent-black/80
     benefit: '#5c5c5c', // text/secondary
-    feeLabel: '#808387', // fee caption
-    feeValue: '#0d0d0e', // fee value (text/default)
+    feeLabel: '#808387', // fee caption (colors/text/text-secondary)
+    feeValue: '#0d0d0e', // fee value (colors/text/text-default)
     apply: '#0741ef', // Apply Now button (accent-bg cobalt)
     divider: '#e5e7eb',
+    // ── Mini App Main spec, Figma `9RfW1gNewOnFDsNqaHsRoF` node 4007:57107 ─────
+    // The five card instances there are ONE component (731:33245). Everything
+    // below is read off it verbatim (D061), which is why the cashback pill is
+    // orange here while every other cashback figure in the app is cobalt (D056):
+    // this pill is the spec's, and the spec calls the CK Orange variable.
+    frameBorder: '#e7e7e7', // card stroke
+    title: 'rgba(10,10,10,0.9)', // card name
+    /** Cashback pill — a 100° three-stop wash of CK Orange, and its text. */
+    pillOrange1: 'rgba(255,109,29,0.2)',
+    pillOrange2: 'rgba(255,109,29,0.08)',
+    pillOrange3: 'rgba(255,109,29,0.02)',
+    pillText: '#ff6d1d', // CK Orange
+    /** Benefit tag — 0.86px cool stroke over a near-invisible blue→white wash. */
+    tagStroke: 'rgba(103,157,194,0.12)',
+    tagFillFrom: 'rgba(26,76,226,0.04)',
+    tagFillTo: 'rgba(255,255,255,0.04)',
+    tagLabel: '#262626', // Text Black
+    /** Benefit rows: 18px stroked glyph + Text Inactive copy. */
+    bulletIcon: '#222222',
+    bulletIconOpacity: 0.5,
+    /** Apply Now CTA — 98° cobalt ramp (CK Mini CTA). */
+    applyFrom: '#0036da',
+    applyTo: '#3b67ed',
+    applyChevron: '#ffffff',
+    applyChevronEdge: '#0064e0',
+    /** The fee columns' divider is a 45px hairline that fades out at both ends. */
+    hairline0: '#ffffff',
+    hairlineMid: '#dcdcdc',
+    /** LIFETIME FREE strip — cream→mint→cream, on its own cream stroke. */
+    lftFrom: '#f0f3dc',
+    lftVia: '#dcf3df',
+    lftTo: '#f0f3dc',
+    lftBorder: '#f0f3dc',
+    lftLabel: '#3f8c03',
+    lftSub: '#5c5c5c',
   },
   /**
    * Coupon ticket (Store Page V2.0, Figma `XgdQOrfPsC6HNv24uS9jgN` node 1835:16064
@@ -297,13 +341,27 @@ export const color = {
     /** Halo behind the mic, scaled by level. Same-hue zero-alpha stop (see §Aura). */
     halo: 'rgba(124,58,237,0.22)',
     halo0: 'rgba(124,58,237,0)',
-    /** The mic button is the BRAND accent, not the AI ramp — it is a primary action,
-     *  and the reference pattern (Swiggy) reads as one solid accent disc. */
+    /** The flat accent disc these three describe was replaced by the blob orb
+     *  (motion/VoiceBlobs.tsx, D050) — the sheet is an intelligence surface, so it
+     *  speaks the AI ramp. Kept for the brand-accent variant of the control. */
     micBg: palette.orange,
     micGlyph: palette.white,
-    /** Concentric pulse rings behind the disc, expanding with loudness. */
     pulse: 'rgba(255,109,29,0.20)',
     pulseFaint: 'rgba(255,109,29,0.10)',
+    /** The core sphere's own ramp, lit from the top-left like a physical object:
+     *  cool where the light lands, hot where it falls away. The drifting blobs
+     *  ride ON this, so the sphere still reads as one body when they cross. */
+    orbFrom: palette.auraAiAqua,
+    orbVia: palette.auraAiIndigo,
+    orbTo: palette.auraAiViolet,
+    /** Lit rim + inner shade — the glass edge that keeps the sphere from reading flat. */
+    orbRim: palette.auraAiGlassRim,
+    orbShade: palette.auraAiGlassDepth,
+    /** Specular hot spot near the top-left, and its zero-alpha falloff. */
+    orbSpec: palette.auraAiGlassCore,
+    orbSpec0: palette.auraAiGlassCore0,
+    /** Ambient shadow the orb casts on the sheet. */
+    orbShadow: palette.auraAiShadow,
     /** Scrim over the page while the sheet is up. */
     scrim: 'rgba(14,17,22,0.32)',
     /** Suggestion chips in the no-match state. */
@@ -441,6 +499,10 @@ export const elevation = {
   logo: { shadowColor: '#121726', shadowOpacity: 0.1, shadowRadius: 6.4, shadowOffset: { width: 0, height: 4.8 }, elevation: 3 },
   // Soft card shadow — W4 store-row spec (0 3 6 rgba(216,221,233,.6))
   soft: { shadowColor: '#d8dde9', shadowOpacity: 0.6, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  // Credit-card card — exact Mini App Main spec (0 8 16 rgba(0,0,0,0.05), D061).
+  // Wider and softer than `sm`: at 16px of blur the card lifts off the page
+  // without the 2px-offset edge that reads as a border.
+  card: { shadowColor: '#000000', shadowOpacity: 0.05, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
 } satisfies Record<string, Shadow>;
 
 // ── Motion (§9.2) ──────────────────────────────────────────────────────────────
@@ -475,13 +537,67 @@ export const MIN_TAP_TARGET = 44;
 
 // Canonical pill/chip height — every rounded selector pill (tabs, filter chips,
 // recent/trending, category, view-all switchers) is exactly this tall so the app
-// reads as one system. space.xxl = 40. Pair with hitSlop to keep the ≥44px tap
-// target (see TabBar). Does NOT apply to inline status badges/tags (% OFF,
-// cashback pills, LIVE, carousel indicators) — those are labels, not pills.
-export const PILL_HEIGHT = space.xxl;
+// reads as one system. 36px (design call, D054 — was space.xxl/40). It is a
+// component metric, not a spacing step, so it stands on its own like
+// BANNER_HEIGHT / AI_CTA_HEIGHT rather than aliasing a `space` token. Pair with
+// hitSlop to keep the ≥44px tap target (see TabBar). Does NOT apply to inline
+// status badges/tags (% OFF, cashback pills, LIVE, carousel indicators) — those
+// are labels, not pills.
+export const PILL_HEIGHT = 36;
 
 // Deal banner strip height (design spec).
 export const BANNER_HEIGHT = 118;
+
+/**
+ * Credit-card card metrics — Figma "Mini App Main" `9RfW1gNewOnFDsNqaHsRoF`,
+ * frame 4007:57107, component 731:33245 (D061).
+ *
+ * Transcribed, not derived: every number below is the spec's own, including the
+ * ones that look arbitrary (the CTA's 10.68 corner, its 7.12 gap, the 6.14×9.94
+ * chevron). Two things are deliberately NOT from the mock — the card is fluid
+ * instead of 328 wide, and the content/strip insets are symmetric (16 / 8), where
+ * the mock's absolute frames drift a few px off-centre.
+ */
+export const CARD_SPEC = {
+  artW: 132,
+  artH: 84,
+  artRadius: 6,
+  /** art → info column */
+  gapArtInfo: 11,
+  /** title → cashback pill */
+  infoGap: 5,
+  /** the title's own inset inside the info column */
+  titleInsetX: 8,
+  pillH: 33,
+  pillPadX: 13,
+  /** [art + info] block → [tags + benefits] block */
+  topGap: 19,
+  /** tags → benefits */
+  groupGap: 7,
+  tagGap: 4,
+  benefitGap: 6,
+  /** glyph frame; the vector inside it is ~13.5px (see icons/cardIcons.tsx) */
+  benefitIcon: 18,
+  /** [tags + benefits] → the strip that closes the card */
+  stripGap: 10,
+  stripRadius: 8,
+  stripPadY: 2,
+  feeStripH: 60,
+  feeColPad: 8,
+  feeGap: 4,
+  dividerH: 45,
+  applyW: 108,
+  applyH: 40,
+  applyRadius: 10.68,
+  applyGap: 7.12,
+  chevW: 6.14,
+  chevH: 9.94,
+  /** page-edge insets: content 16, closing strip 8 */
+  padX: 16,
+  stripPadX: 8,
+  padTop: 16,
+  padBottom: 8,
+} as const;
 
 // ── AI Expand card metrics (Figma 1646:7445) ─────────────────────────────────
 /** Gradient sparkle mark — same 44 as the minimum tap target, by coincidence. */
@@ -519,3 +635,36 @@ export const AI_ORB_HUES = [
   color.aura.aiAqua,
   color.aura.aiFrom,
 ] as const;
+
+// ── Voice orb (motion/VoiceBlobs.tsx) ────────────────────────────────────────
+/**
+ * The blob orb that replaces the voice sheet's flat accent disc: a saturated
+ * core sphere with drifting gradient blobs inside it, standing in a wider field
+ * of soft aura blobs that bloom outward with loudness (the Siri / Gemini read).
+ *
+ * Three sizes, one field. The core is the tappable control, so it clears
+ * MIN_TAP_TARGET on its own; the field is the box the aura is allowed to travel
+ * in, sized so the outermost blob's ramp reaches zero inside it and can never be
+ * clipped by the sheet edge.
+ */
+export const VOICE_ORB_CORE = 112;
+export const VOICE_ORB_FIELD = 236;
+/** Aura blob diameter — deliberately ~2× the core, so its falloff is gentle. */
+export const VOICE_AURA_BLOB = 204;
+/** Blob diameter inside the core. Under 1× the core so each one reads separately. */
+export const VOICE_CORE_BLOB = 96;
+
+/**
+ * Hues inside the core sphere, ordered so neighbours in space are neighbours in
+ * hue — the same cyclic ramp as every other AI surface, so voice search reads as
+ * the same intelligence, not a second colour language.
+ */
+export const VOICE_CORE_HUES = [
+  color.aura.aiAqua,
+  color.aura.aiFrom,
+  color.aura.aiWash1,
+  color.aura.aiMagenta,
+] as const;
+
+/** Hues of the aura blobs around the core — the cool/hot ends of the same ramp. */
+export const VOICE_AURA_HUES = [color.aura.aiAqua, color.aura.aiTo, color.aura.aiMagenta] as const;
