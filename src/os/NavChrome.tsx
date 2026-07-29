@@ -4,6 +4,13 @@ import { color, space, radius } from '../theme/tokens';
 import { DeviceOS } from './devices';
 
 /**
+ * Height of the bottom affordance, per OS. Exported because the stage sits
+ * *above* this bar: a keyboard height measured from the screen bottom has to
+ * lose this much before it becomes an inset inside the stage.
+ */
+export const NAV_CHROME_H: Record<DeviceOS, number> = { ios: 24, android: 40 };
+
+/**
  * Bottom OS affordance: iOS home indicator (pill) or Android 3-button nav.
  * Prototype chrome, not app UI.
  */
@@ -25,10 +32,10 @@ export function NavChrome({ os }: { os: DeviceOS }) {
 }
 
 const styles = StyleSheet.create({
-  iosBar: { height: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface },
+  iosBar: { height: NAV_CHROME_H.ios, alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface },
   homeIndicator: { width: 136, height: 5, borderRadius: radius.full, backgroundColor: color.textPrimary },
   androidBar: {
-    height: 40,
+    height: NAV_CHROME_H.android,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',

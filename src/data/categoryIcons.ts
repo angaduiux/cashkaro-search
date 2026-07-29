@@ -45,11 +45,22 @@ const ALIASES: [RegExp, CategoryIconKey][] = [
   [/fashion|clothing|apparel|footwear|shoes|lifestyle/i, 'fashion'],
 ];
 
-/** Resolve a category title/query to its icon asset (require id), or null. */
-export function categoryIcon(name: string): number | null {
+/**
+ * Resolve a category title/query to its icon KEY, or null. Exported because the
+ * alias table is also the app's broadest "what kind of thing is this label?"
+ * classifier — `data/productCategories.ts` uses it as the last-resort route from a
+ * free-text category label ("Deodorants") to a category page (Beauty).
+ */
+export function categoryIconKey(name: string): CategoryIconKey | null {
   const s = (name || '').trim();
   if (!s) return null;
-  if (s.toLowerCase() in CATEGORY_ICONS) return CATEGORY_ICONS[s.toLowerCase() as CategoryIconKey];
-  for (const [re, key] of ALIASES) if (re.test(s)) return CATEGORY_ICONS[key];
+  if (s.toLowerCase() in CATEGORY_ICONS) return s.toLowerCase() as CategoryIconKey;
+  for (const [re, key] of ALIASES) if (re.test(s)) return key;
   return null;
+}
+
+/** Resolve a category title/query to its icon asset (require id), or null. */
+export function categoryIcon(name: string): number | null {
+  const key = categoryIconKey(name);
+  return key ? CATEGORY_ICONS[key] : null;
 }

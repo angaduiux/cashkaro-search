@@ -41,3 +41,6 @@ yarn-error.*
 /android
 assets/fonts/_full_backup/
 assets/lenders/_raw/
+
+# local preview builds (expo export --output-dir)
+dist-*/

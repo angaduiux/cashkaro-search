@@ -215,12 +215,15 @@ export function buildStoreSerp(store: Store, query?: string): SerpModel {
 // Product catalog — real products with prices + keyword tags, so product-intent
 // searches ("iphone", "shoes", "whey", "lipstick") surface a products rail.
 // ═════════════════════════════════════════════════════════════════════════════
-type Product = {
+export type Product = {
   id: string;
   title: string;
   brand: string;
   brandKey?: keyof typeof BRAND;
   category: Cat;
+  /** Product sub-category — the browse facet on a product category page
+   *  (`data/productCategories.ts` owns the key → label map). */
+  sub: string;
   mrp: number;
   price: number;
   cbPct?: number;
@@ -233,41 +236,66 @@ type Product = {
   imgKey: keyof typeof PRODUCT_IMG;
 };
 
-const PRODUCTS: Product[] = [
+export const PRODUCTS: Product[] = [
   // Mobiles
-  { id: 'iphone15', title: 'Apple iPhone 15 (128GB, Blue)', brand: 'Apple', brandKey: 'apple', category: 'Electronics', mrp: 79900, price: 66999, cbPct: 3, keywords: ['iphone', 'apple', 'phone', 'mobile', 'smartphone', 'ios'], imgKey: 'iphone15' },
-  { id: 'iphone15pro', title: 'Apple iPhone 15 Pro (256GB)', brand: 'Apple', brandKey: 'apple', category: 'Electronics', mrp: 134900, price: 119900, cbPct: 3, keywords: ['iphone', 'apple', 'phone', 'mobile', 'smartphone', 'pro'], imgKey: 'iphone15pro' },
-  { id: 'galaxys24', title: 'Samsung Galaxy S24 5G (256GB)', brand: 'Samsung', brandKey: 'samsung', category: 'Electronics', mrp: 79999, price: 64999, cbFlat: 480, keywords: ['galaxy', 'samsung', 'phone', 'mobile', 'smartphone', 'android', 's24'], imgKey: 'galaxyS24' },
-  { id: 'oneplus12', title: 'OnePlus 12R (256GB)', brand: 'OnePlus', category: 'Electronics', mrp: 45999, price: 39999, cbPct: 4, keywords: ['oneplus', 'phone', 'mobile', 'smartphone', 'android'], imgKey: 'oneplus12' },
-  { id: 'redminote13', title: 'Redmi Note 13 Pro 5G', brand: 'Redmi', category: 'Electronics', mrp: 27999, price: 23999, cbPct: 5, keywords: ['redmi', 'xiaomi', 'phone', 'mobile', 'smartphone', 'note'], imgKey: 'redmiNote13' },
+  { id: 'iphone15', title: 'Apple iPhone 15 (128GB, Blue)', brand: 'Apple', brandKey: 'apple', category: 'Electronics', sub: 'mobiles', mrp: 79900, price: 66999, cbPct: 3, keywords: ['iphone', 'apple', 'phone', 'mobile', 'smartphone', 'ios'], imgKey: 'iphone15' },
+  { id: 'iphone15pro', title: 'Apple iPhone 15 Pro (256GB)', brand: 'Apple', brandKey: 'apple', category: 'Electronics', sub: 'mobiles', mrp: 134900, price: 119900, cbPct: 3, keywords: ['iphone', 'apple', 'phone', 'mobile', 'smartphone', 'pro'], imgKey: 'iphone15pro' },
+  { id: 'galaxys24', title: 'Samsung Galaxy S24 5G (256GB)', brand: 'Samsung', brandKey: 'samsung', category: 'Electronics', sub: 'mobiles', mrp: 79999, price: 64999, cbFlat: 480, keywords: ['galaxy', 'samsung', 'phone', 'mobile', 'smartphone', 'android', 's24'], imgKey: 'galaxyS24' },
+  { id: 'oneplus12', title: 'OnePlus 12R (256GB)', brand: 'OnePlus', category: 'Electronics', sub: 'mobiles', mrp: 45999, price: 39999, cbPct: 4, keywords: ['oneplus', 'phone', 'mobile', 'smartphone', 'android'], imgKey: 'oneplus12' },
+  { id: 'redminote13', title: 'Redmi Note 13 Pro 5G', brand: 'Redmi', category: 'Electronics', sub: 'mobiles', mrp: 27999, price: 23999, cbPct: 5, keywords: ['redmi', 'xiaomi', 'phone', 'mobile', 'smartphone', 'note'], imgKey: 'redmiNote13' },
   // Audio / wearables
-  { id: 'boatairdopes', title: 'boAt Airdopes 141 TWS Earbuds', brand: 'boAt', brandKey: 'boat', category: 'Electronics', mrp: 4490, price: 1299, cbFlat: 80, keywords: ['earbuds', 'headphones', 'boat', 'audio', 'tws', 'earphones'], imgKey: 'earbuds' },
-  { id: 'noisebuds', title: 'Noise Buds VS104 Earbuds', brand: 'Noise', brandKey: 'noise', category: 'Electronics', mrp: 3999, price: 999, cbFlat: 60, keywords: ['earbuds', 'headphones', 'noise', 'audio', 'tws'], imgKey: 'noiseBuds' },
-  { id: 'noisewatch', title: 'Noise ColorFit Pro 5 Smartwatch', brand: 'Noise', brandKey: 'noise', category: 'Electronics', mrp: 6999, price: 2499, cbFlat: 120, keywords: ['watch', 'smartwatch', 'noise', 'wearable'], imgKey: 'noiseWatch' },
-  { id: 'boatwatch', title: 'boAt Wave Call 2 Smartwatch', brand: 'boAt', brandKey: 'boat', category: 'Electronics', mrp: 5499, price: 1599, cbFlat: 90, keywords: ['watch', 'smartwatch', 'boat', 'wearable'], imgKey: 'boatWatch' },
+  { id: 'boatairdopes', title: 'boAt Airdopes 141 TWS Earbuds', brand: 'boAt', brandKey: 'boat', category: 'Electronics', sub: 'audio', mrp: 4490, price: 1299, cbFlat: 80, keywords: ['earbuds', 'headphones', 'boat', 'audio', 'tws', 'earphones'], imgKey: 'earbuds' },
+  { id: 'noisebuds', title: 'Noise Buds VS104 Earbuds', brand: 'Noise', brandKey: 'noise', category: 'Electronics', sub: 'audio', mrp: 3999, price: 999, cbFlat: 60, keywords: ['earbuds', 'headphones', 'noise', 'audio', 'tws'], imgKey: 'noiseBuds' },
+  { id: 'noisewatch', title: 'Noise ColorFit Pro 5 Smartwatch', brand: 'Noise', brandKey: 'noise', category: 'Electronics', sub: 'wearables', mrp: 6999, price: 2499, cbFlat: 120, keywords: ['watch', 'smartwatch', 'noise', 'wearable'], imgKey: 'noiseWatch' },
+  { id: 'boatwatch', title: 'boAt Wave Call 2 Smartwatch', brand: 'boAt', brandKey: 'boat', category: 'Electronics', sub: 'wearables', mrp: 5499, price: 1599, cbFlat: 90, keywords: ['watch', 'smartwatch', 'boat', 'wearable'], imgKey: 'boatWatch' },
   // Shoes
-  { id: 'nikerevo', title: 'Nike Revolution 7 Running Shoes', brand: 'Nike', brandKey: 'nike', category: 'Fashion', mrp: 4995, price: 3496, cbPct: 6, keywords: ['shoes', 'nike', 'running', 'sneakers', 'footwear'], imgKey: 'nikeRevolution' },
-  { id: 'pumashoes', title: 'Puma Softride Running Shoes', brand: 'Puma', brandKey: 'puma', category: 'Fashion', mrp: 5999, price: 2999, cbPct: 7, keywords: ['shoes', 'puma', 'running', 'sneakers', 'footwear'], imgKey: 'pumaShoes' },
-  { id: 'adidasshoes', title: 'Adidas Galaxy 6 Running Shoes', brand: 'Adidas', brandKey: 'adidas', category: 'Fashion', mrp: 5599, price: 3359, cbPct: 6.5, keywords: ['shoes', 'adidas', 'running', 'sneakers', 'footwear'], imgKey: 'adidas' },
+  { id: 'nikerevo', title: 'Nike Revolution 7 Running Shoes', brand: 'Nike', brandKey: 'nike', category: 'Fashion', sub: 'shoes', mrp: 4995, price: 3496, cbPct: 6, keywords: ['shoes', 'nike', 'running', 'sneakers', 'footwear'], imgKey: 'nikeRevolution' },
+  { id: 'pumashoes', title: 'Puma Softride Running Shoes', brand: 'Puma', brandKey: 'puma', category: 'Fashion', sub: 'shoes', mrp: 5999, price: 2999, cbPct: 7, keywords: ['shoes', 'puma', 'running', 'sneakers', 'footwear'], imgKey: 'pumaShoes' },
+  { id: 'adidasshoes', title: 'Adidas Galaxy 6 Running Shoes', brand: 'Adidas', brandKey: 'adidas', category: 'Fashion', sub: 'shoes', mrp: 5599, price: 3359, cbPct: 6.5, keywords: ['shoes', 'adidas', 'running', 'sneakers', 'footwear'], imgKey: 'adidas' },
   // Apparel
-  { id: 'bewakooftee', title: 'Bewakoof Oversized Cotton T-Shirt', brand: 'Bewakoof', brandKey: 'bewakoof', category: 'Fashion', mrp: 999, price: 499, cbPct: 9, keywords: ['tshirt', 't-shirt', 'tee', 'bewakoof', 'fashion', 'shirt', 'clothing'], imgKey: 'tshirt' },
-  { id: 'levisjeans', title: "Levi's 511 Slim Fit Jeans", brand: "Levi's", brandKey: 'levis', category: 'Fashion', mrp: 3999, price: 2399, cbPct: 6, keywords: ['jeans', 'levis', 'denim', 'fashion', 'clothing'], imgKey: 'levis' },
+  { id: 'bewakooftee', title: 'Bewakoof Oversized Cotton T-Shirt', brand: 'Bewakoof', brandKey: 'bewakoof', category: 'Fashion', sub: 'clothing', mrp: 999, price: 499, cbPct: 9, keywords: ['tshirt', 't-shirt', 'tee', 'bewakoof', 'fashion', 'shirt', 'clothing'], imgKey: 'tshirt' },
+  { id: 'levisjeans', title: "Levi's 511 Slim Fit Jeans", brand: "Levi's", brandKey: 'levis', category: 'Fashion', sub: 'clothing', mrp: 3999, price: 2399, cbPct: 6, keywords: ['jeans', 'levis', 'denim', 'fashion', 'clothing'], imgKey: 'levis' },
   // Protein / nutrition
-  { id: 'mbwhey', title: 'MuscleBlaze Biozyme Whey Protein 1kg', brand: 'MuscleBlaze', brandKey: 'muscleblaze', category: 'Nutrition', mrp: 3499, price: 2624, cbPct: 12, keywords: ['whey', 'protein', 'muscleblaze', 'supplement', 'gym', 'fitness'], imgKey: 'muscleblazeWhey' },
-  { id: 'onwhey', title: 'ON Gold Standard 100% Whey 2lb', brand: 'Optimum Nutrition', brandKey: 'optimum', category: 'Nutrition', mrp: 5499, price: 4399, cbPct: 8, keywords: ['whey', 'protein', 'optimum', 'supplement', 'gym'], imgKey: 'optimumWhey' },
-  { id: 'myfitpb', title: 'MyFitness Chocolate Peanut Butter 1kg', brand: 'MyFitness', brandKey: 'myfitness', category: 'Nutrition', mrp: 749, price: 549, cbPct: 15, keywords: ['peanut butter', 'myfitness', 'protein', 'food'], imgKey: 'peanutButter' },
+  { id: 'mbwhey', title: 'MuscleBlaze Biozyme Whey Protein 1kg', brand: 'MuscleBlaze', brandKey: 'muscleblaze', category: 'Nutrition', sub: 'whey', mrp: 3499, price: 2624, cbPct: 12, keywords: ['whey', 'protein', 'muscleblaze', 'supplement', 'gym', 'fitness'], imgKey: 'muscleblazeWhey' },
+  { id: 'onwhey', title: 'ON Gold Standard 100% Whey 2lb', brand: 'Optimum Nutrition', brandKey: 'optimum', category: 'Nutrition', sub: 'whey', mrp: 5499, price: 4399, cbPct: 8, keywords: ['whey', 'protein', 'optimum', 'supplement', 'gym'], imgKey: 'optimumWhey' },
+  { id: 'myfitpb', title: 'MyFitness Chocolate Peanut Butter 1kg', brand: 'MyFitness', brandKey: 'myfitness', category: 'Nutrition', sub: 'foods', mrp: 749, price: 549, cbPct: 15, keywords: ['peanut butter', 'myfitness', 'protein', 'food'], imgKey: 'peanutButter' },
   // Beauty
-  { id: 'sugarlip', title: 'SUGAR Matte As Hell Crayon Lipstick', brand: 'SUGAR', brandKey: 'sugar', category: 'Beauty', mrp: 799, price: 679, cbPct: 9, keywords: ['lipstick', 'makeup', 'sugar', 'cosmetics', 'beauty'], imgKey: 'lipstick' },
-  { id: 'mamaserum', title: 'Mamaearth Vitamin C Face Serum', brand: 'Mamaearth', brandKey: 'mamaearth', category: 'Beauty', mrp: 599, price: 449, cbPct: 10, keywords: ['serum', 'skincare', 'vitamin c', 'mamaearth', 'beauty', 'face'], imgKey: 'faceSerum' },
-  { id: 'plumsun', title: 'Plum Green Tea Sunscreen SPF 50', brand: 'Plum', brandKey: 'plum', category: 'Beauty', mrp: 465, price: 395, cbPct: 11, keywords: ['sunscreen', 'skincare', 'plum', 'spf', 'beauty'], imgKey: 'sunscreen' },
-  { id: 'sugarfoundation', title: 'SUGAR Ace Of Face Foundation Stick', brand: 'SUGAR', brandKey: 'sugar', category: 'Beauty', mrp: 899, price: 764, cbPct: 9, keywords: ['foundation', 'makeup', 'sugar', 'cosmetics', 'beauty'], imgKey: 'foundation' },
+  { id: 'sugarlip', title: 'SUGAR Matte As Hell Crayon Lipstick', brand: 'SUGAR', brandKey: 'sugar', category: 'Beauty', sub: 'makeup', mrp: 799, price: 679, cbPct: 9, keywords: ['lipstick', 'makeup', 'sugar', 'cosmetics', 'beauty'], imgKey: 'lipstick' },
+  { id: 'mamaserum', title: 'Mamaearth Vitamin C Face Serum', brand: 'Mamaearth', brandKey: 'mamaearth', category: 'Beauty', sub: 'skincare', mrp: 599, price: 449, cbPct: 10, keywords: ['serum', 'skincare', 'vitamin c', 'mamaearth', 'beauty', 'face'], imgKey: 'faceSerum' },
+  { id: 'plumsun', title: 'Plum Green Tea Sunscreen SPF 50', brand: 'Plum', brandKey: 'plum', category: 'Beauty', sub: 'skincare', mrp: 465, price: 395, cbPct: 11, keywords: ['sunscreen', 'skincare', 'plum', 'spf', 'beauty'], imgKey: 'sunscreen' },
+  { id: 'sugarfoundation', title: 'SUGAR Ace Of Face Foundation Stick', brand: 'SUGAR', brandKey: 'sugar', category: 'Beauty', sub: 'makeup', mrp: 899, price: 764, cbPct: 9, keywords: ['foundation', 'makeup', 'sugar', 'cosmetics', 'beauty'], imgKey: 'foundation' },
   // Home
-  { id: 'wakefitmat', title: 'Wakefit Orthopedic Memory Foam Mattress', brand: 'Wakefit', brandKey: 'wakefit', category: 'Home', mrp: 18999, price: 9499, cbPct: 8, keywords: ['mattress', 'wakefit', 'home', 'furniture', 'bed'], imgKey: 'mattress' },
+  { id: 'wakefitmat', title: 'Wakefit Orthopedic Memory Foam Mattress', brand: 'Wakefit', brandKey: 'wakefit', category: 'Home', sub: 'furniture', mrp: 18999, price: 9499, cbPct: 8, keywords: ['mattress', 'wakefit', 'home', 'furniture', 'bed'], imgKey: 'mattress' },
   // Grocery
-  { id: 'liciouschicken', title: 'Licious Chicken Curry Cut 1kg', brand: 'Licious', brandKey: 'licious', category: 'Grocery', mrp: 399, price: 319, cbPct: 8, keywords: ['chicken', 'licious', 'meat', 'grocery', 'food'], imgKey: 'rawChicken' },
+  { id: 'liciouschicken', title: 'Licious Chicken Curry Cut 1kg', brand: 'Licious', brandKey: 'licious', category: 'Grocery', sub: 'fresh', mrp: 399, price: 319, cbPct: 8, keywords: ['chicken', 'licious', 'meat', 'grocery', 'food'], imgKey: 'rawChicken' },
+
+  // ── Design-case SKUs (transcribed from the Cashkaro-Search-2026 real-data
+  //    product grids in ./realData.ts — same titles, photos, prices and flat
+  //    cashback, restated here as structured rows so the product category pages
+  //    can sort/filter/facet them. Nothing invented; duplicates of the SKUs
+  //    already listed above are deliberately not repeated. ─────────────────────
+  { id: 'sonyxm5', title: 'Sony WH-1000XM5 Wireless Headphones', brand: 'Sony', category: 'Electronics', sub: 'audio', mrp: 34990, price: 26990, cbFlat: 540, keywords: ['headphones', 'sony', 'audio', 'anc', 'wireless'], imgKey: 'sonyXm5' },
+  { id: 'airpodspro', title: 'Apple AirPods Pro (2nd Gen)', brand: 'Apple', brandKey: 'apple', category: 'Electronics', sub: 'audio', mrp: 26900, price: 21900, cbFlat: 440, keywords: ['airpods', 'apple', 'earbuds', 'audio', 'tws'], imgKey: 'airpodsPro' },
+  { id: 'jblflip6', title: 'JBL Flip 6 Portable Bluetooth Speaker', brand: 'JBL', category: 'Electronics', sub: 'audio', mrp: 11999, price: 8999, cbFlat: 180, keywords: ['speaker', 'jbl', 'bluetooth', 'audio'], imgKey: 'jblSpeaker' },
+  { id: 'applewatch9', title: 'Apple Watch Series 9 GPS 41mm', brand: 'Apple', brandKey: 'apple', category: 'Electronics', sub: 'wearables', mrp: 45900, price: 41900, cbFlat: 420, keywords: ['watch', 'smartwatch', 'apple', 'wearable'], imgKey: 'appleWatch' },
+  { id: 'ps5slim', title: 'Sony PlayStation 5 Slim Console', brand: 'Sony', category: 'Electronics', sub: 'gaming', mrp: 54990, price: 49990, cbFlat: 500, keywords: ['ps5', 'playstation', 'console', 'gaming', 'sony'], imgKey: 'ps5' },
+  { id: 'kindlepw', title: 'Kindle Paperwhite 16GB (2024)', brand: 'Amazon', brandKey: 'amazon', category: 'Electronics', sub: 'readers', mrp: 16999, price: 14999, cbFlat: 300, keywords: ['kindle', 'ereader', 'amazon', 'reader', 'tablet'], imgKey: 'kindle' },
+  { id: 'logim240', title: 'Logitech M240 Silent Wireless Mouse', brand: 'Logitech', category: 'Electronics', sub: 'accessories', mrp: 1495, price: 995, cbFlat: 20, keywords: ['mouse', 'logitech', 'wireless', 'accessory'], imgKey: 'logiMouse' },
+  { id: 'elvstand', title: 'ELV Mobile Phone Mount Tabletop Holder', brand: 'ELV', category: 'Electronics', sub: 'accessories', mrp: 119, price: 119, cbFlat: 4, keywords: ['stand', 'holder', 'mount', 'phone', 'accessory'], imgKey: 'phoneStand' },
+  { id: 'portclamp', title: 'Portronics Clamp M2 Car Phone Holder', brand: 'Portronics', brandKey: 'portronics', category: 'Electronics', sub: 'accessories', mrp: 300, price: 229, cbFlat: 3, keywords: ['car mount', 'holder', 'portronics', 'phone', 'accessory'], imgKey: 'carMount' },
+  { id: 'elvtripod', title: 'ELV Mobile Phone Mount Tripod Holder', brand: 'ELV', category: 'Electronics', sub: 'accessories', mrp: 1999, price: 324, cbFlat: 6, keywords: ['tripod', 'holder', 'mount', 'phone', 'accessory'], imgKey: 'phoneTripod' },
+  { id: 'nikeaf1', title: "Nike Air Force 1 '07 White", brand: 'Nike', brandKey: 'nike', category: 'Fashion', sub: 'shoes', mrp: 9295, price: 7495, cbFlat: 150, keywords: ['shoes', 'nike', 'sneakers', 'air force', 'footwear'], imgKey: 'nikeAf1' },
+  { id: 'raybanav', title: 'Ray-Ban Aviator Classic Sunglasses', brand: 'Ray-Ban', category: 'Fashion', sub: 'accessories', mrp: 8190, price: 6790, cbFlat: 135, keywords: ['sunglasses', 'rayban', 'aviator', 'eyewear', 'accessory'], imgKey: 'rayban' },
+  { id: 'casioa159', title: 'Casio Vintage A159WA-N1 Watch', brand: 'Casio', category: 'Fashion', sub: 'accessories', mrp: 4995, price: 4295, cbFlat: 85, keywords: ['watch', 'casio', 'vintage', 'accessory'], imgKey: 'casio' },
+  { id: 'bellavita', title: 'Bella Vita CEO Man Eau de Parfum', brand: 'Bella Vita', category: 'Beauty', sub: 'fragrance', mrp: 1499, price: 699, cbFlat: 21, keywords: ['perfume', 'fragrance', 'parfum', 'bella vita', 'beauty'], imgKey: 'perfume' },
+  { id: 'mamacream', title: 'Mamaearth Vitamin C Face Cream', brand: 'Mamaearth', brandKey: 'mamaearth', category: 'Beauty', sub: 'skincare', mrp: 599, price: 399, cbFlat: 12, keywords: ['face cream', 'skincare', 'vitamin c', 'mamaearth', 'beauty'], imgKey: 'faceCream' },
+  { id: 'mahaoil', title: 'Mahabhringraj Scalp Massaging Oil', brand: 'Mahabhringraj', category: 'Beauty', sub: 'haircare', mrp: 249, price: 240, cbFlat: 5, keywords: ['hair oil', 'haircare', 'scalp', 'massage', 'beauty'], imgKey: 'hairOil' },
+  { id: 'wheyh2o', title: 'MyFitness WHEY-H2O 20 Servings Whey Protein', brand: 'MyFitness', brandKey: 'myfitness', category: 'Nutrition', sub: 'whey', mrp: 2300, price: 1499, cbFlat: 30, keywords: ['whey', 'protein', 'myfitness', 'supplement', 'gym'], imgKey: 'myfitnessWhey' },
+  { id: 'mffwhey', title: 'MyFitFuel Advance Beginner Whey Concentrate', brand: 'MyFitFuel', brandKey: 'myfitfuel', category: 'Nutrition', sub: 'whey', mrp: 900, price: 837, cbFlat: 21, keywords: ['whey', 'protein', 'myfitfuel', 'supplement', 'gym'], imgKey: 'myfitfuelWhey' },
+  { id: 'hsnmag', title: 'Hollywood Secrets Natural Magnesium Chloride', brand: 'Hollywood Secrets', category: 'Nutrition', sub: 'supplements', mrp: 295, price: 295, cbFlat: 8, keywords: ['magnesium', 'supplement', 'wellness', 'mineral'], imgKey: 'magnesium' },
 ];
 
-const productItem = (p: Product, id: string): ResultItem => ({
+export const productItem = (p: Product, id: string): ResultItem => ({
   id,
   archetype: '02_product',
   source: 'internal',
@@ -376,6 +404,11 @@ export function buildStorePage(store: Store): SerpModel {
  */
 export function storesInCategory(cat: Cat): Store[] {
   return STORES.filter((s) => s.category === cat);
+}
+
+/** Products in a catalog category, in catalog order (= popularity order). */
+export function productsInCategory(cat: Cat): Product[] {
+  return PRODUCTS.filter((p) => p.category === cat);
 }
 
 export function buildCategoryStores(cat: Cat): ResultItem[] {

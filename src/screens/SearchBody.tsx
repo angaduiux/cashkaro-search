@@ -31,6 +31,7 @@ export function SearchBody({
   onPick,
   onOpenStore,
   onViewAllStores,
+  onOpenCategory,
 }: {
   mode: 'typing' | 'serp';
   query: string;
@@ -47,6 +48,8 @@ export function SearchBody({
   onPick: (q: string) => void;
   onOpenStore: (q: string) => void;
   onViewAllStores?: () => void;
+  /** A category row/chip anywhere in search → that product category page. */
+  onOpenCategory?: (title: string) => void;
 }) {
   return (
     <View style={styles.body}>
@@ -54,13 +57,20 @@ export function SearchBody({
         (query.trim().length === 0 ? (
           <ExploreHome recents={recents} enterTick={enterTick} userType={userType} onPick={onPick} onOpenStore={onOpenStore} onClearRecents={onClearRecents} onRemoveRecent={onRemoveRecent} />
         ) : (
-          <Suggestions query={query} groups={groups} onPick={onPick} />
+          <Suggestions query={query} groups={groups} onPick={onPick} onOpenCategory={onOpenCategory} />
         ))}
 
       {mode === 'serp' &&
         (model ? (
           <Animated.View style={{ flex: 1 }} entering={FadeIn.duration(duration.base)}>
-            <SerpShell model={model} loading={serpLoading} webResults={webResults} userType={userType} onViewAllStores={onViewAllStores} />
+            <SerpShell
+              model={model}
+              loading={serpLoading}
+              webResults={webResults}
+              userType={userType}
+              onViewAllStores={onViewAllStores}
+              onOpenCategory={onOpenCategory}
+            />
           </Animated.View>
         ) : (
           <RecoveryScreen query={committed} onExpand={() => {}} />

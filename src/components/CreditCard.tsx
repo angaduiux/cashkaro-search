@@ -5,7 +5,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ResultItem } from '../data/dataContract';
 import { color, type as t, space, radius, fontFamily } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
-import { Shine } from '../motion/Shine';
 
 /**
  * Credit-card card — faithful build of the design-system component (Figma
@@ -33,9 +32,9 @@ export function CreditCard({ item, index = 0, inviteOnly }: { item: ResultItem; 
 
       {/* Card render + name + cashback pill */}
       <View style={styles.top}>
-        <Shine style={{ borderRadius: radius.md }}>
+        <View style={{ borderRadius: radius.md, overflow: 'hidden' }}>
           <Image source={(item.artwork ?? item.logo) as ImageSourcePropType} style={styles.cardImg} resizeMode="cover" />
-        </Shine>
+        </View>
         <View style={styles.info}>
           <Text style={[styles.name, { color: color.card.name }]} numberOfLines={2}>
             {item.title}

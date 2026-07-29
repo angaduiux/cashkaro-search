@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import Animated, {
+  FadeIn,
   FadeInDown,
+  FadeOut,
   useSharedValue,
   useAnimatedStyle,
   interpolate,
@@ -23,15 +25,17 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ResultItem } from '../data/dataContract';
 import { categoryIcon } from '../data/categoryIcons';
-import { color, type as t, space, radius, elevation, fontFamily, letterSpacing, PILL_HEIGHT, spring } from '../theme/tokens';
+import { color, type as t, space, radius, elevation, fontFamily, letterSpacing, PILL_HEIGHT, spring, duration } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
+import { TIMELINE_ICON, TimelineIconKey } from '../icons/timelineIcons';
+import { CouponTicket } from './CouponTicket';
 import { CashbackElement } from './CashbackElement';
 import { Badge } from './Badge';
 import { ImageSlot, BrandThumb } from './ImageSlot';
 import { Button } from './Button';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Shine } from '../motion/Shine';
 import { CountUp } from '../motion/CountUp';
+import { AuraField, auraWashTint, brandOrbFills, centredGlowFill, useAuraClock } from '../motion/Aura';
 import { staggerDelay } from '../motion/motion';
 
 /** Press-scale wrapper — every tappable card breathes on touch (§9.4). */
@@ -96,7 +100,18 @@ const parsePrice = (s?: string | null) => {
   return Number.isFinite(n) ? n : NaN;
 };
 
-export function ProductCard({ item, index = 0, width }: { item: ResultItem; index?: number; width?: number }) {
+export function ProductCard({
+  item,
+  index = 0,
+  width,
+  onPress,
+}: {
+  item: ResultItem;
+  index?: number;
+  width?: number;
+  /** Optional destination (e.g. the category page's price-breakdown sheet). */
+  onPress?: () => void;
+}) {
   const cbLabel =
     item.cashback.type === 'flat_inr'
       ? `₹${item.cashback.value} Cashback`
@@ -119,13 +134,17 @@ export function ProductCard({ item, index = 0, width }: { item: ResultItem; inde
   const finalPrice =
     item.finalPrice ?? (cbAmt > 0 && cur > 0 ? `₹${(cur - cbAmt).toLocaleString('en-IN')}` : null);
 
-  return (
+  const card = (
     <Animated.View
       entering={FadeInDown.delay(staggerDelay(index)).duration(220)}
       style={[styles.productCard, width != null && { width }]}
     >
       {item.productImage ? (
-        <Image source={item.productImage} style={[styles.productImg, width != null && { width }]} resizeMode="cover" accessibilityLabel={item.title} />
+        // `contain`, never `cover`: the whole product has to be visible (D050). The
+        // photos are normalised to this box's own 1.375 ratio with the subject at a
+        // fixed 85% of the height, so contained they fill it AND read the same size
+        // card to card; anything not yet normalised letterboxes instead of cropping.
+        <Image source={item.productImage} style={[styles.productImg, width != null && { width }]} resizeMode="contain" accessibilityLabel={item.title} />
       ) : (
         // Never fall back to the brand logo as the product image — show a neutral
         // photo slot (tag glyph) instead so a logo never stands in for a product.
@@ -173,6 +192,16 @@ export function ProductCard({ item, index = 0, width }: { item: ResultItem; inde
         </View>
       )}
     </Animated.View>
+  );
+
+  // Pressable only where a destination exists (category page → price breakdown);
+  // the SERP rails stay non-interactive, so no card ever advertises a dead end.
+  return onPress ? (
+    <Press label={item.title} onPress={onPress}>
+      {card}
+    </Press>
+  ) : (
+    card
   );
 }
 
@@ -262,13 +291,18 @@ export function StoreTile({ item, width = 96, onPress }: { item: ResultItem; wid
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 export function DealsCarousel({ items, bleed = 0 }: { items: ResultItem[]; bleed?: number }) {
-  // Each banner fills the carousel's own width and pages one at a time — no
+  // Each page fills the carousel's own width and pages one at a time — no
   // gap/peek, so nothing clips at the sides. `bleed` cancels the host page's
-  // horizontal padding (pass `space.m20` inside a padded column) so banners run
-  // to the true screen edge; the measured width still drives card/step/frame, so
-  // paging stays sub-pixel exact.
+  // horizontal padding (pass `space.m20` inside a padded column) so the scroll
+  // frame spans the true screen width; the measured width still drives
+  // card/step/frame, so paging stays sub-pixel exact.
+  //
+  // The artwork is inset `SIDE` inside each full-width page rather than the page
+  // being narrowed — the snap step stays exactly the screen width, so the banner
+  // sits 16px off both edges (and 32px apart mid-swipe) on every screen size.
   const INSET = 0;
   const GAP = 0;
+  const SIDE = space.m;
   const [W, setW] = useState(0); // carousel width (rounded to whole px)
   const cardW = W > 0 ? W - INSET * 2 : 0;
   const step = cardW + GAP;
@@ -277,6 +311,12 @@ export function DealsCarousel({ items, bleed = 0 }: { items: ResultItem[]; bleed
   const reduced = useReducedMotion();
   const paused = useRef(false);
   const cur = useSharedValue(0);
+
+  // Banner-coloured glow: STATIC and centred (D036) — it sits behind the artwork,
+  // so drift would pull the eye off the deal. Only the colour changes, and only
+  // when the visible banner changes.
+  const glowTint = items[Math.min(page, items.length - 1)]?.bannerTint ?? color.aura.tileWash;
+  const glowFill = useMemo(() => centredGlowFill(glowTint), [glowTint]);
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!step) return;
@@ -303,6 +343,19 @@ export function DealsCarousel({ items, bleed = 0 }: { items: ResultItem[]; bleed
 
   return (
     <View style={{ marginHorizontal: -bleed }} onLayout={(e) => setW(Math.round(e.nativeEvent.layout.width))}>
+      {/* Glow behind the rail, in the current banner's own colour (D036). The tint
+          is sampled from each creative offline, so it always matches the art on
+          screen; keying the layer on the tint crossfades it as pages change. The
+          gradient is transparent well before its own edge, so nothing is clipped
+          at the top or bottom of the section. */}
+      <View pointerEvents="none" style={styles.dealGlow}>
+        <Animated.View
+          key={glowTint}
+          entering={reduced ? undefined : FadeIn.duration(duration.slow)}
+          exiting={reduced ? undefined : FadeOut.duration(duration.slow)}
+          style={[StyleSheet.absoluteFill, glowFill]}
+        />
+      </View>
       {cardW > 0 && (
         <AnimatedScrollView
           ref={scroller as any}
@@ -320,7 +373,9 @@ export function DealsCarousel({ items, bleed = 0 }: { items: ResultItem[]; bleed
           contentContainerStyle={{ paddingHorizontal: INSET }}
         >
           {items.map((item) => (
-            <DealCard key={item.id} item={item} width={cardW} />
+            <View key={item.id} style={{ width: cardW, paddingHorizontal: SIDE }}>
+              <DealCard item={item} width={cardW - SIDE * 2} />
+            </View>
           ))}
         </AnimatedScrollView>
       )}
@@ -412,7 +467,7 @@ export function SimilarCardsRail({ items }: { items: ResultItem[] }) {
         return (
           <Press key={item.id} label={item.title}>
             <View style={styles.simCard}>
-              <Shine style={styles.simArt}>
+              <View style={styles.simArt}>
                 {item.artwork ? (
                   <Image source={(typeof item.artwork === 'string' ? { uri: item.artwork } : item.artwork) as ImageSourcePropType} style={styles.simArtImg} resizeMode="cover" accessibilityLabel={item.title} />
                 ) : (
@@ -420,7 +475,7 @@ export function SimilarCardsRail({ items }: { items: ResultItem[] }) {
                     <Icon name="card" size={28} color={color.aura.slateMuted} />
                   </View>
                 )}
-              </Shine>
+              </View>
               <Text style={[t.body12Medium, { color: color.textPrimary, height: 32 }]} numberOfLines={2}>
                 {item.title}
               </Text>
@@ -447,37 +502,20 @@ export function SimilarCardsRail({ items }: { items: ResultItem[] }) {
  * Coupon card (W4 1646:7406) — offer + condition, a dashed copy-code box, and an
  * expiry footer. Copy morphs "Copy → ✓ Copied" with a success flash (§9.4).
  */
+/**
+ * Coupon card — now the Store Page V2.0 ticket. The design, all three of its states
+ * and its provenance live in [CouponTicket.tsx](./CouponTicket.tsx) (Figma
+ * `XgdQOrfPsC6HNv24uS9jgN` node 1835:16064); this stays as the adapter every SERP
+ * coupon section already calls, mapping `ResultItem` onto it.
+ */
 export function CouponCard({ item }: { item: ResultItem }) {
-  const [copied, setCopied] = useState(false);
   return (
-    <View style={styles.coupon}>
-      <View style={{ gap: space.xxs }}>
-        <Text style={[t.body16SemiBold, { color: color.aura.ink }]} numberOfLines={1}>{item.title}</Text>
-        {!!item.subtitle && <Text style={[t.body14Regular, { color: color.aura.slate }]} numberOfLines={2}>{item.subtitle}</Text>}
-      </View>
-      {!!item.code && (
-        <Pressable
-          onPress={() => setCopied(true)}
-          style={[styles.codeBox, copied && styles.codeBoxCopied]}
-          accessibilityRole="button"
-          accessibilityLabel={`Copy code ${item.code}`}
-        >
-          <Text style={[t.body14SemiBold, { color: color.aura.ink, letterSpacing: 1 }]}>{item.code}</Text>
-          <View style={styles.copyRow}>
-            {copied && <Icon name="check" size={12} color={color.reward} />}
-            <Text style={[t.body14SemiBold, { color: copied ? color.reward : color.aura.cta }]}>
-              {copied ? ' Copied' : 'Copy'}
-            </Text>
-          </View>
-        </Pressable>
-      )}
-      {!!item.expiry && (
-        <View style={styles.couponFoot}>
-          <Icon name="clock" size={11} color={color.aura.slateMuted} />
-          <Text style={[t.body12Regular, { color: color.aura.slateMuted }]}> {item.expiry}</Text>
-        </View>
-      )}
-    </View>
+    <CouponTicket
+      title={item.title}
+      subtitle={item.subtitle}
+      code={item.code}
+      expiry={item.expiry}
+    />
   );
 }
 
@@ -485,25 +523,31 @@ export function CouponCard({ item }: { item: ResultItem }) {
 export function CampaignCard({ item }: { item: ResultItem }) {
   return (
     <Press label={item.title}>
-      <View style={[styles.campaign, elevation.soft]}>
-        {item.bannerImage != null ? (
-          <Image source={item.bannerImage as ImageSourcePropType} style={styles.campaignImg} resizeMode="cover" />
-        ) : (
-          <LinearGradient colors={[color.error, '#ff6d1d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.campaignImg} />
-        )}
-        <View style={styles.campaignBody}>
-          <View style={{ flex: 1, gap: space.xxs }}>
-            <View style={styles.campaignTitleRow}>
-              <Text style={[t.body16SemiBold, { color: color.aura.ink }]} numberOfLines={1}>{item.title}</Text>
-              {item.live && (
-                <View style={styles.liveBadge}>
-                  <Text style={styles.liveBadgeText}>LIVE</Text>
-                </View>
-              )}
+      {/* Shadow parent / mask child. The shadow CANNOT live on the same View as the
+          `overflow: 'hidden'` that rounds off the banner — iOS clips the shadow along
+          with the content, which is why this card looked flat despite already asking
+          for `elevation.soft`. Outer casts, inner masks; both carry the radius. */}
+      <View style={[styles.campaignShadow, elevation.soft]}>
+        <View style={styles.campaign}>
+          {item.bannerImage != null ? (
+            <Image source={item.bannerImage as ImageSourcePropType} style={styles.campaignImg} resizeMode="cover" />
+          ) : (
+            <LinearGradient colors={[color.error, '#ff6d1d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.campaignImg} />
+          )}
+          <View style={styles.campaignBody}>
+            <View style={{ flex: 1, gap: space.xxs }}>
+              <View style={styles.campaignTitleRow}>
+                <Text style={[t.body16SemiBold, { color: color.aura.ink }]} numberOfLines={1}>{item.title}</Text>
+                {item.live && (
+                  <View style={styles.liveBadge}>
+                    <Text style={styles.liveBadgeText}>LIVE</Text>
+                  </View>
+                )}
+              </View>
+              {!!item.subtitle && <Text style={[t.body12Regular, { color: color.aura.slateMuted }]} numberOfLines={1}>{item.subtitle}</Text>}
             </View>
-            {!!item.subtitle && <Text style={[t.body12Regular, { color: color.aura.slateMuted }]} numberOfLines={1}>{item.subtitle}</Text>}
+            <Icon name="chevron" size={13} color={color.aura.slateMuted} />
           </View>
-          <Icon name="chevron" size={13} color={color.aura.slateMuted} />
         </View>
       </View>
     </Press>
@@ -513,10 +557,10 @@ export function CampaignCard({ item }: { item: ResultItem }) {
 /** Category pill — icon tile + label inline (Figma 1646:7349): white→cobalt50
  * vertical gradient, hairline border, radius full; 32px circular icon on a white
  * base with an inset cobalt glow; label in Outfit Medium 13. */
-export function CategoryChip({ item }: { item: ResultItem }) {
+export function CategoryChip({ item, onPress }: { item: ResultItem; onPress?: () => void }) {
   const catImg = categoryIcon(item.title); // real illustrated icon (Figma 1674:13000)
   return (
-    <Press label={item.title}>
+    <Press label={item.title} onPress={onPress}>
       <LinearGradient
         colors={[color.surface, color.surfaceAlt]}
         start={{ x: 0, y: 0 }}
@@ -555,14 +599,35 @@ export function StoreHero({ item, userType = 'existing' }: { item: ResultItem; u
   // overlay the animated CountUp on top — correct width + baseline on every
   // platform, with no hand-tuned per-glyph estimate (which clipped wide values).
   const figStr = cb.type === 'flat_inr' ? `₹${cb.value.toLocaleString('en-IN')}` : pct != null ? (Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1)}%`) : '—';
+  // Living brand-hued backdrop (D033): the same Aura engine as Expand Search, its
+  // orbs re-tinted from this store's own wash colour instead of the AI violet.
+  const tint = item.heroTint ?? item.logoBg ?? color.aura.heroFrom;
+  // Brands whose tint is really just near-black (Nike, AJIO, Puma …) paint their
+  // wash in pale sky too, so the sky-blue orbs aren't sitting on a grey field.
+  const wash = auraWashTint(tint);
+  const orbFills = useMemo(() => brandOrbFills(tint), [tint]);
+  const clock = useAuraClock();
+  const gain = useSharedValue(1);
   return (
-    <Shine style={styles.hero}>
+    <View style={styles.hero}>
       {/* Tinted wash → light grey base (Figma 1646:7197 #f6e5ff→#f6f7f9); the
           near-white base still merges into the page but keeps the white timeline
           cells legible. */}
       <LinearGradient
-        colors={[item.heroTint ?? item.logoBg ?? color.aura.heroFrom, color.aura.heroTo]}
+        colors={[wash, color.aura.heroTo]}
         style={StyleSheet.absoluteFill}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      />
+      {/* Drifting orbs over that wash — no second base gradient. */}
+      <AuraField clock={clock} gain={gain} fills={orbFills} base={false} />
+      {/* Bottom dissolve: the wash AND the orbs fade to the page white before the
+          panel ends, so there is no cut edge where `overflow: hidden` clips them.
+          Sits under the content, so it never veils the timeline cells. */}
+      <LinearGradient
+        colors={[color.aura.fade0, color.surface]}
+        style={styles.heroFade}
+        pointerEvents="none"
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
       />
@@ -590,7 +655,9 @@ export function StoreHero({ item, userType = 'existing' }: { item: ResultItem; u
 
       {/* big cashback figure */}
       <View style={{ gap: space.xs, width: '100%' }}>
-        <Text style={[t.body13Medium, { color: color.aura.slateMuted }]}>
+        {/* +2px on top of the container gap: the figure's tight lineHeight (54 on 52px)
+            crops its ascent, so a flat 4px reads tighter here than elsewhere. */}
+        <Text style={[t.body13Medium, { color: color.aura.slateMuted, marginBottom: space.xxs }]}>
           {cb.type === 'flat_inr' && cb.prefix === 'flat' ? 'Flat' : 'Up to'}
         </Text>
         <View style={styles.heroBig}>
@@ -640,13 +707,13 @@ export function StoreHero({ item, userType = 'existing' }: { item: ResultItem; u
             Cashback Timelines
           </Text>
           <View style={styles.timelines}>
-            <TimelineCell label="Tracks In" value={item.timelines.tracksIn} chevron />
-            <TimelineCell label="Confirms in" value={item.timelines.confirmsIn} chevron />
-            <TimelineCell label="Withdraw" value={item.timelines.withdraw} />
+            <TimelineCell icon="tracksIn" label="Tracks In" value={item.timelines.tracksIn} chevron />
+            <TimelineCell icon="confirmsIn" label="Confirms in" value={item.timelines.confirmsIn} chevron />
+            <TimelineCell icon="withdraw" label="Withdraw" value={item.timelines.withdraw} />
           </View>
         </View>
       )}
-    </Shine>
+    </View>
   );
 }
 
@@ -657,14 +724,33 @@ const TL_DEPTH = 13; // chevron point depth (fixed → never distorts with width
 // screen width (Figma 1646:7226): a white body + a fixed-size right-pointing
 // arrow (border triangle). First two cells are chevrons (a left→right process
 // flow), the last is a plain rounded cell.
-function TimelineCell({ label, value, chevron }: { label: string; value: string; chevron?: boolean }) {
+//
+// The 26px gradient glyph ahead of the text comes from the strip's newer spec
+// (Figma 1716:76773) — see `icons/timelineIcons.tsx`. That frame insets its content
+// 6px from the cell's left edge and leaves 3px between glyph and text, so the body's
+// left padding drops from 16 to `space.s6` and the row gap is `space.xs`.
+function TimelineCell({
+  icon,
+  label,
+  value,
+  chevron,
+}: {
+  icon: TimelineIconKey;
+  label: string;
+  value: string;
+  chevron?: boolean;
+}) {
+  const Glyph = TIMELINE_ICON[icon];
   return (
     <View style={styles.timelineCell}>
       <View style={[styles.timelineBody, chevron && styles.timelineBodyChevron]}>
-        <Text style={[styles.timelineLabel, { color: color.aura.slateMuted }]}>{label}</Text>
-        <Text style={[t.body12SemiBold, { color: color.aura.slate }]} numberOfLines={1}>
-          {value}
-        </Text>
+        <Glyph />
+        <View style={styles.timelineText}>
+          <Text style={[styles.timelineLabel, { color: color.aura.slateMuted }]}>{label}</Text>
+          <Text style={[t.body12SemiBold, { color: color.aura.slate }]} numberOfLines={1}>
+            {value}
+          </Text>
+        </View>
       </View>
       {chevron && <View style={styles.timelineArrow} pointerEvents="none" />}
     </View>
@@ -728,39 +814,23 @@ const styles = StyleSheet.create({
   countText: { ...t.caption10SemiBold, color: color.textInverse, letterSpacing: 1 },
   shrinkDot: { borderRadius: radius.full, backgroundColor: color.aura.indicator },
 
-  bleed: {}, // carousel stays within the page's 20px padding (no bleed)
-  coupon: {
-    width: 248,
-    gap: space.s12,
-    padding: space.m,
-    borderRadius: radius.lg,
-    backgroundColor: color.surface,
-    ...elevation.soft,
-  },
-  codeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: color.aura.cta,
-    borderStyle: 'dashed',
-    borderRadius: radius.sm,
-    paddingHorizontal: space.s12,
-    paddingVertical: space.s,
-    backgroundColor: color.surfaceAlt,
-  },
-  codeBoxCopied: { borderColor: color.reward, backgroundColor: color.successSurface },
-  copyRow: { flexDirection: 'row', alignItems: 'center' },
-  couponFoot: { flexDirection: 'row', alignItems: 'center' },
+  // Rails inside a 20px-padded page column break out of that padding, then re-inset
+  // their content on BOTH sides (see `cardsRail`), so a mid-scroll card is cut by the
+  // screen edge instead of an arbitrary inset (AGENTS.md full-bleed rule).
+  railBleed: { marginHorizontal: -space.m20 },
+  // (the old hand-rolled coupon styles are gone — CouponTicket.tsx owns them now)
+  /** Casts the shadow. Opaque background: a shadow needs one to have a shape. */
+  campaignShadow: { borderRadius: radius.lg, backgroundColor: color.surface },
+  /** Masks the banner to the radius. Never put the shadow on this one. */
   campaign: { borderRadius: radius.lg, backgroundColor: color.surface, overflow: 'hidden' },
   campaignImg: { width: '100%', height: 128 },
   campaignBody: { flexDirection: 'row', alignItems: 'center', gap: space.s, padding: space.s12 },
   campaignTitleRow: { flexDirection: 'row', alignItems: 'center', gap: space.s },
   liveBadge: { backgroundColor: color.error, borderRadius: radius.full, paddingHorizontal: space.s6, paddingVertical: 1 },
   liveBadgeText: { ...t.caption10SemiBold, color: color.textInverse, letterSpacing: 0.4 },
-  cardsRail: { gap: space.s12, paddingVertical: space.s, paddingRight: space.m },
+  cardsRail: { gap: space.s12, paddingVertical: space.s, paddingHorizontal: space.m20 },
   simCard: { width: 151, gap: space.s },
-  simArt: { width: 151, height: 96, borderRadius: radius.md, transform: [{ skewX: '-0.27deg' }] },
+  simArt: { width: 151, height: 96, borderRadius: radius.md, overflow: 'hidden', transform: [{ skewX: '-0.27deg' }] },
   simArtImg: { width: 151, height: 96 },
   simArtFallback: { backgroundColor: color.aura.bg, alignItems: 'center', justifyContent: 'center' },
   simPill: {
@@ -837,9 +907,29 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     // bottom corners square + no shadow → the wash dissolves into the page
     padding: space.m,
+    // extra room under the timelines so the bottom fade has somewhere to land
+    paddingBottom: space.xl,
     gap: space.m,
     overflow: 'hidden',
   },
+  /** Glow bed behind the deals rail. Deliberately LARGER than the section: the
+   *  banner artwork is opaque, so a bed the size of the section leaves only a
+   *  hairline of visible glow around it. Spilling past the section lets the bloom
+   *  read in the page around the deal. No `overflow: hidden` — the glow fades out
+   *  inside its own box (GLOW_REACH), so there is nothing to clip. */
+  dealGlow: {
+    // Deliberately far larger than the rail. The banner artwork covers the bright
+    // middle of the ramp, so the only part that reaches the eye is what spills past
+    // the art — which means the box has to extend well beyond it, into the whitespace
+    // above the section head and below the pagination, or the glow reads as nothing.
+    position: 'absolute',
+    left: -space.huge,
+    right: -space.huge,
+    top: -space.huge,
+    bottom: -space.huge,
+  },
+  /** Bottom dissolve — wash + orbs → page white, so the panel has no cut edge. */
+  heroFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: space.huge96 },
   heroRow: { flexDirection: 'row', gap: space.s14, alignItems: 'center' },
   heroLogo: {
     width: 60,
@@ -890,10 +980,12 @@ const styles = StyleSheet.create({
     height: TL_H,
     borderRadius: radius.sm,
     backgroundColor: color.surface,
-    paddingLeft: space.m,
+    // Figma 1716:76773 insets the icon+text row 6px from the cell's left edge.
+    paddingLeft: space.s6,
     paddingRight: space.s,
-    justifyContent: 'center',
-    gap: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
     // native-only raise (web uses the cell's drop-shadow filter above)
     shadowColor: '#121726',
     shadowOpacity: 0.06,
@@ -901,6 +993,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   } as any,
+  // Label over value; shrinks (never the glyph) when the cell is narrow.
+  timelineText: { flexShrink: 1, gap: space.xxs },
   // Square off the right corners so the arrow attaches flush.
   timelineBodyChevron: { borderTopRightRadius: 0, borderBottomRightRadius: 0 },
   // Fixed-size right-pointing triangle (border trick) — same white as the body,

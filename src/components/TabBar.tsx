@@ -112,10 +112,14 @@ const styles = StyleSheet.create({
   // Full-bleed: cancel the page's 20px side padding so pills align with the page
   // on the left and scroll cleanly off the physical screen edge on the right
   // (rather than clipping at an arbitrary inset). The hairline spans full width.
+  // No marginBottom. The bar's own hairline already separates it from the content,
+  // and the first section below brings its `marginTop` (16) plus its header's
+  // `paddingVertical` (8) — so a margin here made the tab→first-section gap 40px
+  // while every section-to-section gap is 24px. Zero keeps the whole page on one
+  // rhythm; the divider does the separating.
   wrap: {
     borderBottomWidth: 1,
     borderBottomColor: color.border,
-    marginBottom: space.m,
     marginHorizontal: -space.m20,
   },
   container: { paddingVertical: space.s, paddingHorizontal: space.m20 },

@@ -1,0 +1,342 @@
+/**
+ * ckApp — the CashKaro production app's own design system, copied verbatim out of
+ * the shipped iOS binary (`/Applications/CashKaro.app`, Hermes bytecode v96,
+ * `main.jsbundle`) rather than re-drawn from a screenshot.
+ *
+ * Provenance, so the next chat can re-derive or extend it:
+ *   `colors`      Metro module **897** — the app's whole colour module, verbatim.
+ *   `base`        Metro module **896** — the app's 204-entry utility StyleSheet
+ *                 (`base.ph16`, `base.rowHCenter`, …). The app composes nearly
+ *                 every view out of these, so the clone reads like the original.
+ *   `metropolis`  module 896 — Metropolis is the app's type family (nine weights
+ *                 ship in the bundle; five are vendored into assets/fonts).
+ *   `text`        the app's `<Text>` component (Metro fn #12439): the xs…xl props
+ *                 each map to one fontSize/lineHeight pair, default colour
+ *                 `colors.text`, default weight Metropolis-Medium.
+ *   `metrics`     per-component numbers read off the same modules — see each
+ *                 field's comment for the function that owns it.
+ *
+ * This file is the ONLY place those literals live (theme/ is exempt from the
+ * no-hex rule); screens import from here. It is deliberately separate from
+ * `tokens.ts`: tokens.ts is the Figma-sourced *search* design system, this is the
+ * shipped *app* design system, and the two must not be conflated.
+ */
+import { StyleSheet, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native';
+
+/** Metro module 897 — the app's colour module, verbatim. */
+export const colors = {
+  primary: '#FF6D1D',
+  secondary: '#0036DA',
+  text: '#262626',
+  text_inactive: '#5C5C5C',
+  danger: '#D41000',
+  success: '#26A651',
+  disabled: '#DDDCE7',
+  light_orange: '#FFF9F4',
+  section_orange: '#FFF5ED',
+  section_blue: '#F7F9FF',
+  section_blue_two: '#F2F7FC',
+  white: '#FFFFFF',
+  gray_100: '#F5F7F9',
+  gray_200: '#EEEEEE',
+  gray_300: '#CCCCCC',
+  gray_400: '#D9E3EC',
+  gray_500: '#9D9D9D',
+  gray_600: '#4B4B4B',
+  gray_700: '#333333',
+  gray_800: '#262626',
+  gray_900: '#1C1B1F',
+  black: '#000000',
+  purple: '#8A54E7',
+  light_purple: '#F3EEFD',
+  teal: '#47DBBA',
+  light_teal: '#EDFBF8',
+  sky_blue: '#71D2EF',
+  light_sky_blue: '#EDFBFF',
+  yellow: '#FED624',
+  bk_ruby_red: '#DA2760',
+  card_inactive: '#DDDCE7',
+  whatsapp_color: '#20B038',
+  shadow_dark: 'rgba(0, 0, 0, 0.1)',
+  shadow_light: 'rgba(0, 0, 0, 0.04)',
+  borderColor: '#ebebeb',
+  danger_100: '#EB8A69',
+  yellow_100: '#FFFAEB',
+  primary_100: '#DAEDFF',
+  purple_100: '#DDCAFF',
+  purple_200: '#DADEFF',
+  purple_300: '#5B00FA',
+} as const;
+
+/**
+ * Metro module 896 — the app's Metropolis weight map. Only the five weights the
+ * home screen actually paints are vendored into assets/fonts; the bundle also
+ * ships Thin/ExtraLight/Light/Black, which nothing on Home uses.
+ */
+export const metropolis = {
+  regular: { fontFamily: 'Metropolis-Regular' },
+  medium: { fontFamily: 'Metropolis-Medium' },
+  semibold: { fontFamily: 'Metropolis-SemiBold' },
+  bold: { fontFamily: 'Metropolis-Bold' },
+  extrabold: { fontFamily: 'Metropolis-ExtraBold' },
+} as const;
+
+/**
+ * The app `<Text>` size props (Metro fn #12439 `getFlattenStyles`). Each prop is
+ * a boolean on the component — `<Text sm>` — and resolves to exactly one pair.
+ * A `lh` prop overrides lineHeight only.
+ */
+export const text = {
+  xs: { fontSize: 10, lineHeight: 14 },
+  sm: { fontSize: 12, lineHeight: 16 },
+  md: { fontSize: 14, lineHeight: 20 },
+  lg: { fontSize: 16, lineHeight: 24 },
+  xl: { fontSize: 18, lineHeight: 24 },
+} as const;
+
+/** Per-component numbers, each read off the module named in its comment. */
+export const metrics = {
+  /** module 1693: CONTAINER_HEIGHT_DEFAULT — the toolbar row's height. */
+  toolbarHeight: 40,
+  /** module 1693: SEARCH_HEIGHT_DEFAULT — the search block's reserved height. */
+  searchHeight: 64,
+  /** fn #19876: the list's contentContainer clears the search block by 8. */
+  listTopGap: 8,
+  /** fn #19974 `Banner`: every home banner is painted at this exact ratio. */
+  bannerAspectRatio: 1.6649746192893402,
+  /** fn #19974: react-native-reanimated-carousel autoPlayInterval. */
+  bannerAutoPlayMs: 3000,
+  /** fn #19974: carousel scrollAnimationDuration. */
+  bannerScrollMs: 1000,
+  /** fn #20141 `CategoryCard`: styles.homeListCategoryWrp / homeListCategoryCard. */
+  categoryTile: { width: 73, height: 113 },
+  categoryCircle: 73,
+  /** fn #20200 `StoreCard`: the 3-up grid card, and its logo box. */
+  storeCardHeight: 158,
+  storeCardGutter: 8,
+  storeLogo: { width: 98, height: 46 },
+  /** fn #20200: the 2-up ('horizontal' stacking) variant. */
+  storeCardHeightWide: 162,
+  storeLogoWide: { width: 112, height: 52 },
+  /** fn #20200 styles.stCard — a blue-black hairline, not a grey one. */
+  storeCardBorder: 'rgba(21, 33, 73, 0.08)',
+  /** fn #20200 styles.stRibbonWrp — bk_ruby_red at 12%. */
+  storeRibbonBg: 'rgba(218, 39, 96, 0.12)',
+  storeRibbonHeight: 20,
+  /** fn #19765: the "Cashback missing?" float's artwork box. */
+  prePostFloat: { width: 205, height: 79 },
+  /** fn #19765: react-navigation drawer width. */
+  drawerWidth: 250,
+} as const;
+
+/**
+ * Metro module 896 — the app's utility StyleSheet, all 204 entries, verbatim.
+ * Screens compose from these the way the app does (`base.ph16`, `base.rowHCenter`),
+ * which is what makes the clone's spacing identical rather than merely close.
+ */
+export const base = StyleSheet.create({
+  p0: { padding: 0 },
+  p4: { padding: 4 },
+  p6: { padding: 6 },
+  p8: { padding: 8 },
+  p12: { padding: 12 },
+  p16: { padding: 16 },
+  p24: { padding: 24 },
+  p32: { padding: 32 },
+  pt0: { paddingTop: 0 },
+  pt4: { paddingTop: 4 },
+  pt6: { paddingTop: 6 },
+  pt8: { paddingTop: 8 },
+  pt12: { paddingTop: 12 },
+  pt16: { paddingTop: 16 },
+  pt24: { paddingTop: 24 },
+  pt32: { paddingTop: 32 },
+  pb0: { paddingBottom: 0 },
+  pb4: { paddingBottom: 4 },
+  pb6: { paddingBottom: 6 },
+  pb8: { paddingBottom: 8 },
+  pb12: { paddingBottom: 12 },
+  pb16: { paddingBottom: 16 },
+  pb24: { paddingBottom: 24 },
+  pb32: { paddingBottom: 32 },
+  pl0: { paddingLeft: 0 },
+  pl4: { paddingLeft: 4 },
+  pl6: { paddingLeft: 6 },
+  pl8: { paddingLeft: 8 },
+  pl12: { paddingLeft: 12 },
+  pl16: { paddingLeft: 16 },
+  pl24: { paddingLeft: 24 },
+  pl32: { paddingLeft: 32 },
+  pr0: { paddingRight: 0 },
+  pr4: { paddingRight: 4 },
+  pr6: { paddingRight: 6 },
+  pr8: { paddingRight: 8 },
+  pr12: { paddingRight: 12 },
+  pr16: { paddingRight: 16 },
+  pr24: { paddingRight: 24 },
+  pr32: { paddingRight: 32 },
+  ph0: { paddingHorizontal: 0 },
+  ph4: { paddingHorizontal: 4 },
+  ph6: { paddingHorizontal: 6 },
+  ph8: { paddingHorizontal: 8 },
+  ph12: { paddingHorizontal: 12 },
+  ph16: { paddingHorizontal: 16 },
+  ph24: { paddingHorizontal: 24 },
+  ph32: { paddingHorizontal: 32 },
+  pv0: { paddingVertical: 0 },
+  pv4: { paddingVertical: 4 },
+  pv6: { paddingVertical: 6 },
+  pv8: { paddingVertical: 8 },
+  pv12: { paddingVertical: 12 },
+  pv16: { paddingVertical: 16 },
+  pv24: { paddingVertical: 24 },
+  pv32: { paddingVertical: 32 },
+  m0: { margin: 0 },
+  m4: { margin: 4 },
+  m6: { margin: 6 },
+  m8: { margin: 8 },
+  m12: { margin: 12 },
+  m16: { margin: 16 },
+  m24: { margin: 24 },
+  m32: { margin: 32 },
+  mt0: { marginTop: 0 },
+  mt4: { marginTop: 4 },
+  mt6: { marginTop: 6 },
+  mt8: { marginTop: 8 },
+  mt12: { marginTop: 12 },
+  mt16: { marginTop: 16 },
+  mt24: { marginTop: 24 },
+  mt32: { marginTop: 32 },
+  mb0: { marginBottom: 0 },
+  mb4: { marginBottom: 4 },
+  mb6: { marginBottom: 6 },
+  mb8: { marginBottom: 8 },
+  mb12: { marginBottom: 12 },
+  mb16: { marginBottom: 16 },
+  mb24: { marginBottom: 24 },
+  mb32: { marginBottom: 32 },
+  ml0: { marginLeft: 0 },
+  ml4: { marginLeft: 4 },
+  ml6: { marginLeft: 6 },
+  ml8: { marginLeft: 8 },
+  ml12: { marginLeft: 12 },
+  ml16: { marginLeft: 16 },
+  ml24: { marginLeft: 24 },
+  ml32: { marginLeft: 32 },
+  mr0: { marginRight: 0 },
+  mr4: { marginRight: 4 },
+  mr6: { marginRight: 6 },
+  mr8: { marginRight: 8 },
+  mr12: { marginRight: 12 },
+  mr16: { marginRight: 16 },
+  mr24: { marginRight: 24 },
+  mr32: { marginRight: 32 },
+  mh0: { marginHorizontal: 0 },
+  mh4: { marginHorizontal: 4 },
+  mh6: { marginHorizontal: 6 },
+  mh8: { marginHorizontal: 8 },
+  mh12: { marginHorizontal: 12 },
+  mh16: { marginHorizontal: 16 },
+  mh24: { marginHorizontal: 24 },
+  mh32: { marginHorizontal: 32 },
+  mv0: { marginVertical: 0 },
+  mv4: { marginVertical: 4 },
+  mv6: { marginVertical: 6 },
+  mv8: { marginVertical: 8 },
+  mv12: { marginVertical: 12 },
+  mv16: { marginVertical: 16 },
+  mv24: { marginVertical: 24 },
+  mv32: { marginVertical: 32 },
+  gap4: { gap: 4 },
+  gap6: { gap: 6 },
+  gap8: { gap: 8 },
+  gap12: { gap: 12 },
+  gap16: { gap: 16 },
+  gap24: { gap: 24 },
+  gap32: { gap: 32 },
+  cGap4: { columnGap: 4 },
+  cGap6: { columnGap: 6 },
+  cGap8: { columnGap: 8 },
+  cGap12: { columnGap: 12 },
+  cGap16: { columnGap: 16 },
+  cGap24: { columnGap: 24 },
+  cGap32: { columnGap: 32 },
+  rGap4: { rowGap: 4 },
+  rGap6: { rowGap: 6 },
+  rGap8: { rowGap: 8 },
+  rGap12: { rowGap: 12 },
+  rGap16: { rowGap: 16 },
+  rGap24: { rowGap: 24 },
+  rGap32: { rowGap: 32 },
+  rounded0: { borderRadius: 0 },
+  rounded4: { borderRadius: 4 },
+  rounded6: { borderRadius: 6 },
+  rounded8: { borderRadius: 8 },
+  rounded12: { borderRadius: 12 },
+  rounded16: { borderRadius: 16 },
+  rounded24: { borderRadius: 24 },
+  rounded32: { borderRadius: 32 },
+  roundedFull: { borderRadius: 9999 },
+  main: { flex: 1 },
+  imageFullWidth: { width: '100%', height: '100%' },
+  textCenter: { textAlign: 'center' },
+  textLeft: { textAlign: 'left' },
+  textRight: { textAlign: 'right' },
+  textXYCenter: { textAlign: 'center', textAlignVertical: 'center' },
+  column: { flexDirection: 'column' },
+  columnReverse: { flexDirection: 'column-reverse' },
+  colCenter: { flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
+  colVCenter: { flexDirection: 'column', alignItems: 'center' },
+  colHCenter: { flexDirection: 'column', justifyContent: 'center' },
+  row: { flexDirection: 'row' },
+  rowReverse: { flexDirection: 'row-reverse' },
+  rowCenter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  rowVCenter: { flexDirection: 'row', justifyContent: 'center' },
+  rowHCenter: { flexDirection: 'row', alignItems: 'center' },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  alignItemsCenter: { alignItems: 'center' },
+  alignItemsStart: { alignItems: 'flex-start' },
+  alignItemsStretch: { alignItems: 'stretch' },
+  alignItemsEnd: { alignItems: 'flex-end' },
+  justifyContentCenter: { justifyContent: 'center' },
+  justifyContentAround: { justifyContent: 'space-around' },
+  justifyContentBetween: { justifyContent: 'space-between' },
+  justifyContentEnd: { justifyContent: 'flex-end' },
+  scrollSpaceAround: { flexGrow: 1, justifyContent: 'space-around' },
+  scrollSpaceBetween: { flexGrow: 1, justifyContent: 'space-between' },
+  selfStretch: { alignSelf: 'stretch' },
+  selfCenter: { alignSelf: 'center' },
+  selfEnd: { alignSelf: 'flex-end' },
+  selfStart: { alignSelf: 'flex-start' },
+  flexWrapRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  fill: { flex: 1 },
+  fullSize: { height: '100%', width: '100%' },
+  fullWidth: { width: '100%' },
+  halfWidth: { width: '50%' },
+  fullHeight: { height: '100%' },
+  mirror: { transform: [{ scaleX: -1 }] },
+  rotate45: { transform: [{ rotate: '45deg' }] },
+  rotate90: { transform: [{ rotate: '90deg' }] },
+  rotate180: { transform: [{ rotate: '180deg' }] },
+  rotate45Inverse: { transform: [{ rotate: '-45deg' }] },
+  rotate90Inverse: { transform: [{ rotate: '-90deg' }] },
+  rotate180Inverse: { transform: [{ rotate: '-180deg' }] },
+  absolute: { position: 'absolute' },
+  relative: { position: 'relative' },
+  top0: { top: 0 },
+  bottom0: { bottom: 0 },
+  left0: { left: 0 },
+  right0: { right: 0 },
+  absoluteAllZero: { position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 },
+  bgWhite: { backgroundColor: colors.white },
+  bgPrimary: { backgroundColor: colors.primary },
+  bgSecondary: { backgroundColor: colors.secondary },
+  bgArtBoardGray: { backgroundColor: colors.gray_100 },
+  codeFieldRoot: { marginBottom: 3 },
+  cell: { width: 48, height: 48, lineHeight: 46, borderWidth: 1, borderRadius: 8, borderColor: colors.gray_400, backgroundColor: colors.white, textAlign: 'center' },
+  cellNew: { width: 44, height: 56, lineHeight: 56, borderWidth: 2 },
+  focusCell: { borderColor: colors.secondary },
+  errorCell: { borderColor: colors.danger },
+  btmShadow: { boxShadow: `0px -4px 4px 0px ${colors.shadow_dark}` },
+  headerShadow: { boxShadow: `0px 4px 8px 0px ${colors.shadow_dark}` },
+} satisfies Record<string, ViewStyle | TextStyle | ImageStyle>);

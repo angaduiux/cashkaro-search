@@ -39,12 +39,69 @@ const palette = {
   auraOffGreen: '#01ab4b', // storepage store-card "Upto X% Off" (Figma 1646:7182)
   auraCashbackCaption: 'rgba(99,99,99,0.44)', // store-card "CASHBACK" label
   auraTileWash: '#eef2fb', // neutral store-tile wash (Storepage Tiles 611:3360)
+  // ── AI "aura" flowing-gradient set (Expand-Search card, Figma 1646:7445) ────
+  // The four hues below are ONE cyclic ramp: cobalt → indigo → violet → orchid →
+  // (back to) cobalt. Because the last hue reads back into the first, a strip
+  // painted with the ramp repeated twice can translate forever with no seam.
+  auraAiCobalt: '#0036da',
+  auraAiIndigo: '#4f46e5',
+  auraAiViolet: '#7c3aed',
+  auraAiOrchid: '#a163ff',
+  auraAiPeriwinkle: '#7d63ff',
+  auraAiMagenta: '#e879f9', // the "magic" end of the ramp
+  auraAiAqua: '#38bdf8', // cools the cycle back toward cobalt
+  // Fallback for brand tints that have no colour of their own (Nike, AJIO, Puma …
+  // are all near-black at low alpha). A grey aura reads as dirt, so those get sky.
+  auraAiSkyWash: '#e6f4fd', // pale sky — the hero's base wash
+  auraAiCardTo: '#f5f7ff', // card wash bottom (near-white lavender)
+  // Glass/specular layers on the AI CTA + mark.
+  whiteClear: 'rgba(255,255,255,0)', // zero-alpha white — fade-to-page stops
+  // Glow platter behind the 3D mark.
+  auraAiGlowCore: 'rgba(124,58,237,0.26)',
+  auraAiGlowMid: 'rgba(161,99,255,0.14)',
+  auraAiGlow0: 'rgba(161,99,255,0)',
+  auraAiSheen: 'rgba(255,255,255,0.40)',
+  auraAiSheen0: 'rgba(255,255,255,0)',
+  auraAiGloss: 'rgba(255,255,255,0.24)',
+  auraAiGlossMid: 'rgba(255,255,255,0.05)',
+  auraAiHairline: 'rgba(255,255,255,0.45)', // 1px top highlight (iOS control gloss)
+  auraAiPress: 'rgba(255,255,255,0.14)', // UIKit-style highlight veil on touch
+  auraAiInnerShade: 'rgba(16,10,64,0.14)', // bottom inner shade for depth
+  auraAiEdge: 'rgba(84,40,190,0.10)', // card hairline on white
+  auraAiChip: 'rgba(255,255,255,0.74)', // "found on the web" pill fill
+  auraAiShadow: '#261a99', // brand-violet ambient shadow (mark + CTA)
+  auraAiCardShadow: '#000f66', // card elevation colour
+  // Glass AI mark (icons/AiMark.tsx) — an all-BLUE body under white specular
+  // layers: ice → azure → cobalt → navy along the light's diagonal. The earlier
+  // cyan→mint→violet ramp put its two lightest stops (#22d3ee, #34e0b0) against
+  // the band's pale lavender field, so at 1× the mark washed out to near-white.
+  // Blue keeps a dark end at every stop, which is what makes it read as a solid
+  // 3D object on a light ground rather than a watermark.
+  auraAiIce: '#bae6fd', // lit near edge (top-left)
+  auraAiAzure: '#38bdf8', // bright blue, the light's turn
+  auraAiCobalt3d: '#0741ef', // brand cobalt — the body's true colour
+  auraAiNavy: '#0b1e78', // shaded far edge (bottom-right)
+  auraAiGlassRimBlue: 'rgba(186,230,253,0.9)', // ice-tinted lit rim
+  // Blue glow platter behind the mark (was violet, to match the old body ramp).
+  auraAiGlowBlueCore: 'rgba(7,65,239,0.20)',
+  auraAiGlowBlueMid: 'rgba(56,189,248,0.15)',
+  auraAiGlowBlue0: 'rgba(56,189,248,0)',
+  auraAiGlassRim: 'rgba(255,255,255,0.72)', // glass edge highlight
+  auraAiGlassRim0: 'rgba(255,255,255,0.12)', // rim fading round to the unlit side
+  auraAiGlassCore: 'rgba(255,255,255,0.85)', // specular hot spot
+  auraAiGlassSpecMid: 'rgba(255,255,255,0.30)', // specular falloff
+  auraAiGlassCore0: 'rgba(255,255,255,0)',
+  auraAiGlassShade: 'rgba(38,26,153,0.34)', // contact shade under the mark
+  auraAiGlassDepth: 'rgba(38,26,153,0.42)', // inner shade on the glass's far face
+
   ink900: '#262626', // text/primary
   ink600: '#5c5c5c', // text/secondary
   ink400: '#878787', // text/tertiary
   slate400: '#9aa3b2', // muted price / field-icon grey (aura)
   peach50: '#fff0e8', // product cashback-pill gradient start (Figma 1646:7877)
   white: '#ffffff',
+  // Modal scrim — auraInk at 45%; the only dimming layer in the app (bottom sheets).
+  scrim: 'rgba(14,17,22,0.45)',
   borderSubtle: '#dddce7',
   successSubtle: '#edfbf8',
   errorSubtle: '#fef1f1',
@@ -59,6 +116,7 @@ export const color = {
   surface: palette.white,
   surfaceAlt: palette.cobalt50,
   border: palette.borderSubtle,
+  scrim: palette.scrim, // behind a bottom sheet
 
   // text
   textPrimary: palette.ink900,
@@ -121,12 +179,50 @@ export const color = {
     cashbackPillFrom: palette.peach50, // product cashback-pill gradient start
     searchField: '#eef1f6', // search-bar fill (Figma searchBar 1668:10754, flat, no shadow)
     indicator: '#325065', // carousel page indicator (Swiggy-style pill + dots)
-    // AI Expand gradient set (Figma 1646:7445)
-    aiFrom: '#0036da',
-    aiTo: '#7c3aed',
-    aiWash1: '#a163ff',
-    aiWash2: '#7d63ff',
-    aiCardTo: '#f5f7ff',
+    // AI Expand gradient set (Figma 1646:7445). aiFrom→aiVia→aiTo→aiWash1 is a
+    // CYCLIC ramp (orchid reads back into cobalt) — see AI_FLOW_HUES below.
+    aiFrom: palette.auraAiCobalt,
+    aiVia: palette.auraAiIndigo,
+    aiTo: palette.auraAiViolet,
+    aiWash1: palette.auraAiOrchid,
+    aiWash2: palette.auraAiPeriwinkle,
+    aiMagenta: palette.auraAiMagenta,
+    aiAqua: palette.auraAiAqua,
+    aiSky: palette.auraAiAqua, // same hue, named for its role as the grey fallback
+    aiSkyWash: palette.auraAiSkyWash,
+    aiCardTo: palette.auraAiCardTo,
+    // glass layers
+    fade0: palette.whiteClear, // start stop for any fade-into-the-page gradient
+    aiGlowCore: palette.auraAiGlowCore,
+    aiGlowMid: palette.auraAiGlowMid,
+    aiGlow0: palette.auraAiGlow0,
+    aiSheen: palette.auraAiSheen,
+    aiSheen0: palette.auraAiSheen0,
+    aiGloss: palette.auraAiGloss,
+    aiGlossMid: palette.auraAiGlossMid,
+    aiHairline: palette.auraAiHairline,
+    aiPress: palette.auraAiPress,
+    aiInnerShade: palette.auraAiInnerShade,
+    aiEdge: palette.auraAiEdge,
+    aiChip: palette.auraAiChip,
+    aiShadow: palette.auraAiShadow,
+    aiCardShadow: palette.auraAiCardShadow,
+    // glass AI mark — blue body ramp (ice → azure → cobalt → navy)
+    aiIce: palette.auraAiIce,
+    aiAzure: palette.auraAiAzure,
+    aiCobalt3d: palette.auraAiCobalt3d,
+    aiNavy: palette.auraAiNavy,
+    aiGlassRimBlue: palette.auraAiGlassRimBlue,
+    aiGlowBlueCore: palette.auraAiGlowBlueCore,
+    aiGlowBlueMid: palette.auraAiGlowBlueMid,
+    aiGlowBlue0: palette.auraAiGlowBlue0,
+    aiGlassRim: palette.auraAiGlassRim,
+    aiGlassRim0: palette.auraAiGlassRim0,
+    aiGlassCore: palette.auraAiGlassCore,
+    aiGlassSpecMid: palette.auraAiGlassSpecMid,
+    aiGlassCore0: palette.auraAiGlassCore0,
+    aiGlassShade: palette.auraAiGlassShade,
+    aiGlassDepth: palette.auraAiGlassDepth,
   },
   // Credit-card card component (Figma DS 1785:28364)
   card: {
@@ -141,6 +237,97 @@ export const color = {
     feeValue: '#0d0d0e', // fee value (text/default)
     apply: '#0741ef', // Apply Now button (accent-bg cobalt)
     divider: '#e5e7eb',
+  },
+  /**
+   * Coupon ticket (Store Page V2.0, Figma `XgdQOrfPsC6HNv24uS9jgN` node 1835:16064
+   * — variants Default / Variant3 "copying" / Variant4 "copied"). Pulled with
+   * `get_design_context` + `get_variable_defs`, not sampled off a screenshot.
+   */
+  coupon: {
+    // Left stub gradient — purple at rest, green once the code is copied.
+    stubFrom: '#d457ef',
+    stubVia: '#b548e7', // 49.5192%
+    stubTo: '#a040e1',
+    stubCopiedFrom: '#1d985c',
+    stubCopiedTo: '#5cbc71',
+    stubLabel: '#ffffff',
+    // Body
+    title: '#393540',
+    seeDetails: 'rgba(11,11,11,0.51)',
+    // Code field
+    codeBg: 'rgba(0,54,218,0.05)',
+    codeBorder: 'rgba(0,54,218,0.24)',
+    codeText: '#0036da',
+    codeTextDim: 'rgba(0,54,218,0.4)', // while copying
+    copiedBorder: '#26a651',
+    copiedText: '#26a651',
+    // Expiry ribbon
+    ribbonFrom: '#fc6197',
+    ribbonTo: '#d90952',
+    ribbonFold: '#580202',
+    ribbonText: '#fff9f9',
+    // Ticket hairline along the top and bottom edges
+    outline: '#c1c1c1',
+    /** Hairline along each cut-out's curve. The cuts are the page colour, so on a
+     *  white page they are invisible without one — the spec frame only shows them
+     *  because Figma's canvas is dark. Same hue as the ticket's shadow. */
+    notchEdge: 'rgba(7,42,78,0.14)',
+    /** drop-shadow(0px 6px 5px rgba(7,42,78,0.17)) — the whole ticket's lift. */
+    shadow: '0px 6px 5px rgba(7,42,78,0.17)',
+  },
+  /**
+   * Voice-input sheet (components/VoiceSheet.tsx). Deliberately built from the AI
+   * aura ramp already in this file — voice search is the same "intelligence" surface
+   * as Expand Search, so it speaks the same colour language rather than inventing a
+   * second one. Only the sheet's own chrome is new.
+   */
+  voice: {
+    sheet: palette.white,
+    sheetEdge: palette.auraAiEdge,
+    label: palette.auraSlate,
+    labelMuted: palette.auraSlateMuted,
+    transcript: palette.auraInk,
+    /** The live meter's ramp, cool → hot as the band gets louder. */
+    meterCalm: palette.auraAiAqua,
+    meterMid: palette.auraAiCobalt,
+    meterHot: palette.auraAiViolet,
+    meterPeak: palette.auraAiMagenta,
+    /** Bar at rest — a voice UI must read as "listening" even in silence. */
+    meterIdle: '#d7dcf0',
+    /** Halo behind the mic, scaled by level. Same-hue zero-alpha stop (see §Aura). */
+    halo: 'rgba(124,58,237,0.22)',
+    halo0: 'rgba(124,58,237,0)',
+    /** The mic button is the BRAND accent, not the AI ramp — it is a primary action,
+     *  and the reference pattern (Swiggy) reads as one solid accent disc. */
+    micBg: palette.orange,
+    micGlyph: palette.white,
+    /** Concentric pulse rings behind the disc, expanding with loudness. */
+    pulse: 'rgba(255,109,29,0.20)',
+    pulseFaint: 'rgba(255,109,29,0.10)',
+    /** Scrim over the page while the sheet is up. */
+    scrim: 'rgba(14,17,22,0.32)',
+    /** Suggestion chips in the no-match state. */
+    chipBorder: palette.borderSubtle,
+    chipText: palette.auraInk,
+    /** "Tap to speak again" / cancel row. */
+    action: palette.orange,
+    danger: palette.ruby600,
+  },
+  /**
+   * Cashback-timeline strip icons (Store Page V2.0, Figma `XgdQOrfPsC6HNv24uS9jgN`
+   * node 1716:76773). Each of the three cells carries a 26px glyph filled with its
+   * own vertical two-stop ramp (light top → saturated bottom), read off the exported
+   * SVGs kept at `assets/timeline/`. The hues are the step's own semantics —
+   * amber = waiting, sky = confirmed, mint = money out — and are NOT the aura ramp,
+   * so they stay separate from `color.aura`.
+   */
+  timeline: {
+    tracksFrom: '#ffc485',
+    tracksTo: '#ff9d33',
+    confirmsFrom: '#4cc6ff',
+    confirmsTo: '#00a4f0',
+    withdrawFrom: '#6de9c2',
+    withdrawTo: '#00c788',
   },
 } as const;
 
@@ -227,6 +414,8 @@ export const radius = {
   md: 10,
   lg: 12,
   xl: 16,
+  xl20: 20, // AI Expand card (Figma 1646:7445)
+  hero: 24, // hero panel + bottom-sheet top corners (Figma 1646:7197)
   xxl: 32, // search field (Figma searchBar 1668:10754)
   full: 10000,
 } as const;
@@ -293,3 +482,40 @@ export const PILL_HEIGHT = space.xxl;
 
 // Deal banner strip height (design spec).
 export const BANNER_HEIGHT = 118;
+
+// ── AI Expand card metrics (Figma 1646:7445) ─────────────────────────────────
+/** Gradient sparkle mark — same 44 as the minimum tap target, by coincidence. */
+// The AI mark reads as the band's object, not a bullet — at 44 it sat smaller
+// than the two-line pitch beside it and disappeared into the aura.
+export const AI_MARK_SIZE = 64;
+/** CTA height — matches the DS primary button so the app reads as one system. */
+export const AI_CTA_HEIGHT = 52;
+/** Diameter of each drifting glow orb in the card's aura field. */
+export const AI_ORB_SIZE = 320;
+/**
+ * The cyclic hue ramp painted into every AI gradient. Ordered so the last hue
+ * reads back into the first: a strip carrying this ramp twice over 2× its
+ * container width can translate by exactly one container width, forever, with
+ * no visible seam (see motion/Aura.tsx → FlowStrip).
+ */
+export const AI_FLOW_HUES = [
+  color.aura.aiFrom,
+  color.aura.aiVia,
+  color.aura.aiTo,
+  color.aura.aiWash1,
+  color.aura.aiMagenta,
+  color.aura.aiAqua,
+] as const;
+
+/**
+ * Hues for the drifting orbs — one per orb, ordered so neighbours in space are
+ * neighbours in hue. Alphas are NOT baked in: the orb builds its own multi-stop
+ * falloff (motion/Aura.tsx), which is what makes the edge disappear.
+ */
+export const AI_ORB_HUES = [
+  color.aura.aiTo,
+  color.aura.aiWash1,
+  color.aura.aiMagenta,
+  color.aura.aiAqua,
+  color.aura.aiFrom,
+] as const;

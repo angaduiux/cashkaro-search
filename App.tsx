@@ -16,6 +16,15 @@ export default function App() {
     'Outfit-SemiBold': require('./assets/fonts/Outfit-600SemiBold.ttf'),
     'Outfit-Bold': require('./assets/fonts/Outfit-700Bold.ttf'),
     'Outfit-ExtraBold': require('./assets/fonts/Outfit-800ExtraBold.ttf'),
+    // Metropolis — the PRODUCTION CashKaro app's type family, vendored from the
+    // shipped iOS bundle (/Applications/CashKaro.app). Only HomeScreen (the clone
+    // of the real app home) uses these; the search surfaces stay on Outfit. Family
+    // names must match the app's own `metropolis` map (theme/ckApp.ts) exactly.
+    'Metropolis-Regular': require('./assets/fonts/Metropolis-Regular.ttf'),
+    'Metropolis-Medium': require('./assets/fonts/Metropolis-Medium.ttf'),
+    'Metropolis-SemiBold': require('./assets/fonts/Metropolis-SemiBold.ttf'),
+    'Metropolis-Bold': require('./assets/fonts/Metropolis-Bold.ttf'),
+    'Metropolis-ExtraBold': require('./assets/fonts/Metropolis-ExtraBold.ttf'),
     // Font Awesome 6 Pro (licensed .otf, subset to the ~34 glyphs used — §iconMap).
     // Brands + Duotone are not referenced by any icon and are intentionally not
     // bundled (they added ~9MB to the render-blocking font payload).

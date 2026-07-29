@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { SerpModel, SerpSection, TabKey, ResultItem } from '../data/dataContract';
 import { color, type as t, space, duration } from '../theme/tokens';
-import { SectionHeader, Disclaimer, Divider } from './atoms';
+import { SectionHeader } from './atoms';
 import { StoreTile, ProductCard, CategoryChip, DealsCarousel, SimilarCardsRail, CouponCard, CampaignCard } from './ResultCards';
 import { FinanceCard } from './FinanceCard';
 import { CreditCard } from './CreditCard';
@@ -25,11 +25,14 @@ export function SerpShell({
   preview = false,
   userType = 'existing',
   onViewAllStores,
+  onOpenCategory,
 }: {
   model: SerpModel;
   webResults?: ResultItem[];
   /** Tap on a stores section's "View all" → open the catalog grid for its category. */
   onViewAllStores?: () => void;
+  /** Tap a category row → open that product category page. */
+  onOpenCategory?: (title: string) => void;
   /** Commit transition (§9.4): frame lands first, skeletons where content will
    *  stream in, then sections replace them top-to-bottom. */
   loading?: boolean;
@@ -99,7 +102,12 @@ export function SerpShell({
           {/* Content sections — crossfade when the tab filter changes */}
           <Animated.View key={tab} entering={FadeIn.duration(duration.fast)}>
             {visibleSections.map((section, si) => (
-              <SectionView key={section.kind + si} section={section} onViewAllStores={onViewAllStores} />
+              <SectionView
+                key={section.kind + si}
+                section={section}
+                onViewAllStores={onViewAllStores}
+                onOpenCategory={onOpenCategory}
+              />
             ))}
           </Animated.View>
 
@@ -108,7 +116,10 @@ export function SerpShell({
         </>
       )}
 
-      <View style={{ height: space.huge }} />
+      {/* The Expand-Search band ends the page itself: its own field runs to the
+          bottom of the screen, so the usual trailing spacer would put a white
+          gap under it. Every other page still gets the scroll breathing room. */}
+      {!(model.expandSearch && !financeOnly) && <View style={{ height: space.huge }} />}
     </ScrollView>
   );
 }
@@ -128,7 +139,15 @@ function dedupeStores(items: ResultItem[]): ResultItem[] {
   });
 }
 
-function SectionView({ section, onViewAllStores }: { section: SerpSection; onViewAllStores?: () => void }) {
+function SectionView({
+  section,
+  onViewAllStores,
+  onOpenCategory,
+}: {
+  section: SerpSection;
+  onViewAllStores?: () => void;
+  onOpenCategory?: (title: string) => void;
+}) {
   // Stores rail: drop duplicate brands and keep the header count in sync.
   const resolved = section.kind === 'stores' ? { ...section, items: dedupeStores(section.items) } : section;
   const count = resolved.kind === 'stores' ? resolved.items.length : resolved.count;
@@ -137,23 +156,17 @@ function SectionView({ section, onViewAllStores }: { section: SerpSection; onVie
   return (
     <View style={styles.section}>
       <SectionHeader title={resolved.title} count={count} onViewAll={viewAll && resolved.items.length > 2 ? viewAll : undefined} />
-      {renderSectionBody(resolved)}
-      {!!section.disclaimer && (
-        <>
-          <Disclaimer text={section.disclaimer} />
-          <Divider />
-        </>
-      )}
+      {renderSectionBody(resolved, onOpenCategory)}
     </View>
   );
 }
 
-function renderSectionBody(section: SerpSection) {
+function renderSectionBody(section: SerpSection, onOpenCategory?: (title: string) => void) {
   switch (section.kind) {
     case 'stores':
       // Horizontal rail of brand-logo tiles (W4 stores design).
       return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScroll}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railBleed} contentContainerStyle={styles.hScroll}>
           {section.items.map((item) => (
             <StoreTile key={item.id} item={item} />
           ))}
@@ -162,26 +175,27 @@ function renderSectionBody(section: SerpSection) {
     case 'products':
       // Horizontal rail of product cards (W4 products design).
       return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScroll}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railBleed} contentContainerStyle={styles.hScroll}>
           {section.items.map((item, i) => (
             <ProductCard key={item.id} item={item} index={i} />
           ))}
         </ScrollView>
       );
     case 'categories':
-      // Two-row wrap of icon pills (W4 categories design).
+      // Two-row wrap of icon pills (W4 categories design) → the product category page.
       return (
         <View style={styles.categoryWrap}>
           {section.items.map((item) => (
-            <CategoryChip key={item.id} item={item} />
+            <CategoryChip key={item.id} item={item} onPress={onOpenCategory ? () => onOpenCategory(item.title) : undefined} />
           ))}
         </View>
       );
     case 'deals':
-      return <DealsCarousel items={section.items} />;
+      // Banners run to the screen edge — cancel the page column's 20px padding.
+      return <DealsCarousel items={section.items} bleed={space.m20} />;
     case 'coupons':
       return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScroll}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railBleed} contentContainerStyle={styles.couponRail}>
           {section.items.map((item) => (
             <CouponCard key={item.id} item={item} />
           ))}
@@ -245,7 +259,14 @@ const styles = StyleSheet.create({
   heroWrap: { marginBottom: space.s },
   allResults: { gap: space.xxs, marginTop: space.s, marginBottom: space.s12 },
   section: { marginTop: space.m },
-  hScroll: { gap: space.s12, paddingVertical: space.xs, paddingRight: space.m },
+  // Rails must be FULL-BLEED (AGENTS.md): cancel the page column's 20px padding so
+  // a mid-scroll card is cut by the screen edge, then re-inset the content on BOTH
+  // sides so the first card aligns with the page and the last scrolls to the edge.
+  railBleed: { marginHorizontal: -space.m20 },
+  hScroll: { gap: space.s12, paddingVertical: space.xs, paddingHorizontal: space.m20 },
+  // Coupon tickets hang their expiry badge 2px over the top edge and cast a
+  // 0 6 5 shadow, so 4px of vertical padding clipped both. 12 clears them.
+  couponRail: { gap: space.s12, paddingVertical: space.s12, paddingHorizontal: space.m20 },
   productGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s12 },
   categoryWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s },
 });

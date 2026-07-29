@@ -26,7 +26,7 @@ function Head({ icon, gif, title, action }: { icon?: IconName; gif?: ImageSource
         {gif ? (
           <Image source={gif} style={styles.headGif} resizeMode="contain" accessibilityLabel={`${title} icon`} />
         ) : (
-          icon && <Icon name={icon} size={13} color={icon === 'fire' ? color.actionPrimary : color.aura.ink} />
+          icon && <Icon name={icon} size={18} color={icon === 'fire' ? color.actionPrimary : color.aura.ink} />
         )}
         <Text style={[t.body14SemiBold, { color: color.aura.ink, letterSpacing: 0 }]}>{title}</Text>
       </View>
@@ -193,7 +193,8 @@ export function ExploreHome({
       {ALL_DEALS.length > 0 && (
         <Animated.View entering={FadeInDown.delay(120).duration(240)} style={styles.blockPad}>
           <Head title="Top Deals" />
-          <DealsCarousel items={ALL_DEALS} />
+          {/* Banners run to the screen edge — cancel this block's 20px padding. */}
+          <DealsCarousel items={ALL_DEALS} bleed={space.m20} />
         </Animated.View>
       )}
 
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
   block: { gap: space.s12 },
   blockPad: { paddingHorizontal: space.m20, gap: space.s12 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headLeft: { flexDirection: 'row', alignItems: 'center', gap: space.s },
+  headLeft: { flexDirection: 'row', alignItems: 'center', gap: space.s6 },
   headGif: { width: 20, height: 20 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.s },
   chip: {

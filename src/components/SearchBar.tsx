@@ -93,6 +93,7 @@ export function SearchBar({
   onSubmit,
   onBack,
   onClear,
+  onVoice,
   showBack,
   autoFocus,
   inputRef,
@@ -104,6 +105,8 @@ export function SearchBar({
   onSubmit?: () => void;
   onBack?: () => void;
   onClear?: () => void;
+  /** Mic tap. Opens the voice sheet in place of the keyboard (see VoiceSheet). */
+  onVoice?: () => void;
   showBack?: boolean;
   autoFocus?: boolean;
   /** Lets the owner focus the field imperatively — the bar is persistent, so
@@ -132,13 +135,19 @@ export function SearchBar({
   useEffect(() => {
     tx.value = withTiming(hasText ? 1 : 0, { duration: duration.fast });
   }, [hasText]);
+  // CLAMPed, all of them: `interpolate` extrapolates by default, and a trailing
+  // icon that momentarily reads tx outside [0,1] scales by 11× — the glyph then
+  // covers the whole frame (measured: the 16px mic laying out at 405×540).
   const clearStyle = useAnimatedStyle(() => ({
-    opacity: tx.value,
-    transform: [{ scale: interpolate(tx.value, [0, 1], [0.6, 1]) }, { rotateZ: `${interpolate(tx.value, [0, 1], [-30, 0])}deg` }],
+    opacity: interpolate(tx.value, [0, 1], [0, 1], Extrapolation.CLAMP),
+    transform: [
+      { scale: interpolate(tx.value, [0, 1], [0.6, 1], Extrapolation.CLAMP) },
+      { rotateZ: `${interpolate(tx.value, [0, 1], [-30, 0], Extrapolation.CLAMP)}deg` },
+    ],
   }));
   const micStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(tx.value, [0, 1], [1, 0]),
-    transform: [{ scale: interpolate(tx.value, [0, 1], [1, 0.6]) }],
+    opacity: interpolate(tx.value, [0, 1], [1, 0], Extrapolation.CLAMP),
+    transform: [{ scale: interpolate(tx.value, [0, 1], [1, 0.6], Extrapolation.CLAMP) }],
   }));
 
   return (
@@ -171,7 +180,7 @@ export function SearchBar({
           />
         </View>
         <Pressable
-          onPress={hasText ? onClear : undefined}
+          onPress={hasText ? onClear : onVoice}
           hitSlop={12}
           style={styles.trailing}
           accessibilityRole="button"

@@ -43,6 +43,7 @@ export type SuggestRow = {
   meta?: string; // "in Beauty · 10+ results" / "Category · 800+ products"
   live?: boolean;
   goto?: string; // query to resolve when tapped
+  catKey?: string; // categories group: the product category page to open
 };
 
 export type SuggestGroup = { kind: SuggestGroupKind; label: string; rows: SuggestRow[] };
@@ -61,10 +62,13 @@ export function Suggestions({
   query,
   groups,
   onPick,
+  onOpenCategory,
 }: {
   query: string;
   groups: SuggestGroup[];
   onPick: (text: string) => void;
+  /** Categories group → the product category page (not a search commit). */
+  onOpenCategory?: (title: string) => void;
 }) {
   let idx = 0;
   // Dominant exact match → offer a one-tap "Go to <store>" shortcut straight to
@@ -122,9 +126,14 @@ export function Suggestions({
           <View>
             {g.rows.map((row) => {
               const i = idx++;
+              // A category row browses; every other row commits a search.
+              const onSelect =
+                g.kind === 'categories' && onOpenCategory
+                  ? () => onOpenCategory(row.catKey ?? row.title)
+                  : () => onPick(row.goto ?? row.title);
               return (
                 <Animated.View key={g.kind + i} entering={FadeInDown.delay(staggerDelay(i)).duration(180)}>
-                  <SuggestionRow row={row} query={query} onPick={onPick} />
+                  <SuggestionRow row={row} query={query} onSelect={onSelect} />
                 </Animated.View>
               );
             })}
@@ -136,10 +145,10 @@ export function Suggestions({
   );
 }
 
-function SuggestionRow({ row, query, onPick }: { row: SuggestRow; query: string; onPick: (t: string) => void }) {
+function SuggestionRow({ row, query, onSelect }: { row: SuggestRow; query: string; onSelect: () => void }) {
   const tone = row.tileTone ? TILE_TONES[row.tileTone] : null;
   return (
-    <Pressable style={styles.row} onPress={() => onPick(row.goto ?? row.title)} accessibilityRole="button" accessibilityLabel={row.title}>
+    <Pressable style={styles.row} onPress={onSelect} accessibilityRole="button" accessibilityLabel={row.title}>
       {row.cardImage ? (
         <Image source={row.cardImage} style={styles.cardThumb} resizeMode="cover" />
       ) : row.image ? (

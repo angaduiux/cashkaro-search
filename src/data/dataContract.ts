@@ -84,6 +84,9 @@ export interface ResultItem {
   artwork?: string | number | null; // card artwork (URL or bundled require id)
   bannerImage?: number; // bundled deal creative (require(...)); renders full-bleed
   bannerAspect?: number; // natural width/height of the banner image
+  /** Dominant colour of the banner artwork, measured by
+   *  `scripts/sample-banner-tint.mjs` — drives the glow behind the deals rail. */
+  bannerTint?: string;
   cashback: Cashback;
   /** Store-tile footer caption under the cashback figure. Storepage tiles say
    *  "CASHBACK" for retail/travel merchants and "REWARDS" for education & loan

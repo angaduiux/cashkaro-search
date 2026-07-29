@@ -135,6 +135,11 @@ export const PRODUCT_IMG = {
   faceCream: require('../../assets/products/face-cream.jpg'),
   muscleblazeWhey: require('../../assets/products/muscleblaze-whey.jpg'),
   optimumWhey: require('../../assets/products/optimum-whey.jpg'),
+  // Web-result SKUs (Expand Search) — merchants CashKaro doesn't map, so these
+  // exist only in the "found on the web" rail. White-background product photos
+  // from the merchant listing (nutrabay.com CDN), resized to 800px like the rest.
+  isopureWhey: require('../../assets/products/isopure-whey.jpg'),
+  myproteinWhey: require('../../assets/products/myprotein-whey.jpg'),
   nikeRevolution: require('../../assets/products/nike-revolution.jpg'),
   // Catalog-coverage product photos (every catalog product shows a real image,
   // never a brand-logo fallback).
@@ -196,7 +201,7 @@ const ART = {
 
 // ── Real deal banner creatives (exported from the Figma design file) ──────────
 // Full pre-rendered campaign artwork; rendered full-bleed (CK strip + CTA baked in).
-const deal = (id: string, img: number, aspect: number): ResultItem => ({
+const deal = (id: string, img: number, aspect: number, tint: string): ResultItem => ({
   id,
   archetype: '13_campaign',
   source: 'internal',
@@ -205,14 +210,18 @@ const deal = (id: string, img: number, aspect: number): ResultItem => ({
   cashback: { type: 'none' },
   bannerImage: img,
   bannerAspect: aspect,
+  bannerTint: tint,
 });
 
 const WIDE = 984 / 354; // real wide banner aspect (from Downloads)
-const dealCroma = deal('deal-croma', require('../../assets/banners/w_0128.png'), WIDE);
-const dealAmazon = deal('deal-amazon', require('../../assets/banners/w_0207.png'), WIDE);
-const dealAjio = deal('deal-ajio', require('../../assets/banners/w_0153.png'), WIDE);
-const dealKlook = deal('deal-klook', require('../../assets/banners/w_4409.png'), WIDE);
-const dealS3Beauty = deal('deal-s3beauty', require('../../assets/banners/w_0220.png'), WIDE);
+// `bannerTint` is the dominant field colour of each creative, MEASURED from the
+// asset by `node scripts/sample-banner-tint.mjs` — never eyeballed. It drives the
+// glow behind the deals rail, so the glow always matches the artwork on screen.
+const dealCroma = deal('deal-croma', require('../../assets/banners/w_0128.png'), WIDE, '#335fd0');
+const dealAmazon = deal('deal-amazon', require('../../assets/banners/w_0207.png'), WIDE, '#c0e9fa');
+const dealAjio = deal('deal-ajio', require('../../assets/banners/w_0153.png'), WIDE, '#738991');
+const dealKlook = deal('deal-klook', require('../../assets/banners/w_4409.png'), WIDE, '#c21c2a');
+const dealS3Beauty = deal('deal-s3beauty', require('../../assets/banners/w_0220.png'), WIDE, '#5ec0ed');
 export const ALL_DEALS = [dealCroma, dealAmazon, dealAjio, dealS3Beauty, dealKlook];
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -870,6 +879,9 @@ export const webResultsForWhey: ResultItem[] = [
     source: 'google_shopping',
     title: 'Optimum Nutrition Gold Standard Whey',
     subtitle: 'ON',
+    // Real white-background product photo (same asset the catalog SKU uses), not
+    // the brand logo — a web result is still a product card (D003).
+    productImage: PRODUCT_IMG.optimumWhey,
     logo: BRAND.optimum.logo, logoBg: BRAND.optimum.bg,
     cashback: { type: 'none' }, // unmapped merchant → NO cashback element
     mappedPartnerId: null,
@@ -881,11 +893,41 @@ export const webResultsForWhey: ResultItem[] = [
     source: 'google_shopping',
     title: 'MuscleBlaze Biozyme Performance Whey',
     subtitle: 'MuscleBlaze',
+    productImage: PRODUCT_IMG.muscleblazeWhey,
     logo: BRAND.muscleblaze.logo, logoBg: BRAND.muscleblaze.bg,
     cashback: { type: 'pct_single', value: 6 }, // mapped partner → badge
     mappedPartnerId: 'muscleblaze',
     badge: { label: 'Upto 6% Cashback', tone: 'cashback' },
     ctaLabel: '₹2,199',
+  },
+  // The rail is built for N results; these two are unmapped merchants, so they
+  // carry no cashback element. Prices transcribed from the live listing
+  // (nutrabay.com, 2026-07-28) — nothing here is estimated.
+  {
+    id: 'web-3',
+    archetype: '10_beyond_catalogue',
+    source: 'google_shopping',
+    title: 'Isopure Zero Carb 100% Whey Isolate 1kg',
+    subtitle: 'Isopure',
+    productImage: PRODUCT_IMG.isopureWhey,
+    logo: null, // unmapped merchant — no CashKaro brand tile for it
+    cashback: { type: 'none' },
+    mappedPartnerId: null,
+    ctaLabel: '₹7,129',
+    originalPrice: '₹7,999',
+  },
+  {
+    id: 'web-4',
+    archetype: '10_beyond_catalogue',
+    source: 'google_shopping',
+    title: 'MyProtein Impact Whey Protein 1kg',
+    subtitle: 'MyProtein',
+    productImage: PRODUCT_IMG.myproteinWhey,
+    logo: null,
+    cashback: { type: 'none' },
+    mappedPartnerId: null,
+    ctaLabel: '₹3,399',
+    originalPrice: '₹4,999',
   },
 ];
 
@@ -911,6 +953,7 @@ export const REAL_CASES: Record<string, SerpModel> = {
 import { SuggestGroup } from '../components/Suggestions';
 import { searchStores, CATEGORIES, buildCategoryStores } from './catalog';
 import { categoryIcon } from './categoryIcons';
+import { productCategories, categoryStats } from './productCategories';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // "View all" verticals — one full-page list per result type (§ side-panel nav).
@@ -993,10 +1036,21 @@ export function buildSuggestions(query: string): SuggestGroup[] {
     {
       kind: 'categories',
       label: 'Categories',
-      rows: [
-        { kind: 'tile', icon: 'grid', tileTone: 'purple', image: categoryIcon('Beauty') ?? undefined, title: 'Beauty & Cosmetics', meta: 'Category · 20+ stores', goto: 'body' },
-        { kind: 'tile', icon: 'grid', tileTone: 'purple', image: categoryIcon('Fashion') ?? undefined, title: 'Fashion & Lifestyle', meta: 'Category · 80+ stores', goto: 'body' },
-      ],
+      // Rows point at real product category pages, and their meta is COUNTED from
+      // the catalog (never a rounded "20+") so the row and the page it opens agree.
+      rows: productCategories().slice(0, 2).map((c) => {
+        const s = categoryStats(c.cat);
+        return {
+          kind: 'tile' as const,
+          icon: 'grid' as const,
+          tileTone: 'purple' as const,
+          image: categoryIcon(c.cat) ?? undefined,
+          title: c.title,
+          meta: `Category · ${s.products} products · ${s.stores} stores`,
+          catKey: c.key,
+          goto: c.cat.toLowerCase(),
+        };
+      }),
     },
     {
       kind: 'credit_cards',

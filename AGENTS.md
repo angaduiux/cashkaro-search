@@ -2,6 +2,18 @@
 
 Shared context for every chat working on this project. Read before writing UI code.
 
+This file holds the **hard rules**. The rest of the shared context lives in
+`docs/`, and keeping it current is part of "done" — see
+[CLAUDE.md](CLAUDE.md) for the session protocol:
+
+| File | Answers | Maintained by |
+| --- | --- | --- |
+| [docs/MAP.md](docs/MAP.md) | *where* code lives | generated — `node scripts/gen-map.mjs` |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | *why* we do X not Y | append a `Dnn` entry per decision |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | *when* / how we got here | a dated paragraph per landing |
+
+`node scripts/check-context.mjs` audits all three plus the rules below.
+
 ## Expo HAS CHANGED
 
 Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any code.
@@ -39,6 +51,16 @@ animating"). Fix, all three must be the SAME integer:
 - Set an explicit `style={{ width: cardW }}` on the `ScrollView` (fixes the paging frame).
 - `snapToInterval={step}` + `disableIntervalMomentum` alongside `pagingEnabled`.
 - Programmatic `scrollTo` offsets must be integer multiples of that width.
+
+The carousel's scroll frame must span the physical screen width. `DealsCarousel`
+takes a `bleed` prop: pass `space.m20` when it sits inside a 20px-padded column
+(SERP sections, Explore blocks) and omit it at page level (Home). The measured
+width still drives card/step/frame, so paging stays exact either way.
+
+The banner artwork itself is inset `space.m` (16px) *inside* each full-width page
+— never narrow the page to create that gap, or the snap step stops matching the
+frame width. Result: 16px off both screen edges at rest, 32px between banners
+mid-swipe, on every screen size.
 
 See `components/ResultCards.tsx` → `DealsCarousel`.
 

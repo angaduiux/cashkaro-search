@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Platform, TextInput, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform, TextInput, useWindowDimensions, Keyboard as OSKeyboard } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -17,17 +17,25 @@ import { SearchBody } from './screens/SearchBody';
 import { Gallery } from './screens/Gallery';
 import { CatalogViewAll } from './screens/CatalogViewAll';
 import { ViewAll } from './screens/ViewAll';
+import { ProductCategory } from './screens/ProductCategory';
 import { ScreenNav, NavSection } from './components/ScreenNav';
 import { Keyboard } from './os/Keyboard';
+import { VoiceSheet } from './components/VoiceSheet';
 import { StatusBar } from './os/StatusBar';
-import { NavChrome } from './os/NavChrome';
+import { NavChrome, NAV_CHROME_H } from './os/NavChrome';
 import { DEVICES, DEFAULT_DEVICE, Device } from './os/devices';
 import { REAL_CASES, webResultsForWhey, buildSuggestions, ALL_DEALS, VIEW_ALL_VERTICALS } from './data/realData';
 import { searchStores, buildSerp, buildStorePage, _setDealItems, Cat } from './data/catalog';
+import { productCategories, categoryByKey, resolveCategoryTarget, categoryStats, CategoryTarget } from './data/productCategories';
 
 _setDealItems(ALL_DEALS);
 
-const REST_Y = 64; // shared bar resting in the Home slot (just below the brand header)
+// Shared bar's resting Y — 40, the height of the production app toolbar that Home
+// now clones (`CONTAINER_HEIGHT_DEFAULT`). The app reserves a 64px band directly
+// under that toolbar for search, and THIS bar is exactly 64 tall (8 + a 48 field +
+// 8), so resting it at 40 fills that band precisely. Home deliberately draws no
+// field of its own — this is the one search bar, on every surface (D034).
+const REST_Y = 40;
 const TOP_Y = 6; // shared bar docked position while searching
 // Seed history — a realistic mix: some resolve to exact store/card matches
 // (surfaced as "Jump back in" tiles), some are free-text queries (Recent pills).
@@ -41,21 +49,24 @@ export function Root() {
   const [gallery, setGallery] = useState(false);
 
   // ── Single search controller (drives the one hoisted bar) ──────────────────
-  const [active, setActive] = useState(true); // false = Home, true = searching
+  const [active, setActive] = useState(false); // false = Home, true = searching
   const [text, setText] = useState('');
-  const [committed, setCommitted] = useState('flip');
-  const [mode, setMode] = useState<'typing' | 'serp'>('serp');
+  const [committed, setCommitted] = useState('');
+  const [mode, setMode] = useState<'typing' | 'serp'>('typing');
   const [debounced, setDebounced] = useState('');
   const [serpLoading, setSerpLoading] = useState(false);
   const [recents, setRecents] = useState<string[]>(INITIAL_RECENTS);
   const [directStore, setDirectStore] = useState<string | null>(null); // Jump-back-in → store page
   const [viewAllCat, setViewAllCat] = useState<Cat | null>(null); // catalog View-all grid overlay
   const [viewAllKey, setViewAllKey] = useState<string | null>(null); // generic per-vertical View-all overlay
+  const [catPage, setCatPage] = useState<CategoryTarget | null>(null); // product category page overlay
   const [enterTick, setEnterTick] = useState(0); // bumps on search-bar tap → replays count-ups
   const [userType, setUserType] = useState<'new' | 'existing'>('new'); // drives new/existing flow
-  const [kbH, setKbH] = useState(0); // measured on-screen keyboard height (web)
+  const [kbH, setKbH] = useState(0); // measured mock on-screen keyboard height (web)
+  const [voice, setVoice] = useState(false); // voice sheet owns the keyboard slot
+  const [osKbH, setOsKbH] = useState(0); // real OS keyboard height (native)
   const reduced = useReducedMotion();
-  const g = useSharedValue(1); // 0 = Home, 1 = searching
+  const g = useSharedValue(0); // 0 = Home, 1 = searching
   const inputRef = useRef<TextInput | null>(null); // the one search field, for imperative focus
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -70,6 +81,24 @@ export function Root() {
     g.value = reduced ? to : withTiming(to, { duration: 560, easing: EASE.emphasized });
   };
 
+  // Track the REAL keyboard on a device. The mock tray below is web-only chrome,
+  // so without this the native keyboard covers the bottom of the search layer and
+  // its last section (Top Stores) can never be scrolled into view. iOS gets the
+  // `will` events so the resize rides the keyboard rise; Android only reports
+  // `did`. Web is driven by the mock tray's own onLayout instead.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const ios = Platform.OS === 'ios';
+    const show = OSKeyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', (e) =>
+      setOsKbH(e.endCoordinates.height),
+    );
+    const hide = OSKeyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () => setOsKbH(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
   // Raise the OS keyboard. On web the tap focuses the field itself, but every other
   // entry point (chip, nav item, back-out of the SERP) only flips state, so the
   // persistent field has to be focused imperatively. Deferred a frame: focusing in
@@ -78,12 +107,16 @@ export function Root() {
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
+  // A search tap ALWAYS means "let me type", even when results are already on
+  // screen. Re-asserting typing mode is what was missing: `active` is already true
+  // on a SERP, so the old early-exit left `mode: 'serp'` in place — and since the
+  // mock keyboard is gated on `mode === 'typing'`, the search icon on a full-page
+  // overlay (category page, View-all, catalog grid) dropped the user back on the
+  // results with no keyboard. Tapping the field on a SERP was the same dead end.
   const focusSearch = () => {
-    if (!active) {
-      setActive(true);
-      setMode('typing');
-      glide(1);
-    }
+    setActive(true);
+    setMode('typing');
+    glide(1);
     raiseKeyboard();
     setEnterTick((t) => t + 1); // replay Explore cashback count-ups on entry
   };
@@ -112,6 +145,23 @@ export function Root() {
     glide(1);
     timers.current.push(setTimeout(() => setSerpLoading(false), 500));
   };
+  /** Mic tap from the one search bar. Search becomes active (so the sheet has a
+   *  field to fill), the keyboard steps aside, and the sheet takes its slot. */
+  const openVoice = () => {
+    if (!active) {
+      setActive(true);
+      setMode('typing');
+      glide(1);
+    }
+    inputRef.current?.blur(); // hand the slot over from the keyboard
+    setVoice(true);
+  };
+  const closeVoice = (committed?: string) => {
+    setVoice(false);
+    if (committed) commit(committed);
+    else raiseKeyboard(); // cancelled → the keyboard comes back
+  };
+
   const openFromHome = (q?: string) => (q ? commit(q) : (setText(''), focusSearch()));
   const back = () => {
     if (mode === 'serp') {
@@ -156,6 +206,23 @@ export function Root() {
     setGallery(false);
     setViewAllCat(null);
     setViewAllKey(null);
+    setCatPage(null);
+  };
+
+  /** Search icon on any full-page browse overlay: close it, start a fresh query. */
+  const searchFromOverlay = () => {
+    resetOverlays();
+    setText('');
+    focusSearch();
+  };
+
+  // Any "category" surface (SERP category chip, suggestions Categories row, nav)
+  // opens the product category page. A label with no page — a store category like
+  // Pharmacy, say — falls back to searching it, so no tap is ever a dead end.
+  const openCategory = (label: string) => {
+    const target = resolveCategoryTarget(label);
+    if (target) setCatPage(target);
+    else commit(label);
   };
   const goHome = () => {
     resetOverlays();
@@ -187,6 +254,8 @@ export function Root() {
 
   const activeScreen = gallery
     ? 'gallery'
+    : catPage
+    ? `prodcat:${catPage.key}`
     : viewAllKey
       ? `viewall:${viewAllKey}`
       : viewAllCat
@@ -210,6 +279,18 @@ export function Root() {
         { key: 'suggestions', label: 'Suggestions', sub: 'flip', onPress: () => goTyping('flip') },
         { key: 'store', label: 'Store page', sub: 'croma', onPress: () => goStore('croma') },
       ],
+    },
+    {
+      title: 'Product categories',
+      items: productCategories().map((c) => {
+        const s = categoryStats(c.cat);
+        return {
+          key: `prodcat:${c.key}`,
+          label: c.title,
+          sub: `${s.products} products · up to ${Math.round(s.maxCbPct)}%`,
+          onPress: () => { resetOverlays(); setCatPage({ key: c.key }); },
+        };
+      }),
     },
     {
       title: 'View all',
@@ -247,7 +328,18 @@ export function Root() {
   const homeStyle = useAnimatedStyle(() => ({ opacity: interpolate(g.value, [0, 0.6], [1, 0], Extrapolation.CLAMP) }));
   const searchStyle = useAnimatedStyle(() => ({ opacity: interpolate(g.value, [0.35, 1], [0, 1], Extrapolation.CLAMP) }));
 
-  const kbVisible = active && mode === 'typing' && Platform.OS === 'web';
+  // The voice sheet takes the keyboard's place, so the two are mutually exclusive.
+  const kbVisible = active && mode === 'typing' && Platform.OS === 'web' && !voice;
+
+  // How far a raised keyboard eats into the stage. Web: the mock tray, which sits
+  // inside the stage already. Native: the real keyboard, measured from the screen
+  // bottom — so it also covers the mock nav chrome that sits below the stage.
+  // Web: the mock tray, which sits inside the stage. Native: the real keyboard,
+  // measured from the screen bottom — and since the mock bottom affordance no longer
+  // renders there, nothing has to be subtracted from it.
+  const kbInset = kbVisible
+    ? kbH
+    : Math.max(0, osKbH - (Platform.OS === 'web' ? NAV_CHROME_H[device.os] : 0));
 
   const app = (
     <>
@@ -263,7 +355,7 @@ export function Root() {
         {/* Search layer — shrinks to sit above the on-screen keyboard so its
             content (deals etc.) can scroll fully clear of it */}
         <Animated.View
-          style={[StyleSheet.absoluteFill, searchStyle, kbVisible && kbH ? { bottom: kbH } : null]}
+          style={[StyleSheet.absoluteFill, searchStyle, kbInset ? { bottom: kbInset } : null]}
           pointerEvents={active ? 'auto' : 'none'}
         >
           <SearchBody
@@ -282,6 +374,7 @@ export function Root() {
             onPick={commit}
             onOpenStore={openStore}
             onViewAllStores={openViewAll}
+            onOpenCategory={openCategory}
           />
         </Animated.View>
 
@@ -300,11 +393,18 @@ export function Root() {
               setText('');
               setMode('typing');
             }}
+            onVoice={openVoice}
             showBack={active}
             inputRef={inputRef}
             placeholder="Search stores, products, cards…"
           />
         </Animated.View>
+
+        {/* Voice sheet — takes over from the keyboard (kbVisible is gated on !voice)
+            and owns the whole stage, because it dims the page behind itself. */}
+        {voice && (
+          <VoiceSheet visible={voice} onCancel={() => closeVoice()} onCommit={(q) => closeVoice(q)} />
+        )}
 
         {kbVisible && (
           <View style={styles.keyboardWrap} onLayout={(e) => setKbH(e.nativeEvent.layout.height)}>
@@ -321,16 +421,40 @@ export function Root() {
           </View>
         )}
 
+        {/* Product category page — full-page overlay above the search bar */}
+        {catPage && (
+          <View style={StyleSheet.absoluteFill}>
+            <ProductCategory
+              categoryKey={catPage.key}
+              initialSub={catPage.sub}
+              onBack={() => setCatPage(null)}
+              onSearch={searchFromOverlay}
+              onOpenStore={(q) => {
+                setCatPage(null);
+                openStore(q);
+              }}
+              onFindStores={(q) => {
+                setCatPage(null);
+                commit(q);
+              }}
+              onViewAllStores={() => {
+                const c = categoryByKey(catPage.key);
+                if (c) {
+                  setCatPage(null);
+                  setViewAllCat(c.cat);
+                }
+              }}
+            />
+          </View>
+        )}
+
         {/* Catalog "View all" grid — full-page overlay above the search bar */}
         {viewAllCat && (
           <View style={StyleSheet.absoluteFill}>
             <CatalogViewAll
               initialCategory={viewAllCat}
               onBack={() => setViewAllCat(null)}
-              onSearch={() => {
-                setViewAllCat(null);
-                focusSearch();
-              }}
+              onSearch={searchFromOverlay}
             />
           </View>
         )}
@@ -343,15 +467,15 @@ export function Root() {
               activeKey={viewAllKey}
               onSelect={setViewAllKey}
               onBack={() => setViewAllKey(null)}
-              onSearch={() => {
-                setViewAllKey(null);
-                focusSearch();
-              }}
+              onSearch={searchFromOverlay}
             />
           </View>
         )}
       </View>
-      <NavChrome os={device.os} />
+      {/* Mock bottom affordance is web-frame chrome ONLY. On a device iOS/Android
+          draws its own home indicator, so rendering ours put two of them on screen
+          and stole 24px from the stage. Matches the StatusBar gate above. */}
+      {Platform.OS === 'web' && <NavChrome os={device.os} />}
     </>
   );
 

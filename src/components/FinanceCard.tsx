@@ -10,7 +10,6 @@ import { Button } from './Button';
 import { ImageSlot } from './ImageSlot';
 import { RateRow } from './RateRow';
 import { Divider, PlaceholderPill, isPlaceholderValue } from './atoms';
-import { Shine } from '../motion/Shine';
 
 /**
  * The one finance-card component (§6.3). Two density variants:
@@ -48,7 +47,7 @@ export function FinanceCard({
     >
       {/* Top: artwork + name + rating + cashback */}
       <View style={styles.headerRow}>
-        <Shine style={{ borderRadius: radius.md }}>
+        <View style={{ borderRadius: radius.md, overflow: 'hidden' }}>
           <View style={[styles.artWrap, { backgroundColor: item.logoBg ?? color.surfaceAlt }]}>
             <ImageSlot
               uri={item.artwork ?? item.logo}
@@ -60,7 +59,7 @@ export function FinanceCard({
               style={styles.artSlot}
             />
           </View>
-        </Shine>
+        </View>
         <View style={styles.headerText}>
           <Text style={[isFull ? t.heading18SemiBold : t.body16SemiBold, { color: color.textPrimary }]} numberOfLines={2}>
             {item.title}
