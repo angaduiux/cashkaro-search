@@ -1145,6 +1145,17 @@ worklet: `scrollTo` in a worklet is a native-only path and this rail has to move
 the web preview too — the same reasoning that keeps count-ups on rAF (D068). At
 10px/s a frame moves a sixth of a pixel, so the loop costs one imperative call per
 frame and nothing else.
+**A touch freezes the rail, and the content gets 2px of cross-axis slack:** a
+horizontal scroller clips its CROSS axis (`overflow-y: hidden`), which shaved the
+bottom of each pill's hairline and the disc's drop shadow — the content now carries
+`space.xxs` of padding and the rail gives it straight back as negative margin, so the
+section's rhythm is unchanged. And the rail must stop moving on TOUCH, not on drag:
+a scroller that keeps travelling under the thumb cancels the press it lands on, so
+the pills read as untappable. `touching` and `sliding` are tracked separately, so the
+drift also stays out of the way through the momentum after a fling, where a competing
+`scrollTo` would fight the deceleration. `keyboardShouldPersistTaps="handled"` is
+required too — Explore is shown with the keyboard up, and a scroller's default is to
+spend the first tap dismissing it.
 **Copy count is derived, not fixed at three:** `Math.ceil(vw / W) + 3`. A scroller
 clamps at `content − viewport`, so with three copies a set narrower than the
 viewport puts offset 2W *past the end* — and a rail drifting RIGHT, which wraps to

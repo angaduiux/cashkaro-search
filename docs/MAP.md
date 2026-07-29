@@ -15,7 +15,7 @@ Full-page surfaces. Mounted by `src/Root.tsx`, which owns the single search cont
 | Module | LOC | Exports | Figma node(s) | Assets | Used by | Purpose |
 | --- | --- | --- | --- | --- | --- | --- |
 | `screens/CatalogViewAll.tsx` | 151 | CatalogViewAll | 1691:6220 | — | Root.tsx | Catalog "View all" page (Figma 1691:6220) — the full set of stores in a catalog category, laid out as a full-page 3-up grid of the SAME store-logo tiles used… |
-| `screens/ExploreHome.tsx` | 387 | ExploreHome | — | assets/anim | screens/SearchBody.tsx | — |
+| `screens/ExploreHome.tsx` | 391 | ExploreHome | — | assets/anim | screens/SearchBody.tsx | — |
 | `screens/Gallery.tsx` | 116 | Gallery | — | — | Root.tsx | — |
 | `screens/HomeScreen.tsx` | 640 | AppTabBar, HomeScreen | — | assets/ck-app<br>assets/banners<br>assets/categories | Root.tsx | HomeScreen — a clone of the PRODUCTION CashKaro app home, two scrolls deep. |
 | `screens/ProductCategory.tsx` | 827 | ProductCategory | — | — | Root.tsx | Product category page — the browse destination behind every "category" surface in the app (SERP category rows, the suggestions Categories group, the screen n… |
@@ -82,9 +82,9 @@ Shared animation primitives + tuning.
 | --- | --- | --- | --- | --- | --- | --- |
 | `motion/Aura.tsx` | 689 | AURA_LOOP, useAuraClock, radialFill, softOrbFill, tintRgba, isColourlessTint +12 | — | — | components/ExpandSearch.tsx<br>components/HeroBleed.tsx<br>components/ResultCards.tsx<br>motion/VoiceBlobs.tsx | "Aura" — the flowing-gradient engine behind the AI surfaces (Expand Search). |
 | `motion/CountUp.tsx` | 144 | CountUp, CountUpText | — | — | components/ResultCards.tsx<br>screens/ExploreHome.tsx<br>screens/ProductCategory.tsx | Indian digit grouping (1,50,000) — hand-rolled so the formatter has zero platform dependencies (Intl is missing on some RN runtimes). |
-| `motion/LoopRail.tsx` | 132 | LoopRail | — | — | screens/ExploreHome.tsx | LoopRail — a horizontal rail that drifts very slowly and forever, and that the user can still drag in either direction without ever reaching an end (D086). |
+| `motion/LoopRail.tsx` | 162 | LoopRail | — | — | screens/ExploreHome.tsx | LoopRail — a horizontal rail that drifts very slowly and forever, and that the user can still drag in either direction without ever reaching an end (D086). |
 | `motion/motion.ts` | 28 | EASE, timingBase, timingFast, timingHero, timingTravel, staggerDelay | — | — | Root.tsx<br>components/ExpandSearch.tsx<br>components/ResultCards.tsx<br>components/SearchBar.tsx | Motion helpers (§9). |
-| `motion/RollingThumb.tsx` | 182 | RollingThumb | — | — | screens/ExploreHome.tsx | RollingThumb — a circular SKU thumb whose image rolls upward to the next one on a slow, per-instance random cadence (D081). |
+| `motion/RollingThumb.tsx` | 184 | RollingThumb | — | — | screens/ExploreHome.tsx | RollingThumb — a circular SKU thumb whose image rolls upward to the next one on a slow, per-instance random cadence (D081). |
 | `motion/Shine.tsx` | 89 | Shine | — | — | components/ResultCards.tsx | Shine sweep across card artwork / CTAs (§9.5 signature moment). |
 | `motion/Skeleton.tsx` | 83 | SkeletonBlock, SkeletonCard | — | — | components/ExpandSearch.tsx<br>components/SerpShell.tsx | — |
 | `motion/useInView.ts` | 45 | useInView | — | — | motion/CountUp.tsx | Returns a ref + an incrementing `tick` that bumps every time the ref'd element (re)enters the viewport — so an animation can replay on scroll-in, not just on… |
@@ -122,7 +122,7 @@ App entry.
 
 | Module | LOC | Exports | Figma node(s) | Assets | Used by | Purpose |
 | --- | --- | --- | --- | --- | --- | --- |
-| `Root.tsx` | 625 | Root | — | — | — | — |
+| `Root.tsx` | 620 | Root | — | — | — | — |
 
 ## Hand-written SERP cases
 
@@ -147,4 +147,4 @@ from it (D052); anything else is generated from the catalog by `buildSerp()`.
 
 ---
 
-Modules: 60 · Lines: 15244 · SERP cases: 12
+Modules: 60 · Lines: 15275 · SERP cases: 12

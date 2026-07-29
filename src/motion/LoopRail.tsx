@@ -10,10 +10,11 @@ import { space } from '../theme/tokens';
  *
  * How the loop is built:
  *
- * • The children are laid out THREE times. The scroller is parked in the middle
- *   copy, so there is always a full copy of content off each edge and the seam is
- *   never in frame. One copy's width `W` is measured from the first copy's layout,
- *   plus the trailing gap, so item 1 of copy B sits exactly `W` from item 1 of A.
+ * • The children are laid out several times over — `ceil(viewport / W) + 3` copies.
+ *   The scroller is parked in the SECOND one, so there is always a full copy of
+ *   content off each edge and the seam is never in frame. One copy's width `W` is
+ *   measured from the first copy's layout, plus the trailing gap, so item 1 of copy B
+ *   sits exactly `W` from item 1 of A.
  * • Position is normalised into `[W, 2W)` every tick: crossing either boundary
  *   subtracts or adds exactly one copy width, which is invisible because the pixel
  *   under the finger is identical. That is what makes a drag endless in BOTH
@@ -23,8 +24,9 @@ import { space } from '../theme/tokens';
  *   rail has to move in the web preview too — the same reasoning that keeps
  *   count-ups on rAF (D068). At this speed one frame moves a sixth of a pixel, so
  *   the cost is one imperative call per frame and nothing else.
- * • A drag pauses the drift (`onScrollBeginDrag`) and hands its end position back,
- *   so the rail carries on from wherever the user let go instead of snapping.
+ * • A touch pauses the drift and a drag hands its end position back, so the rail
+ *   carries on from wherever the user let go instead of snapping — and a pill's press
+ *   is never cancelled by the rail moving under the finger.
  * • Under reduced motion no frame loop is ever started; the rail is still a
  *   perfectly ordinary scroller (§9.6).
  */
@@ -48,7 +50,13 @@ export function LoopRail({
   const [w, setW] = useState(0); // one copy's width + its trailing gap
   const [vw, setVw] = useState(0); // the rail's own visible width
   const pos = useRef(0); // last x we wrote, always inside [w, 2w)
-  const dragging = useRef(false);
+  // A finger on the rail freezes it — from TOUCH, not just from drag. A rail that
+  // keeps moving under the thumb cancels the press it lands on, which is why the
+  // pills read as untappable. `sliding` is tracked separately so the drift also stays
+  // out of the way through the momentum AFTER a fling, where a competing `scrollTo`
+  // would fight the deceleration.
+  const touching = useRef(false);
+  const sliding = useRef(false);
 
   // Enough copies that offset 2w is always REACHABLE: a scroller clamps at
   // `content − viewport`, so with only three copies a narrow set puts 2w past the
@@ -70,7 +78,7 @@ export function LoopRail({
     const tick = (now: number) => {
       const dt = last ? Math.min(now - last, 64) : 0; // a backgrounded tab returns a huge dt
       last = now;
-      if (!dragging.current && dt) {
+      if (!touching.current && !sliding.current && dt) {
         let x = pos.current + (speed * dt) / 1000;
         if (x >= 2 * w) x -= w; // drifting left (positive speed)
         if (x < w) x += w; // drifting right (negative speed), or dragged back
@@ -95,7 +103,7 @@ export function LoopRail({
 
   const onRelease = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     pos.current = normalise(e.nativeEvent.contentOffset.x);
-    dragging.current = false;
+    sliding.current = false;
   };
 
   return (
@@ -104,12 +112,18 @@ export function LoopRail({
       horizontal
       showsHorizontalScrollIndicator={false}
       scrollEventThrottle={16}
-      onScrollBeginDrag={() => (dragging.current = true)}
+      // Explore is shown with the keyboard up, and a scroller's default is to spend
+      // the first tap dismissing it. Without this the pills simply never fire.
+      keyboardShouldPersistTaps="handled"
+      onTouchStart={() => (touching.current = true)}
+      onTouchEnd={() => (touching.current = false)}
+      onTouchCancel={() => (touching.current = false)}
+      onScrollBeginDrag={() => (sliding.current = true)}
       onScrollEndDrag={onRelease}
       onMomentumScrollEnd={onRelease}
       onLayout={(e) => setVw(Math.round(e.nativeEvent.layout.width))}
-      style={bleed ? { marginHorizontal: -bleed } : null}
-      contentContainerStyle={[styles.row, { gap }]}
+      style={[styles.rail, bleed ? { marginHorizontal: -bleed } : null]}
+      contentContainerStyle={[styles.row, styles.pad, { gap }]}
     >
       {Array.from({ length: copies }, (_, c) => c).map((c) => (
         <View
@@ -133,6 +147,15 @@ export function LoopRail({
  */
 const DRIFT = 10;
 
+/** Slack above and below the content so nothing at a pill's edge sits on the clip. */
+const EDGE = space.xxs;
+
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
+  // A horizontal scroller clips its CROSS axis (`overflow-y: hidden`), which shaved
+  // the bottom of each pill's hairline and the disc's drop shadow. The content gets
+  // 2px of slack and the rail gives it straight back as negative margin, so the
+  // section's rhythm is unchanged.
+  pad: { paddingVertical: EDGE },
+  rail: { marginVertical: -EDGE },
 });
