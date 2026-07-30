@@ -2562,6 +2562,31 @@ names — no searchable name or keyword in `catalog.ts` contains "card" or "loan
 _(Numbered from D020 to leave D019 for the AI-surface chat that was mid-turn when
 these landed; if a number collides, add a new entry rather than renumbering.)_
 
+### D116 — The Flipkart page carries the WHOLE catalog's categories, as a showcase · 2026-07-30
+**Decision:** `caseFlip` gains a `categories` section holding every product-category page
+the build offers, and `'categories'` joins its tab row. Not the categories a "flip" query
+implies — all of them. Two reasons: this is the page used to show the SERP off, and
+Flipkart is the one store in the catalog that genuinely spans every category, so the
+showcase set is not a lie here the way it would be on The Body Shop (whose three
+beauty sub-categories stay as they are).
+
+**The chips are derived, never listed.** `allCategoryChips()` maps
+`productCategories()` — the same source `ScreenNav` and Explore read, which already drops
+any candidate category with too few products to build a page (D022). So a chip exists
+exactly when its page does, and every chip opens. Today that is four (Electronics &
+Gadgets, Fashion & Footwear, Beauty & Grooming, Nutrition & Fitness); Home & Furniture and
+Grocery & Fresh are in `CANDIDATES` but under `MIN_PRODUCTS`, and they will appear here by
+themselves the moment the catalog carries three products each. Icons resolve through
+`categoryIcon`'s alias table, which already covers all six titles.
+
+**It is a getter, not a value.** `realData` and `catalog` form an import cycle and
+`productCategories()` reads `PRODUCTS`, so evaluating the list while `realData` is still
+initialising hits a half-built catalog — the TDZ that function's own doc header warns
+about. `get items()` / `get count()` on the section defer the read to the first render
+that asks for it.
+
+**Applies to:** data/realData.ts (`caseFlip`, `allCategoryChips`).
+
 ### D026 — Bottom sheets are the app's only modal surface · 2026-07-28
 **Decision:** sort, filters, the category switcher and the product price breakdown
 all render through [components/Sheet.tsx](../src/components/Sheet.tsx) — scrim

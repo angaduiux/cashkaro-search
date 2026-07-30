@@ -65,7 +65,7 @@ The contract, the catalog/search engine, the real cases, and the Storepage tile 
 | `data/dataContract.ts` | 174 | Archetype, ResultSource, Cashback, Rate, FeeState, Fees +9 | — | — | components/Badge.tsx<br>components/CardFilterBar.tsx<br>components/CardTile.tsx<br>components/CashbackElement.tsx | Data Contract (§7). |
 | `data/matchScore.ts` | 138 | MATCH, score, MatchField | — | — | data/realData.ts | Query → candidate relevance scoring — the ONE match function the type-ahead ranks with (D115). |
 | `data/productCategories.ts` | 337 | productCategories, SUB_LABELS, categoryByKey, categoryStoreTileKeys, categoryDealIds, cashbackPct +21 | — | — | Root.tsx<br>data/realData.ts<br>screens/ProductCategory.tsx | Product category pages — taxonomy + browse engine. |
-| `data/realData.ts` | 1665 | BRAND, PRODUCT_IMG, LENDER, ALL_DEALS, cardSbiCashback, cardAxisFlipkart +27 | — | assets/brands<br>assets/products<br>assets/lenders<br>assets/cards<br>assets/cards/figma<br>assets/banners<br>assets/campaigns | Root.tsx<br>data/catalog.ts<br>data/trendingPills.ts<br>data/webResults.ts | Real CashKaro data — NOTHING here is invented. |
+| `data/realData.ts` | 1701 | BRAND, PRODUCT_IMG, LENDER, ALL_DEALS, cardSbiCashback, cardAxisFlipkart +27 | — | assets/brands<br>assets/products<br>assets/lenders<br>assets/cards<br>assets/cards/figma<br>assets/banners<br>assets/campaigns | Root.tsx<br>data/catalog.ts<br>data/trendingPills.ts<br>data/webResults.ts | Real CashKaro data — NOTHING here is invented. |
 | `data/storeTiles.ts` | 159 | STORE_TILES, storeTileItem, storeTileByKey, storeTileSlots, storeTilesByKeys, allStoreTileItems +1 | 611:3360 | assets/brands/figma | data/catalog.ts<br>data/realData.ts<br>data/trendingPills.ts<br>data/webResults.ts | Storepage brand tiles — the ONLY brands that may appear on a store card. |
 | `data/trendingPills.ts` | 157 | trendingPills, TrendingPill | — | — | screens/ExploreHome.tsx | Trending pill content — the Explore "Trending" queries plus the image reel each pill's circular thumb rolls through (D081). |
 | `data/webResults.ts` | 119 | webFeed | — | — | components/ExpandSearch.tsx | Web-results feed for the Expand Search band — an endless, deterministic pager over the REAL product catalog (`./catalog.ts` PRODUCTS; photos, titles, prices… |
@@ -153,4 +153,4 @@ from it (D052); anything else is generated from the catalog by `buildSerp()`.
 
 ---
 
-Modules: 66 · Lines: 19007 · SERP cases: 12
+Modules: 66 · Lines: 19043 · SERP cases: 12

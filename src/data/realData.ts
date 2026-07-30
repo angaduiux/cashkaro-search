@@ -655,6 +655,29 @@ export const cardSbiSimplySave: ResultItem = {
  */
 export const MORE_SBI_CARDS: ResultItem[] = [cardSbiElite, cardSbiSimplyClick, cardSbiSimplySave];
 
+/**
+ * Every product-category page this build offers, as category chips — the showcase set
+ * on the Flipkart page (D116). Read from `productCategories()` rather than listed here,
+ * so a chip exists exactly when its page does and every one of them opens: that
+ * function is the same source `ScreenNav` and Explore read, and it drops any candidate
+ * category with too few products (D022).
+ *
+ * A FUNCTION, called from a getter on the section, because it must not run while this
+ * module is still evaluating: this module and `catalog` (which `productCategories`
+ * reads) form an import cycle, so a module-scope read hits a half-built catalog. It
+ * uses the `productCategories` imported further down the file — `import` is hoisted, and
+ * nothing here runs until a page asks for it.
+ */
+const allCategoryChips = (): ResultItem[] =>
+  productCategories().map((c) => ({
+    id: `c-all-${c.key}`,
+    archetype: '04_category',
+    source: 'internal',
+    title: c.title,
+    logo: null,
+    cashback: { type: 'none' },
+  }));
+
 // ═════════════════════════════════════════════════════════════════════════════
 // CASE A · Resolved retail store — "flip" → Flipkart
 // ═════════════════════════════════════════════════════════════════════════════
@@ -677,7 +700,7 @@ export const caseFlip: SerpModel = {
     timelines: { tracksIn: '48 Hours', confirmsIn: '60 Days', withdraw: 'UPI/Bank' },
     ctaLabel: 'Shop & Earn',
   },
-  tabs: ['all', 'stores', 'cards', 'products'],
+  tabs: ['all', 'stores', 'categories', 'cards', 'products'],
   sections: [
     {
       kind: 'stores',
@@ -686,6 +709,19 @@ export const caseFlip: SerpModel = {
       items: storeTilesByKeys(['croma', 'amazon', 'ajio'], 'flip'),
     },
     { kind: 'deals', title: 'Deals', count: 8, items: [dealCroma, dealAmazon, dealAjio, dealKlook] },
+    {
+      // The whole catalog's categories, not the ones a Flipkart query implies — this
+      // page is the showcase surface, and Flipkart is the one store that genuinely
+      // spans every category anyway (D116). `get` defers the read past module eval.
+      kind: 'categories',
+      title: 'Product Categories',
+      get count() {
+        return allCategoryChips().length;
+      },
+      get items() {
+        return allCategoryChips();
+      },
+    },
     {
       kind: 'cards',
       title: 'Cards for Flipkart',

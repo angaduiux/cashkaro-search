@@ -13,6 +13,19 @@ every entry traces to a commit, a decision entry, or the code.
 
 ---
 
+## 2026-07-30 · The Flipkart page shows the whole catalog's categories
+
+`caseFlip` had no categories section at all, which left the page used to demo the SERP
+without the one row that shows what browsing looks like. It now carries every
+product-category page the build offers, with `categories` added to its tab row — all of
+them rather than the ones a "flip" query implies, since this is the showcase surface and
+Flipkart is the one store that genuinely spans every category. The chips are mapped from
+`productCategories()`, the same source Explore and the screen nav read, so a chip exists
+exactly when its page does and each one opens; the two candidate categories still under
+the three-product floor (D022) will appear by themselves when the catalog carries them.
+Read through a getter on the section, because `realData` and `catalog` are a cycle and a
+module-scope read would hit a half-built catalog (D116).
+
 ## 2026-07-30 · The card filter bar's switch was sized to its label
 
 The Eligibility switch went from 52×28 with a 22 knob to **34×20 with a 14 knob**, its gap
