@@ -52,6 +52,11 @@ export const ICON = {
   percent: { style: 'regular', glyph: u('25') }, // literal % sign
   rupee: { style: 'regular', glyph: u('e1bc') }, // indian-rupee-sign
 
+  // store hero CTA (Store Page V2.0, Figma 1716:74840). The spec glyph is
+  // arrow-up-right (e09f), but the bundled FA6Pro subset doesn't carry it —
+  // the call site rotates this arrow-up 45°, which is the identical shape.
+  earn: { style: 'solid', glyph: u('f062') }, // arrow-up, rotate 45° → arrow-up-right
+
   // AI / expand search (§9 centrepiece)
   ai: { style: 'regular', glyph: u('e2ca') }, // wand-magic-sparkles
   sparkle: { style: 'regular', glyph: u('e5d1') }, // sparkles

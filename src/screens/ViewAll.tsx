@@ -1,3 +1,10 @@
+/**
+ * Generic "View all" page — the full set of items for one result vertical
+ * (Stores · Products · Credit Cards · Loans · Savings · Coupons · Deals),
+ * laid out full-page with the SAME cards the SERP rails use. A back/search
+ * header states the vertical and result count; a vertical chip row switches
+ * between all verticals so the one page serves every result type.
+ */
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { color, type as t, space, radius, MIN_TAP_TARGET, PILL_HEIGHT } from '../theme/tokens';
@@ -11,19 +18,17 @@ import {
   CategoryChip,
 } from '../components/ResultCards';
 import { CreditCard } from '../components/CreditCard';
+import { LoanCard } from '../components/LoanCard';
+import { CardFilterBar, CardFilterSheets, useCardFilters } from '../components/CardFilterBar';
 import { FinanceCard } from '../components/FinanceCard';
 import { ResultItem, SectionKind } from '../data/dataContract';
 import { Vertical } from '../data/realData';
 
-/**
- * Generic "View all" page — the full set of items for one result vertical
- * (Stores · Products · Credit Cards · Loans · Savings · Coupons · Deals),
- * laid out full-page with the SAME cards the SERP rails use. A back/search
- * header states the vertical and result count; a vertical chip row switches
- * between all verticals so the one page serves every result type.
- */
+
 const isCardArchetype = (item: ResultItem) =>
   ['05_credit_card', '06_cobranded_card'].includes(item.archetype);
+/** Loans render as LoanCard, in the credit-card visual system (D089). */
+const isLoan = (item: ResultItem) => item.archetype === '07_loan';
 
 export function ViewAll({
   verticals,
@@ -41,6 +46,16 @@ export function ViewAll({
   const vertical = verticals.find((v) => v.key === activeKey) ?? verticals[0];
   const [contentW, setContentW] = useState(0);
 
+  // The cards verticals browse a catalogue, so they get the same filter bar the
+  // credit-cards result page carries (D091). The controller is held here, not in
+  // the body, because the header's count has to be the FILTERED one — two numbers
+  // for one list, one of them stale, is the bug this avoids. Held unconditionally
+  // (hooks can't be conditional); with no filters set it returns the set untouched,
+  // so the other verticals are unaffected.
+  const cards = useCardFilters(vertical.items);
+  const isCards = vertical.kind === 'cards' || vertical.kind === 'similar_cards';
+  const shown = isCards ? cards.filtered : vertical.items;
+
   return (
     <View style={styles.screen}>
       {/* Header: back · title + count · search */}
@@ -57,9 +72,15 @@ export function ViewAll({
             <Text style={[t.body14SemiBoldFlat, { color: color.textPrimary }]} numberOfLines={1}>
               All {vertical.title}
             </Text>
-            <Text style={[t.caption10Medium, { color: color.textTertiary }]}>
-              {vertical.items.length} {vertical.items.length === 1 ? 'Result' : 'Results'}
-            </Text>
+            {/* One results line per page (D096). On the cards verticals the
+                filter bar states the count a few rows down, so the header
+                would be the second — and the two would drift apart the
+                moment the bar's own count went live. */}
+            {!isCards && (
+              <Text style={[t.caption10Medium, { color: color.textTertiary }]}>
+                {shown.length} {shown.length === 1 ? 'Result' : 'Results'}
+              </Text>
+            )}
           </View>
         </Pressable>
         <Pressable
@@ -105,11 +126,16 @@ export function ViewAll({
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
+        {isCards && <CardFilterBar c={cards} noun={vertical.title.replace(/s$/, '')} />}
         <View onLayout={(e) => setContentW(Math.round(e.nativeEvent.layout.width))}>
-          <VerticalBody kind={vertical.kind} items={vertical.items} width={contentW} />
+          <VerticalBody kind={vertical.kind} items={shown} width={contentW} />
         </View>
         <View style={{ height: space.huge }} />
       </ScrollView>
+
+      {/* Outside the scroller, or the panel pins to the bottom of the content
+          instead of the screen (D091). */}
+      <CardFilterSheets c={cards} />
     </View>
   );
 }
@@ -162,6 +188,8 @@ function VerticalBody({ kind, items, width }: { kind: SectionKind; items: Result
           {items.map((item, i) =>
             isCardArchetype(item) ? (
               <CreditCard key={item.id} item={item} index={i} />
+            ) : isLoan(item) ? (
+              <LoanCard key={item.id} item={item} index={i} />
             ) : (
               <FinanceCard key={item.id} item={item} variant="full" index={i} />
             ),

@@ -12,11 +12,14 @@ export const EASE = {
   emphasized: Easing.bezier(easing.emphasized[0], easing.emphasized[1], easing.emphasized[2], easing.emphasized[3]),
   accelerate: Easing.bezier(easing.accelerate[0], easing.accelerate[1], easing.accelerate[2], easing.accelerate[3]),
   inout: Easing.bezier(easing.inout[0], easing.inout[1], easing.inout[2], easing.inout[3]),
+  spatial: Easing.bezier(easing.spatial[0], easing.spatial[1], easing.spatial[2], easing.spatial[3]),
 };
 
 export const timingBase = { duration: duration.base, easing: EASE.standard, reduceMotion: ReduceMotion.System };
 export const timingFast = { duration: duration.fast, easing: EASE.standard, reduceMotion: ReduceMotion.System };
 export const timingHero = { duration: duration.hero, easing: EASE.emphasized, reduceMotion: ReduceMotion.System };
+/** A page-width move: `spatial` over `hero`, for content that travels the screen. */
+export const timingTravel = { duration: duration.hero, easing: EASE.spatial, reduceMotion: ReduceMotion.System };
 
 /** Staggered delay for list entrances, capped so long lists stay snappy (§9.2). */
 export function staggerDelay(index: number) {

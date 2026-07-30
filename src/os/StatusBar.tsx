@@ -9,10 +9,12 @@ import { DeviceOS } from './devices';
  * signal/wifi/battery right. Android: time left, icons right, no notch gap.
  * Static values — this is device chrome, not app data.
  */
-export function StatusBar({ os, notch }: { os: DeviceOS; notch: boolean }) {
+export function StatusBar({ os, notch, transparent }: { os: DeviceOS; notch: boolean; transparent?: boolean }) {
   const isIOS = os === 'ios';
   return (
-    <View style={[styles.bar, { paddingTop: notch ? space.s : space.xs }]}>
+    // `transparent` drops the white fill so a full-bleed layer mounted behind this
+    // one (the HeroBleed wash, D069) runs unbroken up to the physical top edge.
+    <View style={[styles.bar, { paddingTop: notch ? space.s : space.xs }, transparent && styles.barTransparent]}>
       <Text style={[isIOS ? styles.timeIOS : styles.timeAndroid, { color: color.textPrimary }]}>
         9:41
       </Text>
@@ -26,15 +28,20 @@ export function StatusBar({ os, notch }: { os: DeviceOS; notch: boolean }) {
   );
 }
 
+/** Mock status-bar height. Exported so Root can size the white veil that fades
+ *  in behind it over a full-bleed wash (D069) without a magic number. */
+export const STATUS_BAR_H = 44;
+
 const styles = StyleSheet.create({
   bar: {
-    height: 44,
+    height: STATUS_BAR_H,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: space.m,
     backgroundColor: color.surface,
   },
+  barTransparent: { backgroundColor: 'transparent' },
   timeIOS: { ...t.body14SemiBold, width: 80 },
   timeAndroid: { ...t.body14SemiBold, width: 80 },
   notch: {

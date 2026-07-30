@@ -82,6 +82,9 @@ export interface ResultItem {
   logoBg?: string; // brand tint behind the logo (brand data, not a UI token)
   productImage?: number; // real product photo (bundled require id) — full-bleed on product cards
   artwork?: string | number | null; // card artwork (URL or bundled require id)
+  /** Issuer wordmark for the credit-card TILE's white chip (Figma 1696:5271) — the
+   *  frame's own export, not the favicon `logo` (D105). Cards only. */
+  issuerLogo?: number | null;
   bannerImage?: number; // bundled deal creative (require(...)); renders full-bleed
   bannerAspect?: number; // natural width/height of the banner image
   /** Dominant colour of the banner artwork, measured by
@@ -93,6 +96,10 @@ export interface ResultItem {
    *  merchants (Storepage Tiles 611:3360). Defaults to "CASHBACK". */
   cashbackCaption?: 'CASHBACK' | 'REWARDS';
   rate?: Rate;
+  /** Loan EMI for the searched amount — preformatted by the feed, e.g.
+   *  "₹10,744/mo". A structured field because the loan card states it as its own
+   *  labelled figure (D089); nothing computes it from amount × rate × tenure. */
+  emi?: string | null;
   fees?: Fees;
   rating?: Rating;
   ratingValue?: number; // e.g. 4.6 (hero)
@@ -112,6 +119,10 @@ export interface ResultItem {
   topPick?: TopPick;
   ctaLabel?: string;
   mappedPartnerId?: string | null; // gates Google-Shopping cashback (Q-010)
+  /** The merchant this result can be bought from — rendered as the muted
+   *  "Available on <name>" footer on a web-search card (D076). Only the web feed
+   *  sets it, so catalog product rails are unaffected. */
+  retailer?: { name: string; logo: string | number | null };
   isPlaceholder?: boolean; // loud dev-only styling when true (§7)
 }
 

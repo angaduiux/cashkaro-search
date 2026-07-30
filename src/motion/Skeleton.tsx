@@ -1,3 +1,8 @@
+/**
+ * Shimmer skeleton (§9.4 "results reveal / loading"). Skeletons are shaped like
+ * real content (card silhouettes). Under reduced motion the shimmer is disabled
+ * and a static block is shown (§9.6). Opacity-only animation (GPU-composited).
+ */
 import React, { useEffect } from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle, DimensionValue } from 'react-native';
 import Animated, {
@@ -10,11 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { color, radius, space } from '../theme/tokens';
 
-/**
- * Shimmer skeleton (§9.4 "results reveal / loading"). Skeletons are shaped like
- * real content (card silhouettes). Under reduced motion the shimmer is disabled
- * and a static block is shown (§9.6). Opacity-only animation (GPU-composited).
- */
+
 export function SkeletonBlock({
   width = '100%',
   height = 16,

@@ -1,10 +1,3 @@
-import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
-import { color, type as t, space, radius, elevation } from '../theme/tokens';
-import { Icon } from '../icons/Icon';
-import { DeviceOS } from './devices';
-
 /**
  * On-screen keyboard (prototype chrome, web only). A functional iOS/Android
  * light-theme QWERTY that drives the real query — tapping a key appends, so the
@@ -12,6 +5,14 @@ import { DeviceOS } from './devices';
  * the bottom on focus and out on blur (§9.4 "focus / entry: ride the keyboard
  * rise").
  */
+import React from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { color, type as t, space, radius, elevation } from '../theme/tokens';
+import { Icon } from '../icons/Icon';
+import { DeviceOS } from './devices';
+
+
 const ROWS = [
   ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
   ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],

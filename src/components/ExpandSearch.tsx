@@ -77,16 +77,24 @@ const PRESS_SCALE = 0.03;
  * the middle and the edge reads as a lozenge, not as the bottom of a sheet.
  */
 const SHEET_END_H = space.xxl;
+/**
+ * Clearance from the sheet's curved edge down to the band's first line of text —
+ * 12 to breathe, plus 32 of real separation. At 12 alone the copy sat tight under
+ * the curve and read as the last line of the sheet above it rather than the first
+ * line of the AI surface below. The same value in both states, so the heading
+ * doesn't shift against that edge when the pitch settles into results.
+ */
+const SHEET_CLEAR = space.s12 + space.xl;
 /** The results heading's compact mark — the 64px pitch mark, settled. */
 const HEADING_MARK = 20;
 
 /** Soft platter behind the mark — cobalt core fading to nothing (matches the
  *  blue glass body; a violet platter under a blue mark read as a second object). */
 const MARK_GLOW = radialFill([
-  [color.aura.aiGlowBlueCore, '0%'],
-  [color.aura.aiGlowBlueMid, '42%'],
-  [color.aura.aiGlowBlue0, '78%'],
-  [color.aura.aiGlowBlue0, '100%'],
+  [color.ckds.aiGlowBlueCore, '0%'],
+  [color.ckds.aiGlowBlueMid, '42%'],
+  [color.ckds.aiGlowBlue0, '78%'],
+  [color.ckds.aiGlowBlue0, '100%'],
 ]);
 
 export function ExpandSearchCard({
@@ -250,7 +258,7 @@ export function ExpandSearchCard({
             >
               {/* Base ramp — also the still frame under reduced motion. */}
               <LinearGradient
-                colors={[color.aura.aiFrom, color.aura.aiVia, color.aura.aiTo, color.aura.aiWash1]}
+                colors={[color.ckds.aiFrom, color.ckds.aiVia, color.ckds.aiTo, color.ckds.aiWash1]}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={StyleSheet.absoluteFill}
@@ -258,7 +266,7 @@ export function ExpandSearchCard({
               {ctaW > 0 && !reduced && <FlowStrip clock={clock} width={ctaW} harmonic={2} />}
               {/* Glass: gloss down from the top edge, shade at the bottom. */}
               <LinearGradient
-                colors={[color.aura.aiGloss, color.aura.aiGlossMid, color.aura.aiInnerShade]}
+                colors={[color.ckds.aiGloss, color.ckds.aiGlossMid, color.ckds.aiInnerShade]}
                 locations={[0, 0.55, 1]}
                 style={StyleSheet.absoluteFill}
               />
@@ -373,7 +381,12 @@ const styles = StyleSheet.create({
   // result grid's field reach both screen edges; hairlines top and bottom stand
   // in for the card's border, and the section above no longer needs a Divider.
   band: {
-    marginTop: space.xxl, // 16 + 24px extra breathing room above the web-search band
+    // 8 — the band's own white sheet-end curve already reads as space below the
+    // deals, so an outer gap on top of it stacked into ~60px of dead white
+    // between the pagination dots and the aura. The air that separates the AI
+    // copy from the sheet still lives INSIDE the band (SHEET_CLEAR). Was 16,
+    // which superseded the +24 added on 2026-07-29 (D077).
+    marginTop: space.s,
     marginHorizontal: -space.m20,
     backgroundColor: color.surface,
     // No hairline at either end. The top edge is the `sheetEnd` curve below — a
@@ -400,7 +413,7 @@ const styles = StyleSheet.create({
     ...elevation.soft, // the sheet floats a little above the canvas it uncovers
   },
   /** The copy + CTA sit back on the page column, clear of the sheet edge above. */
-  pitch: { paddingHorizontal: space.m20, paddingTop: SHEET_END_H + space.s12 },
+  pitch: { paddingHorizontal: space.m20, paddingTop: SHEET_END_H + SHEET_CLEAR },
 
   head: { flexDirection: 'row', alignItems: 'center', gap: space.s12 },
   mark: {
@@ -412,16 +425,16 @@ const styles = StyleSheet.create({
   /** The text column beside the mark — title over a two-line pitch. */
   headText: { flex: 1 },
   /** 1px light along the top edge — how an iOS control catches ambient light. */
-  topLight: { position: 'absolute', left: 0, right: 0, top: 0, height: 1, backgroundColor: color.aura.aiHairline },
+  topLight: { position: 'absolute', left: 0, right: 0, top: 0, height: 1, backgroundColor: color.ckds.aiHairline },
 
-  title: { ...t.body16SemiBold, color: color.aura.ink },
-  body: { ...t.body14Regular, color: color.aura.slate, marginTop: space.xs },
+  title: { ...t.body16SemiBold, color: color.ckds.ink },
+  body: { ...t.body14Regular, color: color.ckds.slate, marginTop: space.xs },
 
   ctaShadow: {
     marginTop: space.m,
     borderRadius: radius.xl,
-    backgroundColor: color.aura.aiTo,
-    shadowColor: color.aura.aiShadow,
+    backgroundColor: color.ckds.aiTo,
+    shadowColor: color.ckds.aiShadow,
     shadowOpacity: 0.3,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 5 },
@@ -446,17 +459,17 @@ const styles = StyleSheet.create({
     gap: space.s,
   },
   ctaLabel: { ...t.body15SemiBold, color: color.textInverse },
-  pressVeil: { backgroundColor: color.aura.aiPress },
+  pressVeil: { backgroundColor: color.ckds.aiPress },
 
   dots: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   dot: { width: space.xs, height: space.xs, borderRadius: space.xxs, backgroundColor: color.textInverse },
   dotStill: { opacity: 0.6 },
 
   /** Results state — one heading + the grid, back on the page column. */
-  results: { paddingHorizontal: space.m20, paddingTop: SHEET_END_H + space.s12, gap: space.m },
+  results: { paddingHorizontal: space.m20, paddingTop: SHEET_END_H + SHEET_CLEAR, gap: space.m },
   headingRow: { flexDirection: 'row', alignItems: 'center', gap: space.s },
-  heading: { ...t.body16SemiBold, color: color.aura.ink, flex: 1 },
-  headingCount: { ...t.body12Medium, color: color.aura.slateMuted },
+  heading: { ...t.body16SemiBold, color: color.ckds.ink, flex: 1 },
+  headingCount: { ...t.body12Medium, color: color.ckds.slateMuted },
   /**
    * 2-up grid as two INDEPENDENT columns splitting one 12px gutter — not a
    * wrapping row, whose cells all stretch to the tallest in the row. `flex-start`

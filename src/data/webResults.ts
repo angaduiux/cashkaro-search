@@ -11,8 +11,9 @@
  * naturally mixes cards with and without a cashback pill.
  */
 import { ResultItem } from './dataContract';
-import { PRODUCTS, Product } from './catalog';
+import { PRODUCTS, Product, Cat } from './catalog';
 import { BRAND, PRODUCT_IMG } from './realData';
+import { storeTileByKey } from './storeTiles';
 
 /** Small stable string hash — the feed must be deterministic across renders
  *  (and `Math.random` is unavailable in workflow-style tooling anyway). */
@@ -57,6 +58,30 @@ function orderedPool(query: string, seed: ResultItem[]): Product[] {
  *  results should still mostly earn, with unmapped merchants mixed through. */
 const isMapped = (p: Product): boolean => hash(p.id) % 3 > 0;
 
+/**
+ * Which real merchants a category's products are shown as available on (D076).
+ * Keys are `storeTiles.ts` tiles ONLY, so the footer's logo is the same Figma
+ * asset the store cards use and no off-design brand can reach the screen
+ * (AGENTS.md). Two candidates per category, picked by the product's own hash, so
+ * one grid shows a mix while any given product always names the same shop.
+ */
+const RETAILERS: Partial<Record<Cat, readonly string[]>> = {
+  Electronics: ['croma', 'amazon'],
+  Beauty: ['nykaa', 'amazon'],
+  Fashion: ['ajio', 'amazon'],
+  Nutrition: ['healthkart', 'muscleblaze'],
+  Pharmacy: ['hyugalife', 'healthkart'],
+  Grocery: ['amazon', 'hyugalife'],
+  Home: ['amazon', 'croma'],
+};
+
+/** The merchant line for a product — never null: `amazon` carries the long tail. */
+function retailerFor(p: Product): { name: string; logo: string | number | null } {
+  const pool = RETAILERS[p.category] ?? ['amazon'];
+  const tile = storeTileByKey(pool[hash(p.id + ':shop') % pool.length]) ?? storeTileByKey('amazon');
+  return { name: tile?.name ?? 'Amazon', logo: tile?.logo ?? null };
+}
+
 function webItem(p: Product, i: number): ResultItem {
   const mapped = isMapped(p);
   return {
@@ -76,6 +101,7 @@ function webItem(p: Product, i: number): ResultItem {
       ? { type: 'pct_single', value: p.cbPct }
       : { type: 'none' },
     mappedPartnerId: mapped ? p.brandKey ?? p.brand.toLowerCase() : null,
+    retailer: retailerFor(p),
     ctaLabel: `₹${p.price.toLocaleString('en-IN')}`,
     originalPrice: p.mrp > p.price ? `₹${p.mrp.toLocaleString('en-IN')}` : undefined,
   };

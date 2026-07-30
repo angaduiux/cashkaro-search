@@ -1,11 +1,55 @@
+/**
+ * Shared page atoms — the small pieces every screen composes with, kept here so one
+ * change lands everywhere: `Divider` (hairline), `FadingRule` (a heading's rule that
+ * fades across the column, D094), `HeadingLine`, `SectionHeader` (title + optional
+ * action), `Disclaimer` (the loudly-flagged un-sourced-number line, D005) and
+ * `PlaceholderPill`.
+ */
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { color, type as t, space, radius } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 
 /** Thin hairline divider (uses border token). */
 export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
   return <View style={[styles.divider, style]} />;
+}
+
+/**
+ * The hairline that carries a page's own heading line across the rest of the
+ * column, fading out as it goes (D094). It is not a `Divider`: a full-strength
+ * rule to the page edge reads as a table rule and boxes the content under it,
+ * where this reads as the sentence trailing off — which is what a count line
+ * ("Showing 12 Credit Cards", "3 cards for “credit”") is.
+ *
+ * Takes the width it is given, so it goes inside a `HeadingLine` (or any row) as
+ * the flexible last child.
+ */
+export function FadingRule({ style }: { style?: StyleProp<ViewStyle> }) {
+  return (
+    <LinearGradient
+      colors={[color.ckds.border, color.ckds.border0]}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 1, y: 0.5 }}
+      style={[styles.rule, style]}
+    />
+  );
+}
+
+/**
+ * A heading line and its fading rule: the shape every "what am I looking at" line
+ * on a results page shares — the SERP context line, the "All matched results"
+ * line, and the cards page's "Showing n" count (D094). Pass the styled `Text`;
+ * the rule takes whatever width is left.
+ */
+export function HeadingLine({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={[styles.headingLine, style]}>
+      {children}
+      <FadingRule />
+    </View>
+  );
 }
 
 /**
@@ -82,6 +126,10 @@ export const isPlaceholderValue = (v?: string | null) => v === 'PLACEHOLDER';
 
 const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: color.border, alignSelf: 'stretch' },
+  // The rule is flexible and the row is centred, so the line always sits on the
+  // label's optical middle whatever type size the caller uses.
+  headingLine: { flexDirection: 'row', alignItems: 'center', gap: space.s12 },
+  rule: { flex: 1, height: 1 },
   // No vertical padding, and nothing here may set a minHeight: the row's height is
   // the title's line box, so the gaps above (its section's marginTop) and below
   // (the `gap` prop) are exactly the numbers in the styles. A minHeight on the

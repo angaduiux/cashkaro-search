@@ -12,20 +12,38 @@ import { Icon } from '../icons/Icon';
  * Dismissal has three routes, all of them cancel-safe: the scrim, the ✕, and the
  * grabber row. `footer` is pinned below the scrolling body so a long facet list
  * never pushes the primary action out of reach.
+ *
+ * The four optional props below are the card-filter sheets' variant (D092) — a
+ * centred title on its own tinted head, no ✕ (the grabber and scrim still
+ * dismiss), a body that scrolls internally instead of as a whole, and a strip
+ * above the footer for a live count. All default to today's behaviour, so the
+ * sort/filter/product sheets are untouched.
  */
 export function Sheet({
   title,
   subtitle,
   onClose,
   footer,
+  align = 'left',
+  showClose = true,
+  scroll = true,
+  banner,
   children,
 }: {
   title: string;
   subtitle?: string;
   onClose: () => void;
   footer?: React.ReactNode;
+  /** 'center' also tints the head band, so the title reads as its own header. */
+  align?: 'left' | 'center';
+  showClose?: boolean;
+  /** false ⇒ children own their scrolling and their padding (rail + panel). */
+  scroll?: boolean;
+  /** Full-width strip between body and footer (the availability count). */
+  banner?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const centered = align === 'center';
   return (
     <View style={StyleSheet.absoluteFill}>
       <Animated.View entering={FadeIn.duration(duration.fast)} exiting={FadeOut.duration(duration.fast)} style={StyleSheet.absoluteFill}>
@@ -44,25 +62,38 @@ export function Sheet({
         accessibilityViewIsModal
       >
         {/* Grabber doubles as a dismiss target (thumb-reachable, no aim needed) */}
-        <Pressable onPress={onClose} style={styles.grabWrap} accessibilityRole="button" accessibilityLabel="Dismiss">
+        <Pressable
+          onPress={onClose}
+          style={[styles.grabWrap, centered && styles.grabWrapCentered]}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss"
+        >
           <View style={styles.grabber} />
         </Pressable>
 
-        <View style={styles.head}>
-          <View style={styles.headText}>
-            <Text style={[t.body16SemiBold, { color: color.aura.ink }]}>{title}</Text>
+        <View style={[styles.head, centered && styles.headCentered]}>
+          <View style={[styles.headText, centered && styles.headTextCentered]}>
+            <Text style={[centered ? t.heading18SemiBold : t.body16SemiBold, { color: color.ckds.ink }]}>{title}</Text>
             {!!subtitle && (
-              <Text style={[t.body12Regular, { color: color.aura.slateMuted }]}>{subtitle}</Text>
+              <Text style={[t.body12Regular, { color: color.ckds.slateMuted }]}>{subtitle}</Text>
             )}
           </View>
-          <Pressable onPress={onClose} hitSlop={10} style={styles.close} accessibilityRole="button" accessibilityLabel="Close">
-            <Icon name="clear" size={15} color={color.aura.slate} />
-          </Pressable>
+          {showClose && (
+            <Pressable onPress={onClose} hitSlop={10} style={styles.close} accessibilityRole="button" accessibilityLabel="Close">
+              <Icon name="clear" size={15} color={color.ckds.slate} />
+            </Pressable>
+          )}
         </View>
 
-        <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
-          {children}
-        </ScrollView>
+        {scroll ? (
+          <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+            {children}
+          </ScrollView>
+        ) : (
+          children
+        )}
+
+        {banner && <View style={styles.banner}>{banner}</View>}
 
         {footer && <View style={styles.footer}>{footer}</View>}
       </Animated.View>
@@ -91,10 +122,10 @@ export function SheetOption({
       accessibilityLabel={hint ? `${label}. ${hint}` : label}
     >
       <View style={styles.optionText}>
-        <Text style={[selected ? t.body16SemiBold : t.body16Regular, { color: color.aura.ink }]}>{label}</Text>
-        {!!hint && <Text style={[t.body12Regular, { color: color.aura.slateMuted }]}>{hint}</Text>}
+        <Text style={[selected ? t.body16SemiBold : t.body16Regular, { color: color.ckds.ink }]}>{label}</Text>
+        {!!hint && <Text style={[t.body12Regular, { color: color.ckds.slateMuted }]}>{hint}</Text>}
       </View>
-      {selected && <Icon name="check" size={15} color={color.aura.cta} />}
+      {selected && <Icon name="check" size={15} color={color.ckds.cta} />}
     </Pressable>
   );
 }
@@ -120,8 +151,8 @@ export function FacetChip({
       accessibilityLabel={`${label}, ${count} ${count === 1 ? 'product' : 'products'}`}
     >
       {selected && <Icon name="check" size={11} color={color.textInverse} />}
-      <Text style={[t.body13Medium, { color: selected ? color.textInverse : color.aura.ink }]}>{label}</Text>
-      <Text style={[t.body12Regular, { color: selected ? color.textInverse : color.aura.slateMuted }]}>{count}</Text>
+      <Text style={[t.body13Medium, { color: selected ? color.textInverse : color.ckds.ink }]}>{label}</Text>
+      <Text style={[t.body12Regular, { color: selected ? color.textInverse : color.ckds.slateMuted }]}>{count}</Text>
     </Pressable>
   );
 }
@@ -130,7 +161,7 @@ export function FacetChip({
 export function SheetGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View style={styles.group}>
-      <Text style={[t.body12SemiBold, { color: color.aura.slate }]}>{label}</Text>
+      <Text style={[t.body12SemiBold, { color: color.ckds.slate }]}>{label}</Text>
       <View style={styles.groupBody}>{children}</View>
     </View>
   );
@@ -150,6 +181,13 @@ const styles = StyleSheet.create({
     ...elevation.lg,
   },
   grabWrap: { alignItems: 'center', paddingTop: space.s12, paddingBottom: space.s },
+  // The centred head is a tinted band, and the grabber sits ON it — one surface
+  // from the sheet's top edge down to the hairline, not a white strip above it.
+  grabWrapCentered: {
+    backgroundColor: color.ckds.bg,
+    borderTopLeftRadius: radius.hero,
+    borderTopRightRadius: radius.hero,
+  },
   grabber: { width: 44, height: 4, borderRadius: radius.full, backgroundColor: color.border },
   head: {
     flexDirection: 'row',
@@ -158,14 +196,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.m20,
     paddingBottom: space.s12,
     borderBottomWidth: 1,
-    borderBottomColor: color.aura.border,
+    borderBottomColor: color.ckds.border,
+  },
+  // Centred variant: the head becomes its own tinted header band, so the sheet
+  // reads title-first (there is no ✕ competing with the title for the corner).
+  headCentered: {
+    backgroundColor: color.ckds.bg,
+    paddingTop: space.s,
+    paddingBottom: space.m,
+    borderTopLeftRadius: radius.hero,
+    borderTopRightRadius: radius.hero,
+    borderBottomColor: 'transparent',
   },
   headText: { flex: 1, gap: space.xxs },
+  headTextCentered: { alignItems: 'center' },
+  // Live-count strip above the footer — full-bleed, so it reads as part of the
+  // sheet's chrome rather than as the last row of the list.
+  banner: {
+    paddingHorizontal: space.m20,
+    paddingVertical: space.s12,
+    backgroundColor: color.surfaceAlt,
+    borderTopWidth: 1,
+    borderTopColor: color.ckds.border,
+  },
   close: {
     width: MIN_TAP_TARGET,
     height: MIN_TAP_TARGET,
     borderRadius: radius.full,
-    backgroundColor: color.aura.bg,
+    backgroundColor: color.ckds.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -190,8 +248,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     borderWidth: 1,
   },
-  facetOn: { backgroundColor: color.aura.cta, borderColor: color.aura.cta },
-  facetOff: { backgroundColor: color.surface, borderColor: color.aura.border },
+  facetOn: { backgroundColor: color.ckds.cta, borderColor: color.ckds.cta },
+  facetOff: { backgroundColor: color.surface, borderColor: color.ckds.border },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -200,6 +258,6 @@ const styles = StyleSheet.create({
     paddingTop: space.s12,
     paddingBottom: space.m20,
     borderTopWidth: 1,
-    borderTopColor: color.aura.border,
+    borderTopColor: color.ckds.border,
   },
 });

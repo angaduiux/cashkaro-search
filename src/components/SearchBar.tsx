@@ -7,10 +7,18 @@ import Animated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
-import { color, type as t, space, radius, fontFamily, MIN_TAP_TARGET } from '../theme/tokens';
+import { color, type as t, space, radius, fontFamily, elevation, MIN_TAP_TARGET } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
+import { MicGlyph } from '../icons/MicGlyph';
 import { EASE } from '../motion/motion';
 import { duration } from '../theme/tokens';
+
+/** Width the clear slot opens to: the 26px button plus its 13px divider gutter. */
+const CLEAR_SLOT = 39;
+/** Tap padding. Split left/right so clear's and mic's hit areas never overlap —
+ *  two 12px-slopped buttons 13px apart both claim the gap between them. */
+const CLEAR_SLOP = { top: 12, bottom: 12, left: 10, right: 2 };
+const MIC_SLOP = { top: 12, bottom: 12, left: 2, right: 12 };
 
 /**
  * Catalog words the empty-field placeholder cycles through, one by one — the
@@ -82,9 +90,12 @@ function AnimatedPlaceholder() {
  *
  * Signature entry motion (§9.4): when the search screen mounts the back arrow
  * slides + fades in and grows its width, pushing the field across (a shared-
- * element-style morph from the Home search bar). The trailing mic↔clear icons
- * cross-fade with a scale as the query toggles. Transform/opacity only; honours
+ * element-style morph from the Home search bar). Transform/opacity only; honours
  * reduced motion via Reanimated defaults on withTiming.
+ *
+ * Trailing actions are PERSISTENT-MIC (D090): the gradient mic (`icons/MicGlyph`)
+ * is always mounted at the field's right edge, and a clear (✕) opens to its left
+ * behind a hairline once there's a query — the mic never moves and never leaves.
  */
 export function SearchBar({
   value,
@@ -97,6 +108,7 @@ export function SearchBar({
   showBack,
   autoFocus,
   inputRef,
+  onWash,
   placeholder = 'Search stores, products, cards…',
 }: {
   value: string;
@@ -113,6 +125,12 @@ export function SearchBar({
    *  `autoFocus` only ever fires on first mount and can't raise the keyboard
    *  when search is entered from a chip, nav item, or back-out of the SERP. */
   inputRef?: React.RefObject<TextInput | null>;
+  /** The bar is sitting on a HeroBleed wash (store-hero SERP, D069): the wrap
+   *  drops its white so the wash runs behind it, and the field itself turns
+   *  WHITE — the flat #eef1f6 fill is a grey-on-grey tint that goes muddy over a
+   *  colour, where white reads as a clean floating field. Root fades a white
+   *  underlay back in on scroll, so content never slides visibly beneath it. */
+  onWash?: boolean;
   placeholder?: string;
 }) {
   const hasText = value.length > 0;
@@ -130,7 +148,10 @@ export function SearchBar({
     transform: [{ translateX: interpolate(enter.value, [0, 1], [-12, 0]) }],
   }));
 
-  // Trailing icon cross-fade (mic ↔ clear).
+  // Clear reveal. The mic is NOT part of this: it stays mounted and visible at the
+  // right edge for the whole session (D090) — voice is a way to *start over* mid-
+  // query, which is exactly when the old cross-fade took it away. Clear slides in
+  // to the mic's LEFT instead, its wrapper widening from 0 so the mic never moves.
   const tx = useSharedValue(hasText ? 1 : 0);
   useEffect(() => {
     tx.value = withTiming(hasText ? 1 : 0, { duration: duration.fast });
@@ -138,28 +159,27 @@ export function SearchBar({
   // CLAMPed, all of them: `interpolate` extrapolates by default, and a trailing
   // icon that momentarily reads tx outside [0,1] scales by 11× — the glyph then
   // covers the whole frame (measured: the 16px mic laying out at 405×540).
-  const clearStyle = useAnimatedStyle(() => ({
+  const clearSlotStyle = useAnimatedStyle(() => ({
+    width: interpolate(tx.value, [0, 1], [0, CLEAR_SLOT], Extrapolation.CLAMP),
     opacity: interpolate(tx.value, [0, 1], [0, 1], Extrapolation.CLAMP),
+  }));
+  const clearGlyphStyle = useAnimatedStyle(() => ({
     transform: [
       { scale: interpolate(tx.value, [0, 1], [0.6, 1], Extrapolation.CLAMP) },
       { rotateZ: `${interpolate(tx.value, [0, 1], [-30, 0], Extrapolation.CLAMP)}deg` },
     ],
   }));
-  const micStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(tx.value, [0, 1], [1, 0], Extrapolation.CLAMP),
-    transform: [{ scale: interpolate(tx.value, [0, 1], [1, 0.6], Extrapolation.CLAMP) }],
-  }));
 
   return (
-    <Animated.View style={styles.wrap}>
+    <Animated.View style={[styles.wrap, onWash && styles.wrapTransparent]}>
       {/* Always mounted so it can slide in/out; width collapses to 0 when hidden */}
       <Animated.View style={[styles.backWrap, backStyle]} pointerEvents={showBack ? 'auto' : 'none'}>
         <Pressable onPress={onBack} hitSlop={12} style={styles.back} accessibilityRole="button" accessibilityLabel="Back">
-          <Icon name="back" size={22} color={color.aura.ink} />
+          <Icon name="back" size={22} color={color.ckds.ink} />
         </Pressable>
       </Animated.View>
-      <Animated.View style={styles.field}>
-        <Icon name="search" size={16} color={color.aura.fieldIcon} />
+      <Animated.View style={[styles.field, onWash && styles.fieldOnWash]}>
+        <Icon name="search" size={16} color={color.ckds.fieldIcon} />
         <View style={styles.inputWrap}>
           {/* Rotating catalog-word placeholder; only while the field is empty. */}
           {!hasText && <AnimatedPlaceholder />}
@@ -171,28 +191,45 @@ export function SearchBar({
             onSubmitEditing={onSubmit}
             autoFocus={autoFocus}
             placeholder=""
-            placeholderTextColor={color.aura.fieldIcon}
+            placeholderTextColor={color.ckds.fieldIcon}
             returnKeyType="search"
-            selectionColor={color.aura.cta}
-            cursorColor={color.aura.cta}
+            selectionColor={color.ckds.cta}
+            cursorColor={color.ckds.cta}
             style={[styles.input, { fontFamily: hasText ? fontFamily.medium : fontFamily.regular }]}
             accessibilityLabel={placeholder}
           />
         </View>
-        <Pressable
-          onPress={hasText ? onClear : onVoice}
-          hitSlop={12}
-          style={styles.trailing}
-          accessibilityRole="button"
-          accessibilityLabel={hasText ? 'Clear' : 'Voice search'}
-        >
-          <Animated.View style={[styles.trailingIcon, micStyle]} pointerEvents="none">
-            <Icon name="mic" size={16} color={color.aura.cta} weight="solid" />
+        {/* Trailing actions: [clear │] mic. Two separate buttons, so each carries
+            its own label instead of one control that silently changes meaning. */}
+        <View style={styles.trailingRow}>
+          <Animated.View
+            style={[styles.clearSlot, clearSlotStyle]}
+            pointerEvents={hasText ? 'auto' : 'none'}
+          >
+            <Pressable
+              onPress={onClear}
+              hitSlop={CLEAR_SLOP}
+              style={styles.clearBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <Animated.View style={clearGlyphStyle}>
+                <Icon name="clear" size={15} color={color.ckds.fieldIcon} />
+              </Animated.View>
+            </Pressable>
+            {/* Hairline: makes clear and mic read as two actions, not one cluster. */}
+            <View style={styles.trailingDivider} />
           </Animated.View>
-          <Animated.View style={[styles.trailingIcon, clearStyle]} pointerEvents="none">
-            <Icon name="clear" size={16} color={color.aura.fieldIcon} />
-          </Animated.View>
-        </Pressable>
+          <Pressable
+            onPress={onVoice}
+            hitSlop={MIC_SLOP}
+            style={({ pressed }) => [styles.mic, pressed && styles.micPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Voice search"
+          >
+            <MicGlyph size={22} />
+          </Pressable>
+        </View>
       </Animated.View>
     </Animated.View>
   );
@@ -206,6 +243,8 @@ const styles = StyleSheet.create({
     paddingVertical: space.s,
     backgroundColor: color.surface,
   },
+  // Over a HeroBleed wash (D069): no white band around the field.
+  wrapTransparent: { backgroundColor: 'transparent' },
   backWrap: { height: MIN_TAP_TARGET, overflow: 'hidden', justifyContent: 'center' },
   back: { width: 34, height: MIN_TAP_TARGET, alignItems: 'flex-start', justifyContent: 'center' },
   // Figma searchBar (1668:10754): flat #eef1f6 fill, radius 32, NO shadow.
@@ -215,24 +254,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.s12,
-    backgroundColor: color.aura.searchField,
+    backgroundColor: color.ckds.searchField,
     borderRadius: radius.xxl,
     paddingHorizontal: space.m, // 16px side padding
   },
+  // On a wash: white field + a soft lift, so it floats on the colour instead of
+  // dissolving into it (the flat grey fill reads as a hole over a tint).
+  fieldOnWash: { backgroundColor: color.surface, ...elevation.soft },
   // Holds the TextInput plus the absolutely-positioned animated placeholder.
   inputWrap: { flex: 1, justifyContent: 'center' },
   // typed text: ink #0e1116, Outfit Medium 14; placeholder Regular (set inline)
   input: {
     fontSize: 14,
     lineHeight: 20,
-    color: color.aura.ink,
+    color: color.ckds.ink,
     paddingVertical: space.s,
     outlineStyle: 'none',
   } as any,
   // Animated placeholder overlay — aligned to the text start, ignores touches.
   phOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center' },
   phClip: { height: 20, overflow: 'hidden', justifyContent: 'center' },
-  phText: { fontSize: 14, lineHeight: 20, color: color.aura.fieldIcon, fontFamily: fontFamily.regular },
-  trailing: { width: 24, height: 36, alignItems: 'center', justifyContent: 'center' },
-  trailingIcon: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  phText: { fontSize: 14, lineHeight: 20, color: color.ckds.fieldIcon, fontFamily: fontFamily.regular },
+  // Trailing cluster: the mic is the fixed right-hand anchor; clear opens to its
+  // left. Laid out in flow (not absolutely) so the two can coexist.
+  trailingRow: { flexDirection: 'row', alignItems: 'center', height: 36 },
+  // overflow hidden: the 26px button is clipped as the slot widens from 0.
+  clearSlot: { flexDirection: 'row', alignItems: 'center', height: 36, overflow: 'hidden' },
+  clearBtn: { width: 26, height: 36, alignItems: 'center', justifyContent: 'center' },
+  trailingDivider: { width: 1, height: 18, marginHorizontal: space.s6, backgroundColor: color.ckds.fieldDivider },
+  mic: { width: 26, height: 36, alignItems: 'center', justifyContent: 'center' },
+  // Press feedback on the mic — it opens a full-screen sheet, so it needs to
+  // acknowledge the touch before the sheet's own transition starts.
+  micPressed: { opacity: 0.6, transform: [{ scale: 0.9 }] },
 });

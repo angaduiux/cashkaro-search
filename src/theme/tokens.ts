@@ -22,87 +22,113 @@ const palette = {
   orangeTint: '#fff1e9', // light warm surface derived from the brand orange
   slate100: '#f3f3f6', // neutral field fill
 
-  // ── "Aura" search-page palette (from the Cashkaro-Search-2026 W4 design;
+  // ── CashkaroDS search-page palette (from the Cashkaro-Search-2026 W4 design;
   //    exact values pulled via Figma design context) ──────────────────────────
-  auraInk: '#0e1116', // near-black heading
-  auraSlate: '#5b6470', // secondary text
-  auraSlateMuted: '#8592a7', // tertiary / labels
-  auraBg: '#f6f7f9', // page / tile surface
-  auraHeroFrom: '#f6e5ff', // hero gradient top (lavender)
-  auraHeroTo: '#f6f7f9', // hero gradient bottom
-  auraOrange: '#e55a0e', // legacy cashback-figure hue — superseded by auraBlue (D056)
-  auraBlue: '#0036da', // primary CTA (Shop & Earn) + every cashback figure (D056)
-  auraGold: '#fabf2e', // rating star
-  auraGreen: '#047857', // "up from" reward text
-  auraGreenSurface: '#e7f7f1', // "up from" chip bg
-  auraBorder: '#e6e8ee', // hairline on tiles
-  auraOffGreen: '#01ab4b', // storepage store-card "Upto X% Off" (Figma 1646:7182)
-  auraCashbackCaption: 'rgba(99,99,99,0.44)', // store-card "CASHBACK" label
-  auraTileWash: '#eef2fb', // neutral store-tile wash (Storepage Tiles 611:3360)
+  ckInk: '#0e1116', // near-black heading
+  ckSlate: '#5b6470', // secondary text
+  ckSlateMuted: '#8592a7', // tertiary / labels
+  ckBg: '#f6f7f9', // page / tile surface
+  ckHeroFrom: '#f6e5ff', // hero gradient top (lavender)
+  ckHeroTo: '#f6f7f9', // hero gradient bottom
+  ckOrange: '#e55a0e', // legacy cashback-figure hue — superseded by ckBlue (D056)
+  ckBlue: '#0036da', // primary CTA (Shop & Earn) + every cashback figure (D056)
+  ckGold: '#fabf2e', // rating star
+  ckGreen: '#047857', // "up from" reward text
+  ckGreenSurface: '#e7f7f1', // "up from" chip bg
+  ckBorder: '#e6e8ee', // hairline on tiles
+  // The SAME hairline at zero alpha — the end stop of a rule that trails off
+  // (atoms `FadingRule`). Its own hue, not transparent white, so the fade stays
+  // neutral on any ground (the falloff rule: a fade ends on its own colour).
+  ckBorder0: 'rgba(230,232,238,0)',
+  ckOffGreen: '#01ab4b', // storepage store-card "Upto X% Off" (Figma 1646:7182)
+  ckCashbackCaption: 'rgba(99,99,99,0.44)', // store-card "CASHBACK" label
+  ckTileWash: '#eef2fb', // neutral store-tile wash (Storepage Tiles 611:3360)
+  // Credit-card tile bed + its top glow (Figma Cashkaro-Search-2026 1696:5271).
+  ckCardTileWash: '#f2f4f8',
+  ckCardTileGlow: '#f0f4ff',
+  ckCardTileGlow0: 'rgba(224,229,242,0)', // the glow ends on its own hue, not white
   // ── AI "aura" flowing-gradient set (Expand-Search card, Figma 1646:7445) ────
   // The four hues below are ONE cyclic ramp: cobalt → indigo → violet → orchid →
   // (back to) cobalt. Because the last hue reads back into the first, a strip
   // painted with the ramp repeated twice can translate forever with no seam.
-  auraAiCobalt: '#0036da',
-  auraAiIndigo: '#4f46e5',
-  auraAiViolet: '#7c3aed',
-  auraAiOrchid: '#a163ff',
-  auraAiPeriwinkle: '#7d63ff',
-  auraAiMagenta: '#e879f9', // the "magic" end of the ramp
-  auraAiAqua: '#38bdf8', // cools the cycle back toward cobalt
+  ckAiCobalt: '#0036da',
+  ckAiIndigo: '#4f46e5',
+  ckAiViolet: '#7c3aed',
+  ckAiOrchid: '#a163ff',
+  ckAiPeriwinkle: '#7d63ff',
+  ckAiMagenta: '#e879f9', // the "magic" end of the ramp
+  ckAiAqua: '#38bdf8', // cools the cycle back toward cobalt
   // Fallback for brand tints that have no colour of their own (Nike, AJIO, Puma …
   // are all near-black at low alpha). A grey aura reads as dirt, so those get sky.
-  auraAiSkyWash: '#e6f4fd', // pale sky — the hero's base wash
-  auraAiCardTo: '#f5f7ff', // card wash bottom (near-white lavender)
+  ckAiSkyWash: '#e6f4fd', // pale sky — the hero's base wash
+  ckAiCardTo: '#f5f7ff', // card wash bottom (near-white lavender)
   // Glass/specular layers on the AI CTA + mark.
   whiteClear: 'rgba(255,255,255,0)', // zero-alpha white — fade-to-page stops
   // Glow platter behind the 3D mark.
-  auraAiGlowCore: 'rgba(124,58,237,0.26)',
-  auraAiGlowMid: 'rgba(161,99,255,0.14)',
-  auraAiGlow0: 'rgba(161,99,255,0)',
-  auraAiSheen: 'rgba(255,255,255,0.40)',
-  auraAiSheen0: 'rgba(255,255,255,0)',
-  auraAiGloss: 'rgba(255,255,255,0.24)',
-  auraAiGlossMid: 'rgba(255,255,255,0.05)',
-  auraAiHairline: 'rgba(255,255,255,0.45)', // 1px top highlight (iOS control gloss)
-  auraAiPress: 'rgba(255,255,255,0.14)', // UIKit-style highlight veil on touch
-  auraAiInnerShade: 'rgba(16,10,64,0.14)', // bottom inner shade for depth
-  auraAiEdge: 'rgba(84,40,190,0.10)', // card hairline on white
-  auraAiChip: 'rgba(255,255,255,0.74)', // "found on the web" pill fill
-  auraAiShadow: '#261a99', // brand-violet ambient shadow (mark + CTA)
-  auraAiCardShadow: '#000f66', // card elevation colour
+  ckAiGlowCore: 'rgba(124,58,237,0.26)',
+  ckAiGlowMid: 'rgba(161,99,255,0.14)',
+  ckAiGlow0: 'rgba(161,99,255,0)',
+  ckAiSheen: 'rgba(255,255,255,0.40)',
+  ckAiSheen0: 'rgba(255,255,255,0)',
+  ckAiGloss: 'rgba(255,255,255,0.24)',
+  ckAiGlossMid: 'rgba(255,255,255,0.05)',
+  ckAiHairline: 'rgba(255,255,255,0.45)', // 1px top highlight (iOS control gloss)
+  ckAiPress: 'rgba(255,255,255,0.14)', // UIKit-style highlight veil on touch
+  ckAiInnerShade: 'rgba(16,10,64,0.14)', // bottom inner shade for depth
+  ckAiEdge: 'rgba(84,40,190,0.10)', // card hairline on white
+  ckAiChip: 'rgba(255,255,255,0.74)', // "found on the web" pill fill
+  ckAiShadow: '#261a99', // brand-violet ambient shadow (mark + CTA)
+  ckAiCardShadow: '#000f66', // card elevation colour
   // Glass AI mark (icons/AiMark.tsx) — an all-BLUE body under white specular
   // layers: ice → azure → cobalt → navy along the light's diagonal. The earlier
   // cyan→mint→violet ramp put its two lightest stops (#22d3ee, #34e0b0) against
   // the band's pale lavender field, so at 1× the mark washed out to near-white.
   // Blue keeps a dark end at every stop, which is what makes it read as a solid
   // 3D object on a light ground rather than a watermark.
-  auraAiIce: '#bae6fd', // lit near edge (top-left)
-  auraAiAzure: '#38bdf8', // bright blue, the light's turn
-  auraAiCobalt3d: '#0741ef', // brand cobalt — the body's true colour
-  auraAiNavy: '#0b1e78', // shaded far edge (bottom-right)
-  auraAiGlassRimBlue: 'rgba(186,230,253,0.9)', // ice-tinted lit rim
+  ckAiIce: '#bae6fd', // lit near edge (top-left)
+  ckAiAzure: '#38bdf8', // bright blue, the light's turn
+  ckAiCobalt3d: '#0741ef', // brand cobalt — the body's true colour
+  ckAiNavy: '#0b1e78', // shaded far edge (bottom-right)
+  ckAiGlassRimBlue: 'rgba(186,230,253,0.9)', // ice-tinted lit rim
   // Blue glow platter behind the mark (was violet, to match the old body ramp).
-  auraAiGlowBlueCore: 'rgba(7,65,239,0.20)',
-  auraAiGlowBlueMid: 'rgba(56,189,248,0.15)',
-  auraAiGlowBlue0: 'rgba(56,189,248,0)',
-  auraAiGlassRim: 'rgba(255,255,255,0.72)', // glass edge highlight
-  auraAiGlassRim0: 'rgba(255,255,255,0.12)', // rim fading round to the unlit side
-  auraAiGlassCore: 'rgba(255,255,255,0.85)', // specular hot spot
-  auraAiGlassSpecMid: 'rgba(255,255,255,0.30)', // specular falloff
-  auraAiGlassCore0: 'rgba(255,255,255,0)',
-  auraAiGlassShade: 'rgba(38,26,153,0.34)', // contact shade under the mark
-  auraAiGlassDepth: 'rgba(38,26,153,0.42)', // inner shade on the glass's far face
+  ckAiGlowBlueCore: 'rgba(7,65,239,0.20)',
+  ckAiGlowBlueMid: 'rgba(56,189,248,0.15)',
+  ckAiGlowBlue0: 'rgba(56,189,248,0)',
+  ckAiGlassRim: 'rgba(255,255,255,0.72)', // glass edge highlight
+  ckAiGlassRim0: 'rgba(255,255,255,0.12)', // rim fading round to the unlit side
+  ckAiGlassCore: 'rgba(255,255,255,0.85)', // specular hot spot
+  ckAiGlassSpecMid: 'rgba(255,255,255,0.30)', // specular falloff
+  ckAiGlassCore0: 'rgba(255,255,255,0)',
+  ckAiGlassShade: 'rgba(38,26,153,0.34)', // contact shade under the mark
+  ckAiGlassDepth: 'rgba(38,26,153,0.42)', // inner shade on the glass's far face
+  // Search-bar mic ramp (icons/MicGlyph.tsx). The three hues are the AI set's
+  // violet → cobalt → azure, reused so the mic reads as the same family as the
+  // AI mark instead of introducing a fourth ramp; the mic keeps its own names so
+  // it can be retuned without touching the AI surfaces.
+  micViolet: '#7c3aed', // purple — the lit near end (top-left)
+  micBlue: '#0741ef', // brand cobalt — the middle of the ramp
+  micSky: '#38bdf8', // light blue — the far end (bottom-right)
+  // Hairline between the field's two trailing actions (clear │ mic). Cooler and
+  // lighter than card.divider, which is drawn on white — this one sits on the
+  // #eef1f6 field fill, where a solid grey line reads as a scratch.
+  fieldDividerLine: 'rgba(154,163,178,0.34)',
 
   ink900: '#262626', // text/primary
   ink600: '#5c5c5c', // text/secondary
   ink400: '#878787', // text/tertiary
-  slate400: '#9aa3b2', // muted price / field-icon grey (aura)
+  slate400: '#9aa3b2', // muted price / field-icon grey (CashkaroDS)
   peach50: '#fff0e8', // legacy warm cashback-pill gradient start (Figma 1646:7877) — see D056
   white: '#ffffff',
-  // Modal scrim — auraInk at 45%; the only dimming layer in the app (bottom sheets).
+  // Modal scrim — ckInk at 45%; the only dimming layer in the app (bottom sheets).
   scrim: 'rgba(14,17,22,0.45)',
+  // The blue-black every raised tile casts its shadow in (W4 spec 1646:7263). Not a
+  // text ink — it only ever appears as a shadow colour.
+  shadowInk: '#121726',
   borderSubtle: '#dddce7',
+  // The warm twin of `borderSubtle`: the same step down from its surface that
+  // #dddce7 is from cobalt50, taken from #fff4e9 instead. A cool hairline around
+  // a warm pill is the one thing that reads as a mistake rather than as a system.
+  borderSubtleWarm: '#f1e0d1',
   successSubtle: '#edfbf8',
   errorSubtle: '#fef1f1',
 } as const;
@@ -129,8 +155,17 @@ export const color = {
   actionPrimary: palette.orange,
   actionPrimaryText: palette.white,
   saffron: '#ffe6d6', // saffron/200 — legacy warm cashback-pill gradient start (DS); see D056
-  trendingSurface: '#fff4e9', // trending chip bg (W4 home)
+  trendingSurface: '#fff4e9', // trending chip bg (W4 home) — the gradient's warm end
+  trendingBorder: palette.borderSubtleWarm, // trending chip hairline (category-pill treatment, warm)
   recentSurface: '#f6f7f9', // recent chip / slot bg (W4 home)
+  // SKU thumb well (trending pill, D081). A recessed disc, lit from above: a soft
+  // dark cast off the TOP inner edge, a faint light return off the BOTTOM one, and a
+  // hairline ring so the well still reads if inset shadows are dropped. Ink-blue
+  // rather than black, matching the logo-tile shadow (#121726) the app already casts.
+  shadowInk: palette.shadowInk, // for a component casting its own raise (see ResultCards)
+  thumbWellShade: 'rgba(18,23,38,0.16)',
+  thumbWellSheen: 'rgba(255,255,255,0.65)',
+  thumbWellRing: 'rgba(18,23,38,0.08)',
   actionSurface: palette.orangeTint, // light warm tint (trending chips, deal strips)
 
   // neutral field fill (search bar, inputs)
@@ -157,32 +192,41 @@ export const color = {
   placeholder: palette.ruby600,
   placeholderSurface: '#ffe600', // intentionally garish; never ships with real data
 
-  // "Aura" search-page semantic roles (W4 design)
-  aura: {
-    ink: palette.auraInk,
-    slate: palette.auraSlate,
-    slateMuted: palette.auraSlateMuted,
-    bg: palette.auraBg,
-    heroFrom: palette.auraHeroFrom,
-    heroTo: palette.auraHeroTo,
+  // CashkaroDS — the search-page design system's semantic roles (W4 design).
+  // Named `ckds` at every call site (D095); this namespace was `aura` until the
+  // theme took the design system's own name.
+  ckds: {
+    ink: palette.ckInk,
+    slate: palette.ckSlate,
+    slateMuted: palette.ckSlateMuted,
+    bg: palette.ckBg,
+    heroFrom: palette.ckHeroFrom,
+    heroTo: palette.ckHeroTo,
     // Cashback figures are BLUE app-wide (D056) — the same cobalt the store card's
     // "Upto X%" footer and the Shop & Earn CTA already use, so one number can never
     // appear in two colours depending on which surface renders it.
-    cashback: palette.auraBlue,
-    cta: palette.auraBlue,
+    cashback: palette.ckBlue,
+    cta: palette.ckBlue,
     // The store hero's own filled CTA (Sign Up & Earn / Shop & Earn) is the brand
-    // ACTION orange, not the cobalt every other aura control uses (D058). It has
+    // ACTION orange, not the cobalt every other ckds control uses (D058). It has
     // its own role because `cta` above also paints the mic, the tab pills, the
     // facet chips and every inline "Shop & Earn ›" link — repointing that would
     // recolour half the app to make one button warm.
     ctaHero: palette.orange,
-    star: palette.auraGold,
-    green: palette.auraGreen,
-    greenSurface: palette.auraGreenSurface,
-    border: palette.auraBorder,
-    offGreen: palette.auraOffGreen, // store-card "Upto X% Off"
-    cashbackCaption: palette.auraCashbackCaption, // store-card "CASHBACK" label
-    tileWash: palette.auraTileWash, // store-tile wash when the brand has no tint
+    star: palette.ckGold,
+    green: palette.ckGreen,
+    greenSurface: palette.ckGreenSurface,
+    border: palette.ckBorder,
+    border0: palette.ckBorder0, // zero-alpha end of a trailing-off rule
+    offGreen: palette.ckOffGreen, // store-card "Upto X% Off"
+    cashbackCaption: palette.ckCashbackCaption, // store-card "CASHBACK" label
+    tileWash: palette.ckTileWash, // store-tile wash when the brand has no tint
+    // ── Credit-card TILE (Figma 1696:5271) — the store tile's twin for a card:
+    //    a cool grey bed under a blue top glow, so the card artwork reads as an
+    //    object lying on it rather than floating on white (D105).
+    cardTileWash: palette.ckCardTileWash,
+    cardTileGlow: palette.ckCardTileGlow,
+    cardTileGlow0: palette.ckCardTileGlow0,
     fieldIcon: palette.slate400, // search-field icons (search / clear)
     priceMuted: palette.slate400, // product current/strike price grey (Figma 1646:7869)
     cashbackPillFrom: palette.cobalt50, // cashback-pill gradient start — cool tint of the blue figure (D056)
@@ -190,48 +234,54 @@ export const color = {
     indicator: '#325065', // carousel page indicator (Swiggy-style pill + dots)
     // AI Expand gradient set (Figma 1646:7445). aiFrom→aiVia→aiTo→aiWash1 is a
     // CYCLIC ramp (orchid reads back into cobalt) — see AI_FLOW_HUES below.
-    aiFrom: palette.auraAiCobalt,
-    aiVia: palette.auraAiIndigo,
-    aiTo: palette.auraAiViolet,
-    aiWash1: palette.auraAiOrchid,
-    aiWash2: palette.auraAiPeriwinkle,
-    aiMagenta: palette.auraAiMagenta,
-    aiAqua: palette.auraAiAqua,
-    aiSky: palette.auraAiAqua, // same hue, named for its role as the grey fallback
-    aiSkyWash: palette.auraAiSkyWash,
-    aiCardTo: palette.auraAiCardTo,
+    aiFrom: palette.ckAiCobalt,
+    aiVia: palette.ckAiIndigo,
+    aiTo: palette.ckAiViolet,
+    aiWash1: palette.ckAiOrchid,
+    aiWash2: palette.ckAiPeriwinkle,
+    aiMagenta: palette.ckAiMagenta,
+    aiAqua: palette.ckAiAqua,
+    aiSky: palette.ckAiAqua, // same hue, named for its role as the grey fallback
+    aiSkyWash: palette.ckAiSkyWash,
+    aiCardTo: palette.ckAiCardTo,
     // glass layers
     fade0: palette.whiteClear, // start stop for any fade-into-the-page gradient
-    aiGlowCore: palette.auraAiGlowCore,
-    aiGlowMid: palette.auraAiGlowMid,
-    aiGlow0: palette.auraAiGlow0,
-    aiSheen: palette.auraAiSheen,
-    aiSheen0: palette.auraAiSheen0,
-    aiGloss: palette.auraAiGloss,
-    aiGlossMid: palette.auraAiGlossMid,
-    aiHairline: palette.auraAiHairline,
-    aiPress: palette.auraAiPress,
-    aiInnerShade: palette.auraAiInnerShade,
-    aiEdge: palette.auraAiEdge,
-    aiChip: palette.auraAiChip,
-    aiShadow: palette.auraAiShadow,
-    aiCardShadow: palette.auraAiCardShadow,
+    aiGlowCore: palette.ckAiGlowCore,
+    aiGlowMid: palette.ckAiGlowMid,
+    aiGlow0: palette.ckAiGlow0,
+    aiSheen: palette.ckAiSheen,
+    aiSheen0: palette.ckAiSheen0,
+    aiGloss: palette.ckAiGloss,
+    aiGlossMid: palette.ckAiGlossMid,
+    aiHairline: palette.ckAiHairline,
+    aiPress: palette.ckAiPress,
+    aiInnerShade: palette.ckAiInnerShade,
+    aiEdge: palette.ckAiEdge,
+    aiChip: palette.ckAiChip,
+    aiShadow: palette.ckAiShadow,
+    aiCardShadow: palette.ckAiCardShadow,
     // glass AI mark — blue body ramp (ice → azure → cobalt → navy)
-    aiIce: palette.auraAiIce,
-    aiAzure: palette.auraAiAzure,
-    aiCobalt3d: palette.auraAiCobalt3d,
-    aiNavy: palette.auraAiNavy,
-    aiGlassRimBlue: palette.auraAiGlassRimBlue,
-    aiGlowBlueCore: palette.auraAiGlowBlueCore,
-    aiGlowBlueMid: palette.auraAiGlowBlueMid,
-    aiGlowBlue0: palette.auraAiGlowBlue0,
-    aiGlassRim: palette.auraAiGlassRim,
-    aiGlassRim0: palette.auraAiGlassRim0,
-    aiGlassCore: palette.auraAiGlassCore,
-    aiGlassSpecMid: palette.auraAiGlassSpecMid,
-    aiGlassCore0: palette.auraAiGlassCore0,
-    aiGlassShade: palette.auraAiGlassShade,
-    aiGlassDepth: palette.auraAiGlassDepth,
+    aiIce: palette.ckAiIce,
+    aiAzure: palette.ckAiAzure,
+    aiCobalt3d: palette.ckAiCobalt3d,
+    aiNavy: palette.ckAiNavy,
+    aiGlassRimBlue: palette.ckAiGlassRimBlue,
+    aiGlowBlueCore: palette.ckAiGlowBlueCore,
+    aiGlowBlueMid: palette.ckAiGlowBlueMid,
+    aiGlowBlue0: palette.ckAiGlowBlue0,
+    aiGlassRim: palette.ckAiGlassRim,
+    aiGlassRim0: palette.ckAiGlassRim0,
+    aiGlassCore: palette.ckAiGlassCore,
+    aiGlassSpecMid: palette.ckAiGlassSpecMid,
+    aiGlassCore0: palette.ckAiGlassCore0,
+    aiGlassShade: palette.ckAiGlassShade,
+    aiGlassDepth: palette.ckAiGlassDepth,
+    // Search-bar mic — purple → blue → light blue along the glyph's own diagonal.
+    micFrom: palette.micViolet,
+    micVia: palette.micBlue,
+    micTo: palette.micSky,
+    /** Hairline separating the search field's clear and mic actions. */
+    fieldDivider: palette.fieldDividerLine,
   },
   // Credit-card card component (Figma DS 1785:28364)
   card: {
@@ -258,11 +308,34 @@ export const color = {
     pillOrange2: 'rgba(255,109,29,0.08)',
     pillOrange3: 'rgba(255,109,29,0.02)',
     pillText: '#ff6d1d', // CK Orange
+    /**
+     * The cashback pill on the unboxed hero (D110). The same three-stop 100° ramp shape
+     * as `pillOrange*`, in white: the figure is the loudest fact on a best match, and
+     * CK Orange on white is the most contrast the palette will give it. Not opaque, so
+     * the plate still belongs to the scene it sits on.
+     */
+    pillWhite1: 'rgba(255,255,255,0.95)',
+    pillWhite2: 'rgba(255,255,255,0.86)',
+    pillWhite3: 'rgba(255,255,255,0.76)',
+    /** …with a hairline of its own orange, so the white plate has an edge on the wash. */
+    pillSceneBorder: 'rgba(255,109,29,0.22)',
+    /** The pill's shimmer band — CK Orange, because Shine's default band is white and
+     *  so is this pill now. Its ends are taken to zero alpha by `Shine` itself. */
+    pillSheen: 'rgba(255,109,29,0.5)',
     /** Benefit tag — 0.86px cool stroke over a near-invisible blue→white wash. */
     tagStroke: 'rgba(103,157,194,0.12)',
     tagFillFrom: 'rgba(26,76,226,0.04)',
     tagFillTo: 'rgba(255,255,255,0.04)',
     tagLabel: '#262626', // Text Black
+    /**
+     * The tag's fill when the card is unboxed onto a HeroBleed scene (D108). NOT in the
+     * Figma spec: `tagFillFrom/To` above is a 4%-alpha ramp that only reads because
+     * white sits under it, and on the scene's blue nothing does — so each pill fills
+     * itself white on the same diagonal. Not opaque: the wash keeps a little of the
+     * scene, so the row belongs to the card rather than sitting on top of it.
+     */
+    tagFillSceneFrom: 'rgba(255,255,255,0.88)',
+    tagFillSceneTo: 'rgba(255,255,255,0.62)',
     /** Benefit rows: 18px stroked glyph + Text Inactive copy. */
     bulletIcon: '#222222',
     bulletIconOpacity: 0.5,
@@ -272,8 +345,16 @@ export const color = {
     applyChevron: '#ffffff',
     applyChevronEdge: '#0064e0',
     /** The fee columns' divider is a 45px hairline that fades out at both ends. */
-    hairline0: '#ffffff',
     hairlineMid: '#dcdcdc',
+    /**
+     * Superseded by `hairlineFade` (D108) and kept only so nothing that still reads it
+     * breaks: the spec's end stop is opaque WHITE, which is invisible on the boxed
+     * card's white ground and a pair of white ticks on the unboxed hero's blue scene.
+     */
+    hairline0: '#ffffff',
+    /** The same hairline at zero alpha — a fade ends on its own colour, so the rule
+     *  trails off on ANY ground (the `ckBorder0` rule, applied to this divider). */
+    hairlineFade: 'rgba(220,220,220,0)',
     /** LIFETIME FREE strip — cream→mint→cream, on its own cream stroke. */
     lftFrom: '#f0f3dc',
     lftVia: '#dcf3df',
@@ -327,15 +408,15 @@ export const color = {
    */
   voice: {
     sheet: palette.white,
-    sheetEdge: palette.auraAiEdge,
-    label: palette.auraSlate,
-    labelMuted: palette.auraSlateMuted,
-    transcript: palette.auraInk,
+    sheetEdge: palette.ckAiEdge,
+    label: palette.ckSlate,
+    labelMuted: palette.ckSlateMuted,
+    transcript: palette.ckInk,
     /** The live meter's ramp, cool → hot as the band gets louder. */
-    meterCalm: palette.auraAiAqua,
-    meterMid: palette.auraAiCobalt,
-    meterHot: palette.auraAiViolet,
-    meterPeak: palette.auraAiMagenta,
+    meterCalm: palette.ckAiAqua,
+    meterMid: palette.ckAiCobalt,
+    meterHot: palette.ckAiViolet,
+    meterPeak: palette.ckAiMagenta,
     /** Bar at rest — a voice UI must read as "listening" even in silence. */
     meterIdle: '#d7dcf0',
     /** Halo behind the mic, scaled by level. Same-hue zero-alpha stop (see §Aura). */
@@ -351,22 +432,22 @@ export const color = {
     /** The core sphere's own ramp, lit from the top-left like a physical object:
      *  cool where the light lands, hot where it falls away. The drifting blobs
      *  ride ON this, so the sphere still reads as one body when they cross. */
-    orbFrom: palette.auraAiAqua,
-    orbVia: palette.auraAiIndigo,
-    orbTo: palette.auraAiViolet,
+    orbFrom: palette.ckAiAqua,
+    orbVia: palette.ckAiIndigo,
+    orbTo: palette.ckAiViolet,
     /** Lit rim + inner shade — the glass edge that keeps the sphere from reading flat. */
-    orbRim: palette.auraAiGlassRim,
-    orbShade: palette.auraAiGlassDepth,
+    orbRim: palette.ckAiGlassRim,
+    orbShade: palette.ckAiGlassDepth,
     /** Specular hot spot near the top-left, and its zero-alpha falloff. */
-    orbSpec: palette.auraAiGlassCore,
-    orbSpec0: palette.auraAiGlassCore0,
+    orbSpec: palette.ckAiGlassCore,
+    orbSpec0: palette.ckAiGlassCore0,
     /** Ambient shadow the orb casts on the sheet. */
-    orbShadow: palette.auraAiShadow,
+    orbShadow: palette.ckAiShadow,
     /** Scrim over the page while the sheet is up. */
     scrim: 'rgba(14,17,22,0.32)',
     /** Suggestion chips in the no-match state. */
     chipBorder: palette.borderSubtle,
-    chipText: palette.auraInk,
+    chipText: palette.ckInk,
     /** "Tap to speak again" / cancel row. */
     action: palette.orange,
     danger: palette.ruby600,
@@ -377,7 +458,7 @@ export const color = {
    * own vertical two-stop ramp (light top → saturated bottom), read off the exported
    * SVGs kept at `assets/timeline/`. The hues are the step's own semantics —
    * amber = waiting, sky = confirmed, mint = money out — and are NOT the aura ramp,
-   * so they stay separate from `color.aura`.
+   * so they stay separate from `color.ckds`.
    */
   timeline: {
     tracksFrom: '#ffc485',
@@ -495,8 +576,12 @@ export const elevation = {
   lg: { shadowColor: '#000000', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
   brandSm: { shadowColor: palette.orange, shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   brandMd: { shadowColor: palette.orange, shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  // The card artwork lying on a card tile's bed (D105) — Figma paints a hard-light
+  // rectangle under the plastic; this is that contact shadow, which is what makes the
+  // artwork read as an object on the bed rather than a sticker.
+  cardArt: { shadowColor: '#000000', shadowOpacity: 0.22, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
   // Brand-logo tile shadow — exact W4 spec (Figma 1646:7263): 0 4.8 6.4 rgba(18,23,38,.1)
-  logo: { shadowColor: '#121726', shadowOpacity: 0.1, shadowRadius: 6.4, shadowOffset: { width: 0, height: 4.8 }, elevation: 3 },
+  logo: { shadowColor: palette.shadowInk, shadowOpacity: 0.1, shadowRadius: 6.4, shadowOffset: { width: 0, height: 4.8 }, elevation: 3 },
   // Soft card shadow — W4 store-row spec (0 3 6 rgba(216,221,233,.6))
   soft: { shadowColor: '#d8dde9', shadowOpacity: 0.6, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   // Credit-card card — exact Mini App Main spec (0 8 16 rgba(0,0,0,0.05), D061).
@@ -522,6 +607,14 @@ export const easing = {
   emphasized: [0.05, 0.7, 0.1, 1],
   accelerate: [0.3, 0, 1, 1],
   inout: [0.4, 0, 0.2, 1],
+  /**
+   * Long on-screen TRAVEL — a full-width carousel page, a card crossing the
+   * viewport. Leaves immediately, spends most of its time arriving: the last
+   * third of the distance takes half the duration, so a 390px move reads as
+   * weight settling rather than as a slide that stops. `emphasized` eases IN
+   * first, which over a whole page width looks like the content hesitated.
+   */
+  spatial: [0.32, 0.72, 0, 1],
 } as const;
 
 export const spring = {
@@ -544,6 +637,38 @@ export const MIN_TAP_TARGET = 44;
 // status badges/tags (% OFF, cashback pills, LIVE, carousel indicators) — those
 // are labels, not pills.
 export const PILL_HEIGHT = 36;
+
+// Circular SKU thumb that leads a pill in place of a glyph (trending chips, D081),
+// and the pill height that carries it. The disc is the section's whole point, so it
+// takes the size and the pill follows: 40 with the same 6px ring of air puts the
+// trending pill at 52. Well clear of MIN_TAP_TARGET on its own. Every OTHER pill
+// stays PILL_HEIGHT (D054); these are component metrics, not spacing steps.
+export const PILL_THUMB = 40;
+export const TRENDING_PILL_HEIGHT = 52;
+
+/**
+ * Type-ahead tile tones (`components/Suggestions.tsx`) — the bg/fg pair behind a tile
+ * row's glyph, one per result family. Lived as literals in the component until D087;
+ * they are colour, so they belong here.
+ */
+export const SUGGEST_TILE_TONES = {
+  purple: { bg: '#f3e8ff', fg: '#7c3aed' },
+  blue: { bg: '#e8eeff', fg: '#0036da' },
+  indigo: { bg: '#eef2ff', fg: '#4670f6' },
+  orange: { bg: '#fdf0e4', fg: '#e55a0e' },
+  teal: { bg: '#e6f4f1', fg: '#0f766e' },
+  green: { bg: '#e7f7f1', fg: '#047857' },
+  red: { bg: '#ffe9e9', fg: '#d41000' },
+} as const;
+
+/** LIVE badge fill — the same alert red the `red` tone above uses for its glyph. */
+export const LIVE_BADGE = SUGGEST_TILE_TONES.red.fg;
+
+// Type-ahead leading slot (`components/Suggestions.tsx`, D087). EVERY row's leading
+// visual — brand tile, card render, category circle, coloured tile, query glyph —
+// is centred in a box this wide, so one text baseline runs down the whole list
+// regardless of result type. The artwork inside keeps its own aspect.
+export const SUGGEST_LEAD = 48;
 
 // Deal banner strip height (design spec).
 export const BANNER_HEIGHT = 118;
@@ -570,11 +695,23 @@ export const CARD_SPEC = {
   titleInsetX: 8,
   pillH: 33,
   pillPadX: 13,
+  /** NOT from the spec: the FIGURE's size on the unboxed hero (D110). 15 against the
+   *  qualifier's 13, so the number grows relative to "Flat" rather than the line
+   *  growing together — and it still clears the spec's 33px pill height. */
+  pillValueScene: 15,
   /** [art + info] block → [tags + benefits] block */
   topGap: 19,
   /** tags → benefits */
   groupGap: 7,
   tagGap: 4,
+  /** NOT from the spec: tag row → USP rows on the unboxed hero (D108). The spec's 7
+   *  was set for pills that are barely-there outlines on white; filled white on the
+   *  scene they are plates, and plates need more air. Boxed cards keep `groupGap`. */
+  sceneTagGap: 14,
+  /** NOT from the spec: fee row → the unboxed hero's full-width CTA (D109). The same
+   *  12 the tags→strip rhythm uses, so the button reads as the card's last row rather
+   *  than as a block floating under it. */
+  heroCtaGap: 12,
   benefitGap: 6,
   /** glyph frame; the vector inside it is ~13.5px (see icons/cardIcons.tsx) */
   benefitIcon: 18,
@@ -592,11 +729,91 @@ export const CARD_SPEC = {
   applyGap: 7.12,
   chevW: 6.14,
   chevH: 9.94,
+  /**
+   * NOT from the spec (D093). The exported chevron is a filled arrow whose
+   * silhouette reads ~1.9px thick, which was heavier than the label once the
+   * label came down from ExtraBold — so the glyph is drawn as a stroke and this
+   * is that stroke, set to the SemiBold stem at 12px (12 × 0.117).
+   */
+  chevStroke: 1.4,
+  /**
+   * The label's line box. It must be TALLER than the 12px size, not equal to it:
+   * Outfit's ascent is much deeper than its descent, so a line box clamped to the
+   * font size lands the glyphs below the centre of the 40px CTA (the "text not
+   * middle vertically" bug). 16 is the ramp's own 12px line height.
+   */
+  applyLineH: 16,
   /** page-edge insets: content 16, closing strip 8 */
   padX: 16,
   stripPadX: 8,
   padTop: 16,
   padBottom: 8,
+} as const;
+
+// ── Loan card metrics (D089) ─────────────────────────────────────────────────
+/**
+ * The lender mark on a loan card (`components/LoanCard.tsx`). Everything else on
+ * that card comes from `CARD_SPEC` above; only the mark differs, because a lender
+ * logo is a square app-icon PNG rather than 132×84 card artwork.
+ *
+ * `markRadius` is 22% of `markW` — the iOS squircle ratio those PNGs are drawn to,
+ * so the clip lands on the artwork's own corner instead of cutting a flat off it or
+ * leaving its baked-in edge showing.
+ */
+export const LOAN_SPEC = {
+  markW: 64,
+  markRadius: 14,
+  /**
+   * How much larger than the mark box the artwork is drawn, so the clip trims the
+   * PNG's own outermost pixels. `assets/lenders/bajaj-finserv.png` carries a DASHED
+   * 1px stroke on its outer edge (Figma frame stroke, verified per-pixel: alternating
+   * dark runs along row 0 and up the corner arcs), which at 64px read as a dotted
+   * ring around the logo. 1.07 pushes ~4 of the source's 120px off each side —
+   * enough to lose the stroke and its antialiasing, not enough to reach any mark's
+   * artwork (the widest, HDFC's wordmark, keeps its own padding).
+   */
+  markOverscan: 1.07,
+} as const;
+
+// ── Credit-card tile metrics (Figma Cashkaro-Search-2026 `0O2eU4S1vipmvXFT2eeJ9h`,
+//    node 1696:5271) ─────────────────────────────────────────────────────────────
+/**
+ * The compact credit-card tile — a card's form wherever it appears as a TILE rather
+ * than as the full comparison card (`components/CardTile.tsx`, D105). It is the
+ * Storepage store tile with two things swapped in: a white issuer chip and the card
+ * artwork, on the cool bed above.
+ *
+ * The outer frame is deliberately NOT restated here: width, 12px radius, the #eee
+ * hairline, the 4px inset and `elevation.xs` are the store tile's, because the two
+ * are one family and must stay the same object. Only what a card adds is below.
+ */
+export const CARD_TILE_SPEC = {
+  /** Figma's own tile width; rails may render wider and everything scales with it. */
+  w: 104,
+  /**
+   * The bed inside the frame. Figma's is 94×113 in a 104 tile (a 5px inset); this uses
+   * the store tile's own 96/113, because both beds sit in the same 4px-padded frame and
+   * a 2px difference between them would show the moment a rail mixes cards and stores.
+   */
+  bedAspect: 96 / 113,
+  /** Issuer chip: a white plate the wordmark sits on, over the bed's glow. */
+  chipW: 77,
+  chipH: 26.469,
+  chipRadius: 7.219,
+  chipPad: 4.813,
+  /** Card artwork — 3:2 (67.148 × 44.765), the same ratio as the big card's 132×84. */
+  artW: 67.148,
+  artH: 44.765,
+  artRadius: 3.709,
+  /** The green line at the foot of the bed ("Lifetime free" / "Best Cashback Card"). */
+  stripH: 18,
+  /** Top glow: 73 of the bed's 113, and 1.06× its width so it bleeds past the sides. */
+  glowH: 72.969,
+  glowW: 99.595,
+  /** White blur disc behind the artwork, and the shine laid over it. */
+  blobSize: 69.025,
+  shineW: 79.459,
+  shineH: 40.29,
 } as const;
 
 // ── AI Expand card metrics (Figma 1646:7445) ─────────────────────────────────
@@ -615,12 +832,12 @@ export const AI_ORB_SIZE = 320;
  * no visible seam (see motion/Aura.tsx → FlowStrip).
  */
 export const AI_FLOW_HUES = [
-  color.aura.aiFrom,
-  color.aura.aiVia,
-  color.aura.aiTo,
-  color.aura.aiWash1,
-  color.aura.aiMagenta,
-  color.aura.aiAqua,
+  color.ckds.aiFrom,
+  color.ckds.aiVia,
+  color.ckds.aiTo,
+  color.ckds.aiWash1,
+  color.ckds.aiMagenta,
+  color.ckds.aiAqua,
 ] as const;
 
 /**
@@ -629,11 +846,11 @@ export const AI_FLOW_HUES = [
  * falloff (motion/Aura.tsx), which is what makes the edge disappear.
  */
 export const AI_ORB_HUES = [
-  color.aura.aiTo,
-  color.aura.aiWash1,
-  color.aura.aiMagenta,
-  color.aura.aiAqua,
-  color.aura.aiFrom,
+  color.ckds.aiTo,
+  color.ckds.aiWash1,
+  color.ckds.aiMagenta,
+  color.ckds.aiAqua,
+  color.ckds.aiFrom,
 ] as const;
 
 // ── Voice orb (motion/VoiceBlobs.tsx) ────────────────────────────────────────
@@ -660,11 +877,46 @@ export const VOICE_CORE_BLOB = 96;
  * the same intelligence, not a second colour language.
  */
 export const VOICE_CORE_HUES = [
-  color.aura.aiAqua,
-  color.aura.aiFrom,
-  color.aura.aiWash1,
-  color.aura.aiMagenta,
+  color.ckds.aiAqua,
+  color.ckds.aiFrom,
+  color.ckds.aiWash1,
+  color.ckds.aiMagenta,
 ] as const;
 
 /** Hues of the aura blobs around the core — the cool/hot ends of the same ramp. */
-export const VOICE_AURA_HUES = [color.aura.aiAqua, color.aura.aiTo, color.aura.aiMagenta] as const;
+export const VOICE_AURA_HUES = [color.ckds.aiAqua, color.ckds.aiTo, color.ckds.aiMagenta] as const;
+
+/**
+ * Credit-card filter bar + its two sheets (`components/CardFilterBar.tsx`).
+ * Component metrics, not spacing steps — same standing as PILL_HEIGHT / BAR_H.
+ *
+ * The Eligibility switch is 34×20 with a 14 knob on 3 of padding, so its travel is
+ * exactly 34 − 14 − 6. It is deliberately smaller than a stock switch: it sits inline
+ * beside 13px label copy inside a 36 pill, so a 28-tall track dominated the text and
+ * left no breathing room above/below. 20 matches the label's line box.
+ * `sheetBodyH` is a fixed height because that sheet's body is
+ * a two-column rail + panel: the panel scrolls inside it, so the sheet's own
+ * height must not depend on which group is open (the rail would jump as you moved
+ * between a 5-option group and a 12-option one).
+ */
+export const CARD_FILTER_SPEC = {
+  /** Eligibility switch */
+  toggleW: 34,
+  toggleH: 20,
+  toggleKnob: 14,
+  togglePad: 3,
+  /** Category dropdown, anchored under its chip */
+  menuW: 232,
+  menuMaxH: 384, // 8 rows × MIN_TAP_TARGET + the panel's own padding
+  /** Filters sheet: left nav rail width, and the rail+panel body height */
+  railW: 152, // fits the longest group name ("Gift Card Rates") unellipsised
+  railBar: 3, // active group's edge bar
+  railDot: 6, // "this group has a selection" dot
+  sheetBodyH: 356,
+  /** Radio ring / checkbox box in the sheet's option rows */
+  control: 22,
+  controlDot: 10,
+  /** Backdrop that catches a tap outside the open dropdown. Reaches well past the
+   *  frame on every side; it is absolutely positioned, so it costs no layout. */
+  backdropSpread: 1200,
+} as const;

@@ -13,6 +13,214 @@ every entry traces to a commit, a decision entry, or the code.
 
 ---
 
+## 2026-07-30 · The Flipkart page shows the whole catalog's categories
+
+`caseFlip` had no categories section at all, which left the page used to demo the SERP
+without the one row that shows what browsing looks like. It now carries every
+product-category page the build offers, with `categories` added to its tab row — all of
+them rather than the ones a "flip" query implies, since this is the showcase surface and
+Flipkart is the one store that genuinely spans every category. The chips are mapped from
+`productCategories()`, the same source Explore and the screen nav read, so a chip exists
+exactly when its page does and each one opens; the two candidate categories still under
+the three-product floor (D022) will appear by themselves when the catalog carries them.
+Read through a getter on the section, because `realData` and `catalog` are a cycle and a
+module-scope read would hit a half-built catalog (D116).
+
+## 2026-07-30 · The card filter bar's switch was sized to its label
+
+The Eligibility switch went from 52×28 with a 22 knob to **34×20 with a 14 knob**, its gap
+to the label from 8 to 6, and its label from "Eligible" to "Eligibility". The old track was
+a stock-sized control dropped into a 36px pill next to 13px copy, so it out-weighed the word
+that actually states the filter; the new one is sized to that word's line box and the two
+read as one phrase. Travel is derived from the spec (`W − knob − 2·pad`), so the animation
+followed the numbers. Pill height and the ≥44 tap target are untouched, as is the
+applied-filter pill's "Eligible for me" wording (D111).
+
+## 2026-07-30 · The type-ahead became a search engine
+
+Suggestions were a fixture: the typed string stapled onto fixed nouns ("credit facewash
+· in Beauty · 10+ results"), every result type emitted on every keystroke, and a fixed
+type order that put the actual credit cards sixth for the query "credit". They are now
+relevance-ranked against real candidates. One scorer — [matchScore.ts](../src/data/matchScore.ts),
+pure string math, no imports — scores every type on the same 0–100 scale (exact ·
+prefix · word-prefix · contains · acronym · 1-edit Damerau typo · subsequence), and
+`buildSuggestions` scores the whole catalog against it: all 70 stores, product
+completions built from the catalog's own keyword vocabulary with counts from
+`searchProducts`, category pages and their sub-chips, the six real card tiles, the three
+lenders, the three banks, and the coupon sets and campaigns read off the cases that carry
+them — plus a per-type INTENT vocabulary, so "credit", "cc" or "lifetime free" reaches
+cards and "emi" reaches loans. `rank()` then orders types by their best row, so the type
+the query names leads and every other matching type is demoted rather than dropped
+(D115). Mid-string matches bold the matched run instead of greying everything before it,
+because a relevance-led rank can now match in the middle of a title.
+
+The same day, committed queries got the other half: a zero-result results page now offers
+**Did you mean <Correction>?**, resolved from the same scorer, while the suggestions
+screen is deliberately left alone (D112). Two pre-existing bugs had to go first —
+`searchStores` gave every live store a score of 3 with no match at all, so "zzzqqq"
+resolved to a phantom "5 results" SERP and recovery was unreachable; and the edit
+distance was plain Levenshtein, which prices a swapped pair at two edits, so the one
+typo a correction exists for ("myntar") matched nothing.
+
+## 2026-07-30 · The unboxed card stops relying on white being there
+
+Four things the card's Figma spec could assume on a white ground and can't on the blue
+HeroBleed scene (D104). Each USP tag now fills ITSELF white — the pills' own fill is a
+4%-alpha ramp drawn to sit on white, so on the scene it had nothing under it. A wash
+behind the whole row was tried first and thrown out: it reads as a band with its own
+edge, and a wrapped third tag makes that band's shape arbitrary. Filled pills are plates
+rather than outlines, so the row also takes 14 down to the USP copy instead of the
+spec's 7 (D108). The cashback pill went the same way and further: a white plate on an
+orange hairline, the figure up to 15 while "Flat" stays at 13, and the hero CTA's shine
+sweep repeated over it on a slower period — `Shine` grew a `tint` prop, since a white
+band on a white pill is nothing to see (D110). The fee divider's end stops fade to the hairline's own colour at zero alpha
+instead of the spec's opaque white, which was invisible on white and two white ticks on
+blue — the `ckBorder0` rule, one component over (D108). And the hero's CTA is now the
+store hero's CTA: full width, 48, r12, CK Orange, 45° arrow, same shine sweep, so a
+resolved card and a resolved brand close their pages identically — which also lets the
+two fee columns centre under the copy instead of crowding left of a 108px button (D109).
+Every boxed card keeps the in-strip cobalt CTA; ten full-width orange buttons down a
+comparison stack would be a column of buttons, not a comparison.
+
+## 2026-07-30 · A resolved card now sits on its issuer's shelf
+
+The resolved-card page ("sbi cashback card") went hero → "Similar cards" rail, so the
+only thing between the best match and a cross-issuer suggestion carousel was nothing.
+It now carries **"More SBI cards"** in between: a `kind: 'cards'` section, the same
+vertical `CreditCard` stack the cards category page uses, holding every SBI card in the
+catalog bar the hero (D107). Two of them are new — `SBI SimplyCLICK` and
+`SBI SimplySAVE`, on SBI Card's published terms under the page's BFSI disclaimer, taking
+the tile frame's own SBI CashKaro figure rather than an invented per-card one (D105).
+SBI Card ELITE, which D105 transcribed off the tile with no fees at all, grew a fee
+strip for the same reason — a full card with no closing strip reads as a broken row.
+The rail below now subtracts whatever the stack states in full, so ELITE no longer
+appears twice. Both new cards carry their real plastic, exported at 3× from the
+great.cards design system's `CreditCards/SBI` frame (`Q7235KVU3sU3HOTiibOXhv`,
+1189:167083) — sixteen SBI renders, which is where any further card art now comes from,
+and only reachable with that file key since the library isn't subscribed by the search
+file. `CreditCard` also grew `ArtPending` for the gap between adding a card and having
+its render: the issuer wordmark on a plain plate at the artwork's exact 132×84, which
+replaced the old `artwork ?? logo` fallback that stretched a favicon across the slot
+(D107).
+
+## 2026-07-30 · The field's mic gets bigger, and its gradient starts moving
+
+The search field's voice affordance was a 17px SVG mic carrying a static violet →
+cobalt → azure ramp (D090's persistent mic). It is now 22px inside the same 26×36 tap
+slot, and the ramp travels: [MicGlyph](../src/icons/MicGlyph.tsx) bakes six drawings
+of the glyph at six offsets round a cyclic hue ramp and cross-fades their opacities on
+one 5.6s linear clock, with the first drawing held opaque underneath so the ink never
+thins mid-hand-over (D106). Opacity rather than animated `<Stop>`s, because gradient
+stops don't animate through `react-native-svg` on web. Two shapes were tried and
+measured out first — rotating the hue triple between three drawings, and spanning the
+whole cycle in each drawing — both of which looked static at this size; the ramp now
+spans half the cycle, so each phase is a two-hue gradient and the colour visibly
+moves. Reduced motion parks it on the first phase. The voice sheet's orb is untouched.
+
+## 2026-07-30 · The card best match becomes a scene, like the brand best match
+
+A resolved store has read as a scene since D069 — its wash and orbs run from the
+device's physical top edge, the chrome goes transparent over them, and the hero itself
+is unboxed. A resolved *card* was still a bordered white card on a white page, which
+made the answer look like the first row of the list below it. Both now share one
+treatment (D104): `Root`'s bleed test is a new `isBleedHeroItem` (store **or** card),
+so [HeroBleed](../src/components/HeroBleed.tsx) mounts behind a card hero and tints the
+status bar and search bar; [CreditCard](../src/components/CreditCard.tsx) takes a
+`bleed` prop that removes the frame — fill, border, both halves of the shadow spec
+(native `elevation.card` and the web `boxShadow`), all padding, and the fee strip's -8
+pull-out — leaving the page column's 20px as its only inset, exactly as D071 unboxed
+the store hero. Nothing inside the card moves: it is still the transcribed Figma spec
+(D061).
+
+The scene's hue is the card's `logoBg` read as a HUE, not as a colour: `WASH_ALPHA`
+sets the strength, so SBI's cyan lands where Croma's mint does. Compositing the tile
+tint's 10% alpha onto white first was built, screenshot-compared and reverted — it made
+the card scene indistinguishable from page white while brand scenes stayed tinted.
+Loans and savings keep their boxed cards.
+
+## 2026-07-30 · A finance category page has one heading, and it is the credit-card one
+
+The loans and savings pages carried two headings that said the same two things:
+a context line ("3 personal loans · ranked by rate (low → high)") and, 40px below,
+the section title "Personal loans (3)". The credit-cards page had already lost its
+duplicate when the filter bar took over the count (D096), so the fix was to finish
+that thought rather than invent a third wording: those pages now render
+**headerless** — `financeCategoryPage` in
+[SerpShell](../src/components/SerpShell.tsx) (no hero, one `cards`/`loans`/`savings`
+section) passes `headerless` to `SectionView`, which drops the `SectionHeader` and
+sits the card stack `space.s` under the results line — and their labels in
+[realData](../src/data/realData.ts) are re-copied to the filter bar's own wording:
+`Showing 3 Personal Loans`, `Showing 3 Savings Accounts`. The ranking clauses and the
+amount-loan page's "Lowest EMI for ₹5,00,000" go with them; the amount is still on
+every card's subtitle. Multi-section pages keep their headers — there the titles
+separate kinds of content (D103).
+
+## 2026-07-29 · Credit-card filters, and the theme takes its real name
+
+**The cards result page and Credit Cards "View all" now filter.** One controller,
+three mounts — `useCardFilters(items)` on the screen, `<CardFilterBar>` in the
+column, `<CardFilterSheets>` beside the scroller (D091) — over an engine in
+[cardFilters.ts](../src/data/cardFilters.ts) that derives every facet from the card
+rows themselves: bank and network off the subtitle, the annual fee parsed once off
+`fees`, the gift-card rate off `cashback`, and spend categories keyword-matched
+against each card's own benefit copy. The bar is the `Category ⌄` dropdown (applies
+on tap), the `Filters` sheet (a five-group nav rail over an independently scrolling
+panel, a live availability strip, Clear All / Apply (n) — D092's Sheet variant), the
+`Eligible` switch, the "Showing n Credit Cards" line, removable applied-filter pills
+and an empty state. Eligibility is the one figure the feed cannot supply, so it is a
+disclosed fee-tier proxy that says so on the sheet (D005).
+
+Two bugs the headless build caught before anyone saw them: the sheets, mounted inside
+the scroll column, pinned to the bottom of the *content* instead of the screen; and
+the reset-on-new-items effect fired on mount, so anything the caller opened with was
+immediately closed. Both fixed, both written down in D091.
+
+**The card CTA** lost a weight and gained a centre: SemiBold on a 16px line box (at
+`lineHeight: 12` Outfit's deep ascent parked the label below the middle of the 40px
+button), with the chevron redrawn as a stroke so its weight is one number tied to the
+label's stem rather than a fixed ~1.9px silhouette (D093).
+
+**Every results heading** — the SERP context line, "All matched results for …", and
+the new count line — now trails off into a fading rule instead of ending flat
+(`HeadingLine` + `FadingRule`, D094).
+
+**Home got a showcase user-type switch** (D102): a small dark pill above the tab bar
+flips new/existing from inside the phone, which is the only way to reach the new-user
+flow on a device.
+
+**The drifting rail stopped fighting the finger** (D099): its drift wrote the scroll
+offset every frame, so a drag could never accumulate (the offset reset before iOS
+decided a pan had begun, so the pause never fired — the rail froze on touch and
+refused to drag) and a press was cancelled as the pill slid away underneath. The
+drift is now a `translateX` on the content, advanced on the UI thread; the scroll
+offset belongs to the user.
+
+**The prototype boots as an existing user** (D100): the user-type toggle only exists
+in the web preview toolbar, so on a device the flag was stuck at 'new' and Recent
+searches were unreachable.
+
+**The trending discs stopped tearing** (D098): the reel travelled a full disc
+diameter, so at the crossover both images sat half outside the circle it clips to —
+two fragments on the top and bottom edges with nothing in the middle. Travel is now
+0.45 of the disc, so the images overlap across its centre.
+
+**Trending pills tap again** (D097): the pill now pauses the drifting rail from its
+own press lifecycle. The rail's `onTouchStart` guard never fired once a child
+Pressable took the responder, so the rail kept moving under the finger and RN
+cancelled the press. The handler chain itself was never broken.
+
+**One results line per page** (D096): with the filter bar stating a live count, the
+SERP context line on the cards page and the View-all header's "n Results" were both
+saying the same number — and neither followed the filter. Both dropped where the bar
+is mounted; "Best match for …" is untouched.
+
+**`color.aura` is now `color.ckds`** (D095): 297 call sites across 22 modules, plus
+the palette's own `auraX` → `ckX` keys. "Aura" was the W4 design's working title, not
+the name of CashKaro's design system. The motion engine keeps the codename — it is a
+gradient primitive, not a theme — so `motion/Aura.tsx`, `AuraField`, `useAuraClock`
+and `color.ckds.ai*` are unchanged. Decision entries D001–D090 still write
+`color.aura.*`; they are left as written and read as `ckds`.
+
 ## What this is
 
 An Expo (managed) React Native prototype of CashKaro's search experience, run
@@ -31,6 +239,392 @@ contract, the catalog/search engine, transcribed real cases and the Storepage ti
 set. `src/theme/tokens.ts` is the only source of colour/type/space/radius/motion.
 
 ---
+
+## 2026-07-29 · The search field's mic stopped disappearing, and picked up a gradient
+
+Typing one character used to take the mic away: the trailing slot cross-faded mic →
+clear, so the voice affordance vanished at precisely the point in a query where
+restating it out loud beats fixing it on a keyboard. The slot now holds both, in the
+order every top-tier search field uses — `[clear ✕ │] mic` — with the mic mounted
+permanently at the right edge and clear widening in beside it behind a hairline, on
+the same animated-width pattern the back arrow already uses. The mic's x position is
+identical in both states, so there is no target that moves under a thumb, and the two
+actions now carry their own accessibility labels instead of one button that quietly
+changed meaning.
+
+The mic itself is no longer a Font Awesome glyph. Text takes one flat colour, so a
+gradient would have needed a mask layer that isn't a dependency here; it is drawn
+instead as parametric `react-native-svg` ([MicGlyph](../src/icons/MicGlyph.tsx)),
+the route [AiMark](../src/icons/AiMark.tsx) took, filled with purple → blue → light
+blue along its own head-to-base diagonal. The first attempt ramped across the 24-unit
+box and rendered flat cobalt — the glyph doesn't reach those corners, so both ends of
+the ramp fell outside the ink. See D090.
+
+## 2026-07-30 · A credit card became a tile, and Jump back in wears brand cards
+
+A card had three looks — the full comparison card, a skewed rail item, and a logo with a
+number under it in Explore's "Jump back in" — so the same object read as three things
+depending on the surface. [CardTile](../src/components/CardTile.tsx) is now its compact
+form everywhere, transcribed from Figma Cashkaro-Search-2026 node 1696:5271: the
+Storepage store tile's own frame and foot, with a `#f2f4f8` bed under a blue glow
+carrying the issuer wordmark and the card artwork. The similar-cards rail and Jump back
+in both render it; the comparison card (D061) is untouched, because that is what a
+results *stack* is for.
+
+Three findings from the mock, all optical: the white plate Figma draws behind each
+wordmark is set to `mix-blend-multiply` and therefore never renders — painting it read
+as a chip stuck on the bed; its blurred ellipses are radial fills here (D017), with the
+disc under the artwork dialled from 95% to 62% because at Figma's own value the bed's
+grey vanished; and the green line takes Regular rather than the spec's Medium, since
+Outfit at 10px carries more weight than Metropolis. That line also now holds only copy
+that FITS its one line — "Lifetime free", else "Zero joining fee", else a short
+top-pick reason, else nothing, because ellipsising a feed sentence mid-word read as a
+bug.
+
+The frame's six cards all exist in the catalog now (`ALL_CARD_TILES`), which added SBI
+Card ELITE, HSBC Live+ — both named off the plastic itself — and the unnamed
+black-and-magenta Axis card, each with that frame's own artwork and wordmark exports.
+Jump back in shows a Storepage tile where the brand is in that set and the same tile
+built from the brand's DS logo where it isn't, because history can't substitute one
+brand for another; Flipkart's asset lost its baked white ground and near-black tints now
+fall back to the sky wash instead of washing a tile grey. All of it is D105.
+
+---
+
+## 2026-07-29 · Personal loans joined the credit card's design system
+
+The loans page was the last finance surface still drawn by the generic `FinanceCard`
+— DS badges, a star row, a check list and a full-width flat CTA — so scrolling from
+cards to loans crossed two design languages. `07_loan` now renders
+[LoanCard](../src/components/LoanCard.tsx), built on the transcribed card's own
+`CARD_SPEC` and `color.card` (D061), with `CashbackPill`, `Tag` and `ApplyCta`
+exported from [CreditCard](../src/components/CreditCard.tsx) so the shared parts have
+one source and can't drift. A loan's facts fill the card's slots: top-pick reason,
+tenure and processing fee as USP tags; the lender's bullets as USP rows; **Est. EMI │
+Interest** in the closing strip beside the CTA — reading `ResultItem.emi`, a new
+preformatted feed field, rather than parsing the EMI back out of `subtitle`. Savings
+still use `FinanceCard`.
+
+The pill finally has something to show: loans carried `cashback: none`, and the figure
+now comes from the Storepage Tiles frame's own loan rows (611:3360) — all nine loan
+merchants print "Flat 1%" with the REWARDS caption, read off `STORE_TILES` by key — so
+a loan card says "Flat 1% Rewards" where a card says "Cashback".
+
+The differences from the card are all forced by what a loan is, and each was measured
+in a headless harness (D041) rather than eyeballed: the lender mark is 64 square with
+**no** frame, on the Storepage tile set's neutral wash, clipped at the 22% squircle those
+icons are drawn to over a 1.07 overscan (the PNGs are app icons with their own rounded
+edge — a border of ours read as a double stroke, the inset only shrank the logo, 84 of
+app icon beside a one-line name was too heavy, and Bajaj's export has a dashed 1px
+stroke baked onto its edge that read as a dotted ring until the clip trimmed it); USP
+rows take
+a neutral tick, because the card's glyph set is card perks and every loan line fell
+through to its trophy; the CTA is fluid and drops to its own row below 300px of strip,
+since at 320pt "₹10,744/mo" had truncated to "₹10,7…". Empty states tighten instead of
+leaving holes — no cashback centres the top block, no logo drops the tile, no tags and
+no bullets drops the middle block and its 19px gap. All of it is D089.
+
+---
+
+## 2026-07-29 · The deals rail became one continuous object, and its light moved under the card
+
+**Scroll offset drives everything (D084).** `DealsCarousel` no longer animates off
+its `page` state — one shared value, the live scroll offset, feeds the artwork's
+depth (each banner trails its own page by 9% of a page width, scaling and dimming on
+the way out, clipped to its page so the next creative can't peek past the screen
+edge), the indicator, and the glow's colour. The indicator stopped being a pill
+swapped between children: every page renders one capsule that grows from the spec's
+dot into the "n/total" pill as it takes the middle of the screen, its distance
+wrapping now that the rail wraps. Auto-advance is a timed scroll on a new
+`easing.spatial` curve (`timingTravel`) rather than the platform's fixed ease, one
+page per move, held off for six seconds after a touch — and the pages are rendered
+twice, so advancing off the last banner is a one-page move onto an identical banner
+instead of a rewind across the whole strip. Two web findings shaped the result:
+`pagingEnabled` becomes CSS scroll-snap, which re-quantises every frame of a
+programmatic scroll (the travel collapsed into an instant jump), so on web the rail
+scrolls freely and settles to the nearest page on the same curve; and a travel that
+gets replaced must not release the rail, or the driver drops 200ms into a 600ms
+move. Measured frame by frame on the built page: 52–53 frames per 525–534ms travel.
+
+**The bloom sits under the artwork now (D084).** `bottomBloomFill` replaces the
+centred glow for this rail — wide, low and light (peak 0.36 against 0.95), centred
+near the bottom of its bed so the colour rises out of the whitespace under the
+banner instead of hiding behind an opaque PNG, with a short fade dissolving its
+bottom into the page so D077's no-spill-downward rule still holds. `radialFill` grew
+explicit ellipse radii to make an off-centre light possible at all.
+
+**Trending pills joined the pill system (D085).** The warm chips took the category
+pill's own treatment — white → tint gradient under a hairline — in warm rather than
+cobalt, with `trendingBorder` derived from `borderSubtle`'s own step down from its
+surface. The Trending head's flame gif went to 30×30 with a tighter gap, since the
+art carries its own margin.
+
+## 2026-07-30 · The context audit went green, and two animation bugs came out of it
+
+**`check-context` reports OK for the first time (D113).** Clearing it turned up two
+real defects behind Reanimated's strict-mode warnings: `HeroBleed` drove `opacity` from
+both an `entering={FadeIn}` and its scroll-fade style on one view, so the bloom-in and
+the fade fought over the property; and `LoopRail` published its measured copy width by
+writing a shared value in the render body, which let the UI thread read a stale width.
+The audit's own two items went with them — the last colour literals moved into tokens
+(`palette.shadowInk`, `SUGGEST_TILE_TONES`, `LIVE_BADGE`), and the twelve modules with
+no doc header went to zero: six already had prose sitting where `gen-map` cannot see it
+(a type export or a const between the comment and the function, or an export named
+`RecoveryScreen` in `Recovery.tsx`), so those were hoisted to the top of their file
+rather than rewritten; `Badge`, `atoms`, `ResultCards` and `Root` had none and got one.
+
+**Also recorded (D114):** reloading Expo Go over a live runtime invents
+`Cannot find native module 'ExpoAsset'` and `"main" has not been registered`. Terminate
+the app first — a clean relaunch of the same commit is silent.
+
+## 2026-07-29 · The type-ahead became one ranked list
+
+**No headings, every match shown (D088).** Nine labelled groups cost ~28px a heading
+and put the ninth result type three screens down. The list is now ranked by likely
+intent — stores, product completions, offers, campaigns, categories, cards, loans,
+savings — with a faint `aura.bg` hairline where the type changes and nothing else
+between rows. Product rows lead with a single rolling disc of the SKUs that completion
+returns, because three 24px discs in a cluster were too small to read as products.
+Per-type caps and a "See all 4 stores →" row were tried and dropped the same day: on a
+four-store catalog that spent a row to hide two.
+
+## 2026-07-29 · The type-ahead got one text baseline and a shape system
+
+**One 48px lead per row (D087).** Store tiles, card renders, category circles and
+query glyphs each had their own width, so four result types started their titles at
+four different x. Every lead now centres in a shared `SUGGEST_LEAD` box — measured at
+`textX=60` on all eighteen rows — which frees the artwork's silhouette to carry the
+type instead: a products completion leads with an overlapping cluster of the three
+SKUs that query actually returns, discs and brand tiles share one hairline, and the
+one-row "Co-branded Cards" group folded into Credit Cards.
+
+## 2026-07-29 · Trending became two drifting rails
+
+**Two lines at any pill count (D086).** Adding the loans and savings verticals took
+Trending to seven pills, which — at 44px tall with a 12px gutter — wrapped to four
+rows. `motion/LoopRail.tsx` replaces the wrapping row: children laid out three
+times, parked in the middle copy, offset normalised into `[W, 2W)` each tick, so the
+drift never reaches an end and neither does a drag, in either direction. Two rails
+carry the pills at one speed in opposite directions (±10 px/s), over a copy count
+derived from the viewport (`ceil(vw / W) + 3`) — with a fixed three, a set narrower
+than the screen put the wrap target past the scroller's clamp and the reversed rail
+sat frozen at the end. The disc also went to 40px in a 52px pill, rolling over 600ms
+on a 6–11s beat. The savings pill reads "savings account" but
+commits the full `REAL_CASES` key, and reel resolution now answers a vertical query
+from its vertical alone — the long savings phrase had been matching a product
+keyword and rolling headphones.
+
+## 2026-07-29 · Trending pills lead with a rolling SKU disc
+
+**The search glyph became merchandising (D081, D082).** Each Trending chip now
+opens with a 32px circular product disc that rolls up to the next SKU on its own
+slow random beat, and every chip answers a press with the same scale spring the
+primary button uses. The reel runs on one monotonic step clock with the slot
+positions derived by modular arithmetic (`d = (i - p) mod 2`), so a dropped
+animation callback can't walk a layer out of frame — the bug that emptied all five
+circles before the arithmetic replaced the callback-driven "recycle" step. Content
+comes from the app's own resolvers in a new `data/trendingPills.ts`, narrowed to
+the top hit's brand so "iphone 16" rolls Apple and never a Galaxy that merely
+matched the shared `phone` keyword; travel and cards, which have no catalog SKUs,
+roll their destination brands and their real card renders. The disc carries a real
+inset well (`thumbWellShade` / `thumbWellSheen` / `thumbWellRing`) and stands in a
+44px pill — the one pill in the app that is not `PILL_HEIGHT`, since 32 + 6px of
+air does not fit in 36.
+
+## 2026-07-29 · The AI band's air moved under the curve
+
+**16 above, 44 below (D075).** The web-search band sat 40px below the deals
+carousel and its copy sat 12px under the sheet's curved edge, which stacked ~92px
+of unbroken white above the curve and left the AI pitch reading as the sheet's
+last line instead of the AI surface's first. The band's `marginTop` is back to 16
+(superseding the +24 in 8bfa427) and a new `SHEET_CLEAR` constant (12 + 32 = 44)
+separates the curve from the first line of text in **both** the pitch and the
+results heading, so the heading holds its position against that edge when the
+band changes state. Measured per D073 rather than D014's simpler recipe, because
+the band carries a `FadeInDown`: the load event was held open with a slow
+subresource while a real-time probe polled `getBoundingClientRect` until the value
+repeated 8 times, then painted it into a fixed overlay for a plain screenshot —
+`deals→band=16`, `sheetEdge→text=44`, agreeing with the virtual-time reading.
+
+## 2026-07-29 · The welcome-bonus gift got filled in
+
+**Solid at the call site, regular in the map (D074).** At 10px the outline gift on the
+new-user chip was a few hairlines over pale green and read as a smudge, so
+`StoreHero`'s chip now passes `weight="solid"` — the override `Icon` already has for
+exactly this. `ICON.gift` stays `regular`, because its other consumer is the Home
+clone's bottom tab bar, where the glyph sits at 18px beside four other outline tabs
+and a filled one would break a row matched to the production app. Checked the bundled
+FA6 Pro Solid face actually carries U+F06B with fontTools before trusting it (a
+missing code point renders tofu, not a fallback), then confirmed on the built page
+that the chip's glyph computes `FA6Pro-Solid`.
+
+## 2026-07-29 · A wider catalog grid was attempted and reverted
+
+**The container is ~426px wide inside a 390pt frame (D083).** Widening the store
+tiles to sit on a 16px gutter failed four ways — measuring the grid, measuring the
+scroller, clipping the screen root and measuring that, and a measurement-free
+percentage basis — each overflowing the third column off-screen, because every one of
+them derives from a box whose width already includes the page padding twice.
+`CatalogViewAll` is back to fixed 96px tiles with `space-between`. The finding worth
+keeping: the ~26-31px gutters in that grid are the phantom width spread across two
+gaps, not a chosen value, and the fixed-width tiles are what have been hiding it.
+
+## 2026-07-29 · The hero's light pooled where nothing needed lighting
+
+**Its own orb layout (D080).** `AuraField` gained an optional `specs`, and the
+full-bleed hero passes `HERO_ORBS` — five centres between y 120 and 300, on the brand
+logo and the cashback figure, with tighter amplitudes so they drift within the cluster.
+The shared `ORBS` set anchors its centres to the box's CORNERS, which suits a
+control-sized card but in a 620px scene left two orbs below the fold and the rest up
+behind the search bar. With `scale` 1.25 and peaks to 0.85 each pool reaches ~184px and
+covers the logo → figure band, still fading before the dissolve. The AI band and voice
+sheet keep the corner layout.
+
+## 2026-07-29 · The hero's blobs became white light instead of brand colour
+
+**Colour-on-colour was the wrong premise (D079).** Two rounds went into making
+brand-hued orbs visible on a wash of their own hue — a wider hue fan (D075), then a
+lightness band (D078) — when the orbs only ever had one axis to separate on, because
+they inherit the wash's hue by construction. `brandOrbFan` now returns five bright
+near-white pools (brand saturation 0–0.16 at lightness 0.95–1.0, peaks 0.62 → 0.36).
+White separates from any tinted wash on any brand, and it lifts the field rather than
+adding more of the colour the page already has. Composited over the real washes that
+is 14–31/255 of lightening on both Myntra and Flipkart, against the 0.32 mean the
+coloured fan achieved. The dead hue-fan helpers went with it.
+
+## 2026-07-29 · Why Myntra had no blobs but Flipkart did
+
+**A lightness collision, not a broken animation (D078).** `deepenTint` amplifies a
+brand tint's chroma and leaves its lightness untouched, so a bright tint deepens to
+something very pale — Myntra's `#ff3f6c` lands at L 0.765, the same lightness as the
+wash painted under it. Same hue by construction, same lightness by accident: the orbs
+were invisible at any alpha, which is why tripling their peak moved the page by a mean
+of 0.32/255. `fanHue` now clamps every orb into L 0.44–0.62, so they sit at 0.56–0.68
+against a 0.76+ wash on every brand. Also learned the hard way: **radial gradients do
+not render in the web export at all** (a solid-colour probe painted, an identical
+`radialFill` probe did not), so no headless screenshot can ever verify orb work — which
+is what disguised this as a stalled clock for several rounds.
+
+## 2026-07-29 · The hero's blobs were three copies of one colour; the deals glow stopped being cut
+
+**The fan was collapsing (D075).** With the wash halved and the orbs strengthened
+the hero still read as flat pink, and the reason was in `fanHue`, not the tuning:
+a brand hue sitting at the edge of its family arc — Myntra's `#ff3f6c` is 344°, 4°
+from the top of the warm arc — had every negative offset clamp to zero rotation, so
+three of the five orbs came out the SAME hue as each other and as the wash. Nothing
+that is the colour of its background can read as a blob. `fanHue` now flips
+direction when a side is boxed in, and a `FAN_LIFTS` lightness fan separates the
+orbs without adding chroma. Wash alpha 0.5 → 0.3 and peaks back down to
+`[0.34 … 0.20]` per the "less pink" note: measured background chroma 43.8 → 26.3,
+spatial sd 21.6 → 13.0, against 8.8 / 4.9 for the original field. The clock stall
+is still open — `prefers-reduced-motion` and a disabled sibling clock have both been
+ruled out by measurement.
+
+**The deals glow stopped being cut, and the band moved up (D077).** The Expand
+Search band paints an opaque sheet right under the deals rail, so the glow's
+downward spill was covered instead of seen and ended in a hard line; its bottom
+reach is now 8px instead of 64, and the band's own top margin 8 instead of 16,
+which also closes the ~60px of dead white under the pagination dots.
+
+## 2026-07-29 · The hero field got colour and contrast; web cards name their shop
+
+**Half the wash, five hues, smaller-but-faster orbs (D075).** `HeroBleed` paints
+its flat tint at 0.5 alpha and drives a new five-hue `brandOrbFan` — each hue
+clamped inside the brand's own family, so D060's one-temperature rule survives —
+through `AuraField`'s new `amp`/`scale` knobs (2.2 / 0.8) at rate 1.6. The first
+attempt (2× alpha, 1.3× size) was wrong and measured so: five 320px orbs already
+blanket a 500px scene, so it just doubled the field's mean chroma (31 → 62) into a
+stronger FLAT wash. Shrinking the orbs to leave gaps and swinging them further is
+what buys legible structure — final background chroma 43.8 at spatial sd 21.6,
+versus 8.8 / 4.9 before. **Open:** in the headless harness the Aura clock stalls at
+~480ms (orbs byte-identical at t=4/8/12s, reduced-motion false, rAF at 118fps), so
+the drift may not be running at all; `useFrameCallback` is shared with ExpandSearch
+and VoiceBlobs, so it was left alone pending a check on a real device.
+
+**The status-bar strip whitens with the search bar (D069, amended).** The white
+veil was inside the `Platform.OS === 'web'` branch, so on a device the wash kept
+tinting the real status bar while the bar beneath it had already gone white. It is
+now a plain layer sized to `STATUS_BAR_H` on web and `insets.top` on native,
+declared between the backdrop and the status bar so the clock and icons still
+paint over it, and sharing one opacity with the search bar's underlay.
+
+**Web-search cards say where to buy (D076).** `ResultItem.retailer` — set only by
+the web feed, from a category → `storeTiles` merchant map on the feed's existing
+stable hash — renders as `ProductCard`'s last row: hairline, 14px mark, "on Nykaa"
+in muted 10px. Catalog rails and category pages share `ProductCard` and are
+deliberately untouched, because the shop is only news on a Google-Shopping result.
+
+## 2026-07-29 · The store hero became a full-bleed scene, and its CTA took the sticky-button spec
+
+**The wash left the card (D069).** A new non-scrolling
+[HeroBleed](../src/components/HeroBleed.tsx) layer paints the store hero's tinted
+Aura wash + brand orbs as one gradient from the device's physical top edge,
+dissolving into the page over a 300px white ramp — no box, no radius, no cut
+edge. It is mounted in `Root` **above the mock status bar**, outside the clipped
+`stageBody`: the first attempt mounted it inside the search layer, where
+`overflow: hidden` cut it off at the status-bar line and a flat status-bar tint
+had to fake the rest (a flat fill can't stay seamless against a gradient). Every
+chrome layer over it goes transparent — status bar, the search-bar wrap (whose
+field also turns white), and SearchBody's page fill. `StoreHero` gained a
+content-only `bleed` mode that drops its own horizontal padding so the hero lines
+up on the page's 20px like every other row (D071); SerpShell's scroller is
+transparent and reports its offset through a `serpScrollY` shared value, driving
+the backdrop's 0.4× parallax + fade and fading white back in under both chrome
+strips on one shared opacity. Orbs bloom in over ~1.4s on mount. Finance/card
+heroes and the Gallery preview keep the boxed hero. Verified by measuring the
+built page: every hero row lands on `left: 20`, and at scroll 300 both chrome
+strips are opaque white with no content leaking beneath them.
+
+**The CTA and the figures matched the Store Page V2.0 spec (D070).** The hero
+CTA now reads "Earn Cashback on {Store}" in 16/SemiBold with a 12px solid
+arrow-up-right at gap 4 (Figma 1716:74837/74840; the bundled FA subset lacks
+e09f, so it's `arrow-up` rotated 45°), under a looping soft-light
+[Shine](../src/motion/Shine.tsx) sweep (Shine gained `repeat`/`blend`/`period`).
+Hero cashback percentages carry 2 decimals ("6.00%") on the big figure and the
+"Up from" chip.
+
+**The count-up rolls again (D068).** On Fabric / RN-web, Reanimated
+`animatedProps.text` updates are silently dropped, so the hero figure never
+animated on page load. `CountUp` now re-renders a plain `<Text>` from a rAF loop
+(the `CountUpText` mechanism) behind the same sizer-overlay layout.
+
+---
+
+## 2026-07-29 · The Myntra tile lost its wordmark; the hero figure got air
+
+**Symbol only, and centred by geometry rather than by a nudge (D066).**
+`BRAND.myntra` now points at `assets/brands/myntra-mark.png`, the M cropped out of
+the full lockup at the widest gap in the image's own alpha column-profile (the mark
+ends at x 719 of 1520; the word starts at 786), tight to its ink box at 720×495. The
+word was doing two bad things at once: repeating the store name already set in 22px
+beside the tile, and — as a 3.07:1 image in an 88×60 box — making the art width-bound
+under `contain`, which pinned the mark hard left with the tile's right half spent on
+type. At 1.45:1 it is height-bound, so `BrandThumb`'s existing centring is all that's
+needed and no component changed. The original PNG stays as provenance.
+
+**And the big cashback number stopped touching its own words (D067).** In
+[StoreHero](../src/components/ResultCards.tsx) the qualifier now clears 12px above
+the figure (was 6), "Cash Back" sits 8px off it (was 4), and the label went
+`heading18SemiBold` → `heading22SemiBold`. The 52px figure tracks at -0.52 and ends
+on a `%` whose open counter reads as space that isn't there, so 4px let the "C" sit
+against it; and at 18px the label read as a caption on the number rather than the
+other half of the phrase. Verified per D014 on the Myntra hero — 12.00 above, 8.00
+between, label computed 22px.
+
+## 2026-07-29 · Credit-card USP rows stopped wrapping
+
+**One line each, ellipsised (D065).** The Flipkart card's two bullets both ran to two
+lines at phone width, which pushed the fee strip and the CTA down — the card's height
+was tracking how wordy the feed was rather than what the card contains, so two cards
+in the finance stack ended on different baselines. `BenefitRow` in
+[CreditCard](../src/components/CreditCard.tsx) now renders `numberOfLines={1}`, which
+also moves the component toward the spec it was transcribed from (D061): the mock
+clips that copy at 280.4px, and the fluid card measures 280px of room for it on a
+390pt device. Verified per D014 — both rows come back 14px tall (one 12/14 line),
+`white-space: nowrap` with `text-overflow: ellipsis`, and genuinely over-flowing
+(304px and 325px of text in 280px), plus a screenshot of the card mid-page.
+FinanceCard's loans/savings rows still allow two lines; they weren't the surface in
+question.
 
 ## 2026-07-29 · Expand Search results became an endless 2-up grid
 

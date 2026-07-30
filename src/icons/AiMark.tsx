@@ -89,10 +89,10 @@ function GlassStar({ star, id, glossOpacity }: { star: Star; id: string; glossOp
           y2={cy + r * 0.92}
           gradientUnits="userSpaceOnUse"
         >
-          <Stop offset="0" stopColor={color.aura.aiIce} />
-          <Stop offset="0.14" stopColor={color.aura.aiAzure} />
-          <Stop offset="0.52" stopColor={color.aura.aiCobalt3d} />
-          <Stop offset="1" stopColor={color.aura.aiNavy} />
+          <Stop offset="0" stopColor={color.ckds.aiIce} />
+          <Stop offset="0.14" stopColor={color.ckds.aiAzure} />
+          <Stop offset="0.52" stopColor={color.ckds.aiCobalt3d} />
+          <Stop offset="1" stopColor={color.ckds.aiNavy} />
         </LinearGradient>
         <LinearGradient
           id={`depth-${id}`}
@@ -102,8 +102,8 @@ function GlassStar({ star, id, glossOpacity }: { star: Star; id: string; glossOp
           y2={cy + r}
           gradientUnits="userSpaceOnUse"
         >
-          <Stop offset="0" stopColor={color.aura.aiGlassCore0} />
-          <Stop offset="1" stopColor={color.aura.aiGlassDepth} />
+          <Stop offset="0" stopColor={color.ckds.aiGlassCore0} />
+          <Stop offset="1" stopColor={color.ckds.aiGlassDepth} />
         </LinearGradient>
         <LinearGradient
           id={`gloss-${id}`}
@@ -113,13 +113,13 @@ function GlassStar({ star, id, glossOpacity }: { star: Star; id: string; glossOp
           y2={cy + r * 0.15}
           gradientUnits="userSpaceOnUse"
         >
-          <Stop offset="0" stopColor={color.aura.aiGlassRim} />
-          <Stop offset="0.45" stopColor={color.aura.aiGlassCore0} />
+          <Stop offset="0" stopColor={color.ckds.aiGlassRim} />
+          <Stop offset="0.45" stopColor={color.ckds.aiGlassCore0} />
         </LinearGradient>
         <RadialGradient id={`spec-${id}`} cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor={color.aura.aiGlassCore} />
-          <Stop offset="0.5" stopColor={color.aura.aiGlassSpecMid} />
-          <Stop offset="1" stopColor={color.aura.aiGlassCore0} />
+          <Stop offset="0" stopColor={color.ckds.aiGlassCore} />
+          <Stop offset="0.5" stopColor={color.ckds.aiGlassSpecMid} />
+          <Stop offset="1" stopColor={color.ckds.aiGlassCore0} />
         </RadialGradient>
         {/* Rim brightest where the light hits, fading round to the unlit side. */}
         <LinearGradient
@@ -130,13 +130,13 @@ function GlassStar({ star, id, glossOpacity }: { star: Star; id: string; glossOp
           y2={cy + r * 0.9}
           gradientUnits="userSpaceOnUse"
         >
-          <Stop offset="0" stopColor={color.aura.aiGlassRimBlue} />
-          <Stop offset="1" stopColor={color.aura.aiGlassRim0} />
+          <Stop offset="0" stopColor={color.ckds.aiGlassRimBlue} />
+          <Stop offset="1" stopColor={color.ckds.aiGlassRim0} />
         </LinearGradient>
       </Defs>
 
       {/* 1 — contact shade, down-right of the top-left light */}
-      <Path d={d} fill={color.aura.aiGlassShade} opacity={0.5} translateX={0.8} translateY={1.6} />
+      <Path d={d} fill={color.ckds.aiGlassShade} opacity={0.5} translateX={0.8} translateY={1.6} />
 
       <G clipPath={`url(#clip-${id})`}>
         {/* 2a — opaque cobalt base UNDER the ramp. A gradient `url(#…)` that fails
@@ -144,7 +144,7 @@ function GlassStar({ star, id, glossOpacity }: { star: Star; id: string; glossOp
             which is how this mark ended up reading as a white silhouette on the
             band's pale field. A solid brand blue underneath means the worst case
             is a flat blue star, never an invisible one. */}
-        <Path d={d} fill={color.aura.aiCobalt3d} />
+        <Path d={d} fill={color.ckds.aiCobalt3d} />
         {/* 2b — glass body */}
         <Path d={d} fill={`url(#body-${id})`} />
         {/* 3 — far-face depth */}

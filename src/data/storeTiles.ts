@@ -10,7 +10,7 @@
  *             Saved under assets/brands/figma/. NEVER a favicon/CDN URL — those
  *             render as the blurry logos this set replaces.
  *  - `tint`   the tile wash's top gradient stop, sampled from the frame render.
- *             Rows 1–12 all use the neutral wash (`color.aura.tileWash`); the
+ *             Rows 1–12 all use the neutral wash (`color.ckds.tileWash`); the
  *             retail/beauty rows carry a real brand tint.
  *  - `offer`  the green strip text, verbatim per tile ("Upto 80% Off",
  *             "Rates from 9.99%", "Zero Foreclosure", "100% Digital").
@@ -26,7 +26,7 @@ import { Cashback, ResultItem } from './dataContract';
 import { color } from '../theme/tokens';
 
 /** The neutral wash shared by every non-brand-tinted tile in the frame. */
-const WASH = color.aura.tileWash;
+const WASH = color.ckds.tileWash;
 
 const pct = (value: number): Cashback => ({ type: 'pct_single', value });
 const flatPct = (value: number): Cashback => ({ type: 'pct_single', value, prefix: 'flat' });

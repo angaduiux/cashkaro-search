@@ -159,7 +159,7 @@ export function FinanceCard({
       {/* BFSI action → CK-blue CTA (loan eligibility / open account). Decoupled
           from the fee row so finance cards without a fee block still get a CTA. */}
       {isFull && !!item.ctaLabel && (
-        <Button label={item.ctaLabel} bg={color.aura.cta} style={{ marginTop: space.s12 }} />
+        <Button label={item.ctaLabel} bg={color.ckds.cta} style={{ marginTop: space.s12 }} />
       )}
     </Animated.View>
   );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import { color, space, duration } from '../theme/tokens';
+import Animated, { FadeIn, SharedValue } from 'react-native-reanimated';
+import { color, duration } from '../theme/tokens';
 import { Suggestions } from '../components/Suggestions';
 import { SerpShell } from '../components/SerpShell';
 import { RecoveryScreen } from './Recovery';
@@ -13,7 +13,9 @@ import { SerpModel, ResultItem } from '../data/dataContract';
  * Search screen body — everything BELOW the shared search bar (which is hoisted
  * to the app root and glides in). Empty query → explore landing; typing → grouped
  * suggestions; committed → SERP (or recovery). Top padding leaves room for the
- * floating bar.
+ * floating bar. On a store-hero SERP (`heroBleed`, D069) the page fill drops away
+ * so Root's full-bleed wash — mounted above the status bar, behind everything —
+ * shows through.
  */
 export function SearchBody({
   mode,
@@ -25,6 +27,8 @@ export function SearchBody({
   recents,
   enterTick,
   userType,
+  scrollY,
+  heroBleed = false,
   onClearRecents,
   onRemoveRecent,
   webResults,
@@ -42,6 +46,11 @@ export function SearchBody({
   recents: string[];
   enterTick: number;
   userType: 'new' | 'existing';
+  /** SERP scroll offset, written by SerpShell — drives Root's HeroBleed backdrop
+   *  and the search bar's white underlay (D069). */
+  scrollY?: SharedValue<number>;
+  /** Root's full-bleed store-hero wash is showing behind this screen (D069). */
+  heroBleed?: boolean;
   onClearRecents: () => void;
   onRemoveRecent: (q: string) => void;
   webResults: ResultItem[];
@@ -52,7 +61,7 @@ export function SearchBody({
   onOpenCategory?: (title: string) => void;
 }) {
   return (
-    <View style={styles.body}>
+    <View style={[styles.body, heroBleed && styles.bodyBleed]}>
       {mode === 'typing' &&
         (query.trim().length === 0 ? (
           <ExploreHome recents={recents} enterTick={enterTick} userType={userType} onPick={onPick} onOpenStore={onOpenStore} onClearRecents={onClearRecents} onRemoveRecent={onRemoveRecent} />
@@ -62,18 +71,21 @@ export function SearchBody({
 
       {mode === 'serp' &&
         (model ? (
-          <Animated.View style={{ flex: 1 }} entering={FadeIn.duration(duration.base)}>
+          <Animated.View style={styles.serp} entering={FadeIn.duration(duration.base)}>
             <SerpShell
               model={model}
               loading={serpLoading}
               webResults={webResults}
               userType={userType}
+              heroBleed={heroBleed}
+              scrollY={scrollY}
               onViewAllStores={onViewAllStores}
               onOpenCategory={onOpenCategory}
             />
           </Animated.View>
         ) : (
-          <RecoveryScreen query={committed} onExpand={() => {}} />
+          /* Nothing resolved → recovery, which offers the spelling correction (D112). */
+          <RecoveryScreen query={committed} onExpand={() => {}} onPick={onPick} />
         ))}
     </View>
   );
@@ -82,4 +94,7 @@ export function SearchBody({
 const styles = StyleSheet.create({
   // room for the floating shared bar (~64) hoisted at the app root
   body: { flex: 1, paddingTop: 64, backgroundColor: color.surface },
+  // Root's wash is painting the page behind this screen (D069).
+  bodyBleed: { backgroundColor: 'transparent' },
+  serp: { flex: 1 },
 });

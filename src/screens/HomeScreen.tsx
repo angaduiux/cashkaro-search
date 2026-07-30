@@ -449,10 +449,14 @@ const TABS: { icon: IconName; label: string; active?: boolean }[] = [
   { icon: 'user', label: 'Profile' },
 ];
 
+/** The app's bottom tab bar, above the safe-area inset. Exported because anything
+ *  floating over Home has to clear it (see Root's user-type switch, D102). */
+export const APP_TAB_BAR_H = 52;
+
 export function AppTabBar() {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.tabBar, { height: 52 + insets.bottom, paddingBottom: insets.bottom }]}>
+    <View style={[styles.tabBar, { height: APP_TAB_BAR_H + insets.bottom, paddingBottom: insets.bottom }]}>
       {TABS.map((t) => (
         <View key={t.label} style={styles.tabItem}>
           <Icon name={t.icon} size={18} color={t.active ? colors.secondary : colors.black} />

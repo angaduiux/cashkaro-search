@@ -1,3 +1,10 @@
+/**
+ * Badge + TopPickTag — the two inline status pills the result cards use. `Badge`
+ * renders a `Badge` from the data contract in its tone's colour pair (cashback,
+ * reward, neutral, campaign); `TopPickTag` is the "why this is first" line a ranked
+ * set puts on its leading row. Both are labels, not pills in the selector sense, so
+ * neither takes PILL_HEIGHT.
+ */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Badge as BadgeModel } from '../data/dataContract';

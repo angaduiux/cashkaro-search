@@ -1,19 +1,37 @@
+/**
+ * The card set every result page is built from — one component per archetype's row
+ * or tile, all reading the same `ResultItem` shape: `StoreRow`, `ProductCard`,
+ * `StoreTile` (the Figma Storepage tile, D013), `DealsCarousel` and `DealCard`,
+ * `SimilarCardsRail`, `CouponCard`, `CampaignCard`, `CategoryChip` and `StoreHero`.
+ * A SERP section picks a card here; it never invents its own layout.
+ *
+ * Two rules in this file exist because each was a shipped bug — a carousel's card
+ * width, snap step and paging frame must be ONE rounded integer, and any horizontal
+ * rail must be full-bleed with its padding re-added inside the scroll content
+ * (AGENTS "Layout conventions").
+ */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   Image,
   ImageSourcePropType,
+  Platform,
   Pressable,
   StyleSheet,
   ScrollView,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
 } from 'react-native';
 import Animated, {
   FadeIn,
   FadeInDown,
   FadeOut,
+  cancelAnimation,
+  runOnJS,
+  scrollTo,
+  useAnimatedReaction,
+  useAnimatedRef,
+  useAnimatedScrollHandler,
+  useDerivedValue,
   useSharedValue,
   useAnimatedStyle,
   interpolate,
@@ -35,8 +53,11 @@ import { ImageSlot, BrandThumb } from './ImageSlot';
 import { Button } from './Button';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CountUp } from '../motion/CountUp';
-import { AuraField, auraWashTint, brandOrbFills, centredGlowFill, useAuraClock } from '../motion/Aura';
-import { staggerDelay } from '../motion/motion';
+import { AuraField, auraWashTint, bottomBloomFill, brandOrbFills, useAuraClock } from '../motion/Aura';
+import { staggerDelay, timingTravel } from '../motion/motion';
+import { Shine } from '../motion/Shine';
+import { heroBleedTint } from './HeroBleed';
+import { CardTile } from './CardTile';
 
 /** Press-scale wrapper — every tappable card breathes on touch (§9.4). */
 function Press({ children, label, onPress }: { children: React.ReactNode; label: string; onPress?: () => void }) {
@@ -171,38 +192,57 @@ export function ProductCard({
               {item.subtitle.toUpperCase()}
             </Text>
           )}
-          <Text style={[t.body12Regular, { color: color.aura.slate }]} numberOfLines={2}>
+          <Text style={[t.body12Regular, { color: color.ckds.slate }]} numberOfLines={2}>
             {item.title}
           </Text>
         </View>
         <View style={styles.priceLine}>
           {(!!item.ctaLabel || !!item.originalPrice) && (
             <View style={styles.priceGroup}>
-              {!!item.ctaLabel && <Text style={[t.body14SemiBoldFlat, { color: color.aura.priceMuted }]}>{item.ctaLabel}</Text>}
+              {!!item.ctaLabel && <Text style={[t.body14SemiBoldFlat, { color: color.ckds.priceMuted }]}>{item.ctaLabel}</Text>}
               {!!item.originalPrice && <Text style={[t.caption10Medium, styles.strike]}>{item.originalPrice}</Text>}
             </View>
           )}
           {!!discount && (
             <View style={styles.discountChip}>
-              <Text style={[t.caption8SemiBold, { color: color.aura.green }]}>{discount}</Text>
+              <Text style={[t.caption8SemiBold, { color: color.ckds.green }]}>{discount}</Text>
             </View>
           )}
         </View>
       </View>
       {cbLabel && (
         <LinearGradient
-          colors={[color.aura.cashbackPillFrom, color.surface]}
+          colors={[color.ckds.cashbackPillFrom, color.surface]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.cbPill}
         >
-          <Text style={[t.body12SemiBold, { color: color.aura.cashback }]}>{cbLabel}</Text>
+          <Text style={[t.body12SemiBold, { color: color.ckds.cashback }]}>{cbLabel}</Text>
         </LinearGradient>
       )}
       {!!finalPrice && (
         <View style={styles.finalPriceBlock}>
-          <Text style={[t.caption10SemiBold, { color: color.aura.priceMuted, letterSpacing: letterSpacing.normal }]}>Final Price</Text>
-          <Text style={[t.body15SemiBold, { color: color.aura.ink }]}>{finalPrice}</Text>
+          <Text style={[t.caption10SemiBold, { color: color.ckds.priceMuted, letterSpacing: letterSpacing.normal }]}>Final Price</Text>
+          <Text style={[t.body15SemiBold, { color: color.ckds.ink }]}>{finalPrice}</Text>
+        </View>
+      )}
+      {/* Provenance footer — web-search results only, where the merchant is the
+          one thing a catalog card doesn't already imply (D076). Deliberately the
+          quietest row on the card: a hairline, a 12px mark, and 10px tertiary
+          type, so it settles the card rather than competing with the price. */}
+      {!!item.retailer && (
+        <View style={styles.retailerRow}>
+          {item.retailer.logo != null && (
+            <Image
+              source={item.retailer.logo as ImageSourcePropType}
+              style={styles.retailerLogo}
+              resizeMode="contain"
+              accessibilityLabel={item.retailer.name}
+            />
+          )}
+          <Text style={[t.caption10Medium, { color: color.ckds.priceMuted }]} numberOfLines={1}>
+            on {item.retailer.name}
+          </Text>
         </View>
       )}
     </Animated.View>
@@ -251,7 +291,7 @@ export function StoreTile({ item, width = 96, onPress }: { item: ResultItem; wid
     : '';
   const rgb = item.heroTint
     ? softTintRgb(item.heroTint, 0)
-    : softTintRgb(item.logoBg ?? color.aura.searchField);
+    : softTintRgb(item.logoBg ?? color.ckds.searchField);
   const source: ImageSourcePropType | undefined =
     item.logo == null ? undefined : typeof item.logo === 'string' ? { uri: item.logo } : (item.logo as ImageSourcePropType);
   const logoW = Math.round((width - 8) * 0.66);
@@ -270,25 +310,25 @@ export function StoreTile({ item, width = 96, onPress }: { item: ResultItem; wid
             {source ? (
               <Image source={source} style={{ width: logoW, height: Math.round(logoW * 0.62) }} resizeMode="contain" accessibilityLabel={item.title} />
             ) : (
-              <Text style={[t.body16SemiBold, { color: color.aura.slate }]} numberOfLines={1}>{item.title}</Text>
+              <Text style={[t.body16SemiBold, { color: color.ckds.slate }]} numberOfLines={1}>{item.title}</Text>
             )}
           </View>
           {!!item.discount && (
             <View style={styles.storeCardOffStrip}>
-              <Text style={[t.caption10Medium, { color: color.aura.offGreen }]} numberOfLines={1}>{item.discount}</Text>
+              <Text style={[t.caption10Medium, { color: color.ckds.offGreen }]} numberOfLines={1}>{item.discount}</Text>
             </View>
           )}
         </View>
         <View style={styles.storeCardFoot}>
           {value ? (
             <>
-              <Text style={[t.body14BoldSnug, { color: color.aura.cta }]} numberOfLines={1}>
+              <Text style={[t.body14BoldSnug, { color: color.ckds.cta }]} numberOfLines={1}>
                 {prefix} {value}
               </Text>
-              <Text style={[t.caption8SemiBoldCaps, { color: color.aura.cashbackCaption }]}>{item.cashbackCaption ?? 'CASHBACK'}</Text>
+              <Text style={[t.caption8SemiBoldCaps, { color: color.ckds.cashbackCaption }]}>{item.cashbackCaption ?? 'CASHBACK'}</Text>
             </>
           ) : (
-            <Text style={[t.body14BoldSnug, { color: color.aura.cta }]} numberOfLines={1}>{item.ctaLabel ?? 'Visit'}</Text>
+            <Text style={[t.body14BoldSnug, { color: color.ckds.cta }]} numberOfLines={1}>{item.ctaLabel ?? 'Visit'}</Text>
           )}
         </View>
       </View>
@@ -297,13 +337,50 @@ export function StoreTile({ item, width = 96, onPress }: { item: ResultItem; wid
 }
 
 /**
- * Deals carousel — auto-rotating banner strip (118 px), paged with a "1/n" chip
- * and dots. Auto-advances every ~3.2 s and wraps; any manual swipe re-syncs the
- * page and resets the timer. Auto-advance is disabled under reduced motion
+ * Web has no ScrollView drag/momentum events and no native paging, so the rail
+ * pages itself there (see `settle`). Kept as a constant rather than a `Platform.OS`
+ * check at each site so the two paths read as one decision.
+ */
+const WEB_PAGING = Platform.OS === 'web';
+/** How long after the last scroll event a web rail is considered at rest. */
+const DEAL_SETTLE_MS = 140;
+/**
+ * How long the driver keeps the rail after a travel lands. RNW emits one last
+ * scroll event 100ms after scrolling stops; released any sooner, the rail's own
+ * trailing tick reads as a touch and holds the pager off for six seconds.
+ */
+const DEAL_RELEASE_MS = 200;
+/** Dwell on a banner before the pager moves itself on (travel time is separate). */
+const DEAL_DWELL_MS = 3200;
+/** A touch owns the pager for this long after the last one — no auto-advance under the finger. */
+const DEAL_HOLD_MS = 6000;
+/** Artwork trails its own page by this fraction of a page width while it travels. */
+const DEAL_PARALLAX = 0.09;
+/** Where the artwork sits when it is a full page off-centre: smaller, dimmer, further away. */
+const DEAL_OFF_SCALE = 0.93;
+const DEAL_OFF_DIM = 0.55;
+/** Dot size / opacity by whole pages of distance (W4 spec, Figma 323:1367). */
+const DEAL_DOT_SIZE = [8, 6, 4, 2] as const;
+const DEAL_DOT_DIM = [0.8, 0.6, 0.4, 0.2] as const;
+
+/**
+ * Deals carousel — auto-rotating banner strip (118 px), paged with a "n/total"
+ * pill and dots.
+ *
+ * Three things make the motion continuous rather than per-page (D084):
+ *  - The scroll offset drives EVERY animation through one shared value, so the
+ *    artwork's depth and the indicator's morph track the finger frame by frame
+ *    instead of catching up after the page state changes.
+ *  - Auto-advance is a `withTiming` on that offset (`timingTravel` — `spatial`
+ *    over `hero`) fed to the scroller through Reanimated's `scrollTo`, so the
+ *    travel carries the app's own curve instead of the platform's scroll ease.
+ *  - The pages are duplicated and the offset is normalised back into the first
+ *    copy at rest, so advancing off the last banner moves ONE page forward into
+ *    an identical banner rather than rewinding the whole strip.
+ *
+ * Auto-advance (and with it the second copy) is disabled under reduced motion
  * (§9.6) — an auto-moving carousel is exactly what that setting opts out of.
  */
-const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
-
 export function DealsCarousel({ items, bleed = 0 }: { items: ResultItem[]; bleed?: number }) {
   // Each page fills the carousel's own width and pages one at a time — no
   // gap/peek, so nothing clips at the sides. `bleed` cancels the host page's
@@ -320,48 +397,189 @@ export function DealsCarousel({ items, bleed = 0 }: { items: ResultItem[]; bleed
   const [W, setW] = useState(0); // carousel width (rounded to whole px)
   const cardW = W > 0 ? W - INSET * 2 : 0;
   const step = cardW + GAP;
-  const [page, setPage] = useState(0);
-  const scroller = useRef<ScrollView>(null);
+  const count = items.length;
   const reduced = useReducedMotion();
-  const paused = useRef(false);
-  const cur = useSharedValue(0);
+  // A second copy of the pages, so the wrap is a one-page move into an identical
+  // banner instead of a rewind across the whole strip. Only when the pager
+  // actually advances itself — under reduced motion the extra copy would just be
+  // a second set of banners to swipe through.
+  const looping = count > 1 && !reduced;
+  const pages = looping ? [...items, ...items] : items;
 
-  // Banner-coloured glow: STATIC and centred (D036) — it sits behind the artwork,
-  // so drift would pull the eye off the deal. Only the colour changes, and only
-  // when the visible banner changes.
-  const glowTint = items[Math.min(page, items.length - 1)]?.bannerTint ?? color.aura.tileWash;
-  const glowFill = useMemo(() => centredGlowFill(glowTint), [glowTint]);
+  const [page, setPage] = useState(0);
+  const scroller = useAnimatedRef<ScrollView>();
+  const x = useSharedValue(0); // live content offset (px) — the one source of truth
+  const drive = useSharedValue(0); // auto-advance target, animated with the app's curve
+  const auto = useSharedValue(false); // true while `drive` owns the offset
+  const stepSv = useSharedValue(0); // `step`, readable from worklets
+  const touchedAt = useRef(0);
 
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (!step) return;
-    const p = Math.round(e.nativeEvent.contentOffset.x / step);
-    if (p !== page) setPage(p);
+  const settleAt = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const releaseAt = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** An interaction owns the rail: auto-advance backs off until the user is done. */
+  const hold = () => {
+    touchedAt.current = Date.now();
+  };
+  /** Hand the rail back once the travel's own scroll events have drained. */
+  const release = () => {
+    clearTimeout(releaseAt.current);
+    releaseAt.current = setTimeout(() => {
+      auto.value = false;
+    }, DEAL_RELEASE_MS);
   };
 
   useEffect(() => {
-    cur.value = withTiming(page, { duration: 260 });
-  }, [page]);
+    stepSv.value = step;
+  }, [step]);
+
+  /** Continuous page position, wrapped into [0, count) — drives the indicator. */
+  const cur = useDerivedValue(() => {
+    if (!stepSv.value) return 0;
+    const p = x.value / stepSv.value;
+    return ((p % count) + count) % count;
+  });
+
+  // Banner-coloured glow: STATIC (D036) and now LOW — it rises from under the
+  // artwork rather than sitting behind it (D084). Only the colour changes, and it
+  // changes the moment the next banner takes the middle of the screen, not when
+  // the scroll finally settles.
+  const glowTint = items[Math.min(page, count - 1)]?.bannerTint ?? color.ckds.tileWash;
+  const glowFill = useMemo(() => bottomBloomFill(glowTint), [glowTint]);
+
+  useAnimatedReaction(
+    () => Math.round(cur.value) % count,
+    (p, prev) => {
+      if (p !== prev && p != null) runOnJS(setPage)(p);
+    },
+  );
+
+  /**
+   * Move the rail to `to` on the app's own curve. Every frame of the timing is
+   * written straight to the scroll offset — Reanimated's `scrollTo`, not the
+   * imperative `ScrollView.scrollTo(animated)`, because the platform's own animated
+   * scroll has one fixed ease and no way to pass a curve in. When the move lands
+   * past the first copy of the pages it normalises back into it (same artwork, so
+   * the jump is invisible), which is what keeps a full copy ahead at all times.
+   */
+  const travel = (to: number) => {
+    drive.value = x.value;
+    auto.value = true;
+    drive.value = withTiming(to, timingTravel, (done) => {
+      'worklet';
+      // A travel that was replaced must NOT release the rail: assigning `drive` a
+      // plain value first cancels the previous animation, which calls this back with
+      // done=false at the START of the next travel — and a release scheduled there
+      // dropped the driver 200ms into a 600ms move, stalling it mid-curve (measured
+      // frame by frame). Whoever replaced it owns the release.
+      if (!done) return;
+      // The wrap, and the reason the second copy exists: a travel that lands past
+      // the first copy is moved back by exactly one copy's width onto the identical
+      // banner. Done by handing the driver a new value rather than calling `scrollTo`
+      // here — one path to the scroller means one thing to keep working (and the
+      // direct call was measured doing nothing on web, leaving the rail to walk off
+      // the end of the second copy).
+      if (to > count * stepSv.value - 1) drive.value = to - count * stepSv.value;
+      runOnJS(release)();
+    });
+  };
+
+  /**
+   * Web paging is OURS, not the browser's (D084). `pagingEnabled` compiles to
+   * `scroll-snap-type: x mandatory`, and the browser then re-snaps every frame of a
+   * programmatic scroll to the nearest page edge — measured on the built page, the
+   * offset jumped 378 → 756 between two 40ms samples, and forcing snap off from the
+   * DOM restored the curve. Neither an inline style nor a re-render can be relied on
+   * to lift it in time for the frame the travel starts on. So on web the rail scrolls
+   * freely and this settles it: 140ms after the last scroll event (RNW emits one when
+   * scrolling stops), whatever page the rail came to rest nearest becomes a `travel`
+   * — the same curve the auto-advance uses, so a released swipe and a self-advance
+   * land the same way. Native keeps real paging, which is better than anything this
+   * could imitate.
+   */
+  const settle = () => {
+    if (!WEB_PAGING || !step) return;
+    clearTimeout(settleAt.current);
+    settleAt.current = setTimeout(() => {
+      if (auto.value || !step) return;
+      const nearest = Math.round(x.value / step) * step;
+      if (Math.abs(nearest - x.value) >= 1) {
+        travel(nearest);
+      } else if (looping && nearest > count * step - 1) {
+        // Already parked on a boundary, just in the second copy — normalise silently.
+        // Value first, then hand it to the driver: the reaction fires on the change,
+        // so arming it the other way round would scroll to the PREVIOUS target.
+        drive.value = nearest - count * step;
+        auto.value = true;
+        release();
+      }
+    }, DEAL_SETTLE_MS);
+  };
+
+  // One handler for the whole rail: the offset feeds every animation, and any
+  // interaction takes the pager off auto (cancelling a travel already in flight, so
+  // the finger never fights a `withTiming`).
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      x.value = e.contentOffset.x;
+      // Web has no drag or momentum events at all — a scroll the driver did not
+      // cause IS the user, so that is where the hold and the settle come from.
+      if (WEB_PAGING && !auto.value) {
+        runOnJS(hold)();
+        runOnJS(settle)();
+      }
+    },
+    onBeginDrag: () => {
+      auto.value = false;
+      cancelAnimation(drive);
+      runOnJS(hold)();
+    },
+    onEndDrag: () => {
+      runOnJS(hold)();
+    },
+    onMomentumEnd: (e) => {
+      runOnJS(hold)();
+      // Land back in the first copy. The banner under the finger is the same
+      // artwork either way, so the jump is invisible — and it guarantees a full
+      // copy of pages ahead of wherever the user stopped.
+      const s = stepSv.value;
+      if (looping && s > 0 && e.contentOffset.x > count * s - 1) {
+        scrollTo(scroller, e.contentOffset.x - count * s, 0, false);
+      }
+    },
+  });
+
+  useAnimatedReaction(
+    () => (auto.value ? drive.value : null),
+    (v) => {
+      if (v != null) scrollTo(scroller, v, 0, false);
+    },
+  );
 
   useEffect(() => {
-    if (reduced || items.length < 2 || !step) return;
+    if (!looping || !step) return;
     const id = setInterval(() => {
-      if (paused.current) return;
-      setPage((prev) => {
-        const next = (prev + 1) % items.length;
-        scroller.current?.scrollTo({ x: next * step, animated: true });
-        return next;
-      });
-    }, 3200);
+      if (Date.now() - touchedAt.current < DEAL_HOLD_MS) return;
+      travel((Math.round(x.value / step) + 1) * step);
+    }, DEAL_DWELL_MS);
     return () => clearInterval(id);
-  }, [reduced, items.length, step]);
+  }, [looping, step, count]);
+
+  useEffect(
+    () => () => {
+      clearTimeout(settleAt.current);
+      clearTimeout(releaseAt.current);
+    },
+    [],
+  );
 
   return (
     <View style={{ marginHorizontal: -bleed }} onLayout={(e) => setW(Math.round(e.nativeEvent.layout.width))}>
       {/* Glow behind the rail, in the current banner's own colour (D036). The tint
           is sampled from each creative offline, so it always matches the art on
-          screen; keying the layer on the tint crossfades it as pages change. The
-          gradient is transparent well before its own edge, so nothing is clipped
-          at the top or bottom of the section. */}
+          screen; keying the layer on the tint crossfades it as pages change. It is
+          transparent well inside its own left/right/top edges, so nothing clips
+          there; the bottom is where its core lives, and the fade below dissolves
+          that edge into the page (D084). */}
       <View pointerEvents="none" style={styles.dealGlow}>
         <Animated.View
           key={glowTint}
@@ -369,41 +587,112 @@ export function DealsCarousel({ items, bleed = 0 }: { items: ResultItem[]; bleed
           exiting={reduced ? undefined : FadeOut.duration(duration.slow)}
           style={[StyleSheet.absoluteFill, glowFill]}
         />
+        {/* The bloom is centred near the bed's bottom edge, so its ramp runs past
+            it by construction — and the band that follows the rail paints opaque
+            white over anything below (D077), which would end the bloom in a
+            straight line. Dissolving into the page white first means there is no
+            line to see. Under the banners and the dots, never over them. */}
+        <LinearGradient
+          colors={[color.ckds.fade0, color.surface]}
+          style={styles.dealGlowFade}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          pointerEvents="none"
+        />
       </View>
       {cardW > 0 && (
-        <AnimatedScrollView
-          ref={scroller as any}
+        <Animated.ScrollView
+          ref={scroller}
           horizontal
-          pagingEnabled
-          disableIntervalMomentum
-          snapToInterval={step}
+          // Native paging is the platform's own and stays exactly as it was — one
+          // rounded integer for card, step and frame (AGENTS.md). On web these would
+          // become the CSS scroll-snap that fights the timed travel, so `settle`
+          // does the paging there instead.
+          pagingEnabled={!WEB_PAGING}
+          disableIntervalMomentum={!WEB_PAGING}
+          snapToInterval={WEB_PAGING ? undefined : step}
           decelerationRate="fast"
           showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={onScroll}
-          onScrollEndDrag={onScroll}
-          onScrollBeginDrag={() => (paused.current = true)}
+          onScroll={onScroll}
           scrollEventThrottle={16}
           style={{ width: cardW }}
           contentContainerStyle={{ paddingHorizontal: INSET }}
         >
-          {items.map((item) => (
-            <View key={item.id} style={{ width: cardW, paddingHorizontal: SIDE }}>
-              <DealCard item={item} width={cardW - SIDE * 2} />
-            </View>
+          {pages.map((item, i) => (
+            <DealSlide key={`${item.id}-${i}`} item={item} index={i} width={cardW} side={SIDE} x={x} stepSv={stepSv} reduced={reduced} />
           ))}
-        </AnimatedScrollView>
+        </Animated.ScrollView>
       )}
-      {items.length > 1 && <PageIndicator count={items.length} page={page} cur={cur} />}
+      {count > 1 && <PageIndicator count={count} page={page} cur={cur} />}
     </View>
   );
 }
 
 /**
- * Page indicator — exact match to the W4 spec (Figma 323:1367): a centred
- * "n/total" pill flanked by dots that shrink and fade with distance from the
- * current page (8→6→4→2 px at 80→60→40→20%). The pill slides through positions
- * as the carousel advances; dots ease via a shared value (respecting reduced
- * motion through the timing already applied to `cur`).
+ * One page of the deals rail. The page itself never moves — the snap step stays
+ * exactly the measured width (AGENTS.md) — the ARTWORK moves inside it: it trails
+ * the scroll by `DEAL_PARALLAX` of a page and shrinks and dims on its way out, so
+ * a swipe reads as depth instead of as two flat images sliding past. The trail and
+ * the shrink are matched: the art pulls into the 16px gutter by about as much as
+ * the scale gives back, so the 32px between two banners mid-swipe stays open.
+ */
+function DealSlide({
+  item,
+  index,
+  width,
+  side,
+  x,
+  stepSv,
+  reduced,
+}: {
+  item: ResultItem;
+  index: number;
+  width: number;
+  side: number;
+  x: SharedValue<number>;
+  stepSv: SharedValue<number>;
+  reduced: boolean;
+}) {
+  const style = useAnimatedStyle(() => {
+    if (reduced || !stepSv.value) return { transform: [{ translateX: 0 }, { scale: 1 }], opacity: 1 };
+    const d = x.value / stepSv.value - index; // 0 = centred, ±1 = one page off
+    const k = Math.min(Math.abs(d), 1);
+    return {
+      transform: [
+        { translateX: d * width * DEAL_PARALLAX },
+        { scale: interpolate(k, [0, 1], [1, DEAL_OFF_SCALE]) },
+      ],
+      opacity: interpolate(k, [0, 1], [1, DEAL_OFF_DIM]),
+    };
+  });
+  return (
+    // `overflow: hidden` is load-bearing, not tidiness: the trail moves the art up
+    // to 34px out of its own page, and the page's gutter is only 16 — without the
+    // clip the NEXT banner's artwork pokes past the screen edge while the rail sits
+    // at rest, which is the "banners clipped from the side" report from the other
+    // direction. Pages tile the content exactly, so clipping each one to its own
+    // slot costs nothing on screen (at most a 1px sliver of a moving image).
+    <View style={{ width, paddingHorizontal: side, overflow: 'hidden' }}>
+      <Animated.View style={style}>
+        <DealCard item={item} width={width - side * 2} />
+      </Animated.View>
+    </View>
+  );
+}
+
+/**
+ * Page indicator — the W4 spec's own parts (Figma 323:1367): a "n/total" pill
+ * among dots that shrink and fade with distance from the current page (8→6→4→2 px
+ * at 80→60→40→20%). What changed is that there is no longer a pill and a set of
+ * dots: every page renders ONE capsule that grows from dot to pill as it takes the
+ * middle of the screen, driven by the live scroll position (D084). The pill used to
+ * be swapped between children on the page change, which jumped a whole slot after
+ * the swipe had finished; now it morphs under the finger and the label's ink
+ * crosses from the outgoing page to the incoming one.
+ *
+ * Distance wraps (`min(d, count − d)`) because the rail wraps: without it the
+ * capsule at page 0 is "count−1 pages away" for the whole travel off the last
+ * banner, so the wrap would shrink the pill to nothing and pop a new one open.
  */
 function PageIndicator({
   count,
@@ -414,31 +703,77 @@ function PageIndicator({
   page: number;
   cur: SharedValue<number>;
 }) {
+  // First-paint estimate, replaced on layout by the real typeset width of the
+  // widest label this pager can show. Measured rather than computed so the pill
+  // keeps the spec's 8px side padding at any digit count, and taken from "n/n" so
+  // the width is the same on every page — a per-page width would make the row
+  // twitch as the label went 9/10 → 10/10.
+  const [pill, setPill] = useState({ w: 34, h: 18 });
   return (
-    <View style={styles.indicator}>
-      {Array.from({ length: count }, (_, i) =>
-        i === page ? (
-          <View key={i} style={styles.countPill}>
-            <Text style={styles.countText}>
-              {page + 1}/{count}
-            </Text>
-          </View>
-        ) : (
-          <ShrinkDot key={i} index={i} cur={cur} />
-        )
-      )}
+    <View style={styles.indicator} accessible accessibilityLabel={`Deal ${page + 1} of ${count}`}>
+      <Text
+        style={[styles.countText, styles.countGhost]}
+        onLayout={(e) =>
+          setPill({
+            w: Math.ceil(e.nativeEvent.layout.width) + space.s * 2,
+            h: Math.ceil(e.nativeEvent.layout.height) + space.xxs * 2,
+          })
+        }
+      >
+        {count}/{count}
+      </Text>
+      {Array.from({ length: count }, (_, i) => (
+        <IndicatorSlot key={i} index={i} count={count} cur={cur} pill={pill} label={`${i + 1}/${count}`} />
+      ))}
     </View>
   );
 }
 
-function ShrinkDot({ index, cur }: { index: number; cur: SharedValue<number> }) {
-  const style = useAnimatedStyle(() => {
-    const d = Math.abs(index - cur.value);
-    const size = interpolate(d, [1, 2, 3, 4], [8, 6, 4, 2], Extrapolation.CLAMP);
-    const opacity = interpolate(d, [1, 2, 3, 4], [0.8, 0.6, 0.4, 0.2], Extrapolation.CLAMP);
-    return { width: size, height: size, opacity };
+/**
+ * One page's capsule: a dot at a distance, the count pill at the centre, and every
+ * state in between. Width and height run the same 8→6→4→2 ramp past one page out,
+ * so away from the centre it is exactly the spec's square dot.
+ */
+function IndicatorSlot({
+  index,
+  count,
+  cur,
+  pill,
+  label,
+}: {
+  index: number;
+  count: number;
+  cur: SharedValue<number>;
+  pill: { w: number; h: number };
+  label: string;
+}) {
+  /** Pages from the middle of the screen, the short way round. */
+  const dist = (c: number) => {
+    'worklet';
+    const raw = Math.abs(index - c);
+    return Math.min(raw, count - raw);
+  };
+  const box = useAnimatedStyle(() => {
+    const d = dist(cur.value);
+    return {
+      width: interpolate(d, [0, 1, 2, 3, 4], [pill.w, ...DEAL_DOT_SIZE], Extrapolation.CLAMP),
+      height: interpolate(d, [0, 1, 2, 3, 4], [pill.h, ...DEAL_DOT_SIZE], Extrapolation.CLAMP),
+      opacity: interpolate(d, [0, 1, 2, 3, 4], [1, ...DEAL_DOT_DIM], Extrapolation.CLAMP),
+    };
   });
-  return <Animated.View style={[styles.shrinkDot, style]} />;
+  // Linear, so the two capsules in transit hold half the ink each and the row
+  // never reads as blank mid-swipe.
+  const ink = useAnimatedStyle(() => ({ opacity: interpolate(dist(cur.value), [0, 1], [1, 0], Extrapolation.CLAMP) }));
+  return (
+    <Animated.View style={[styles.slot, box]}>
+      {/* Full-width label inside a box that is narrower than it for most of the
+          morph: centred and clipped by the capsule, so the number appears to open
+          out of the dot rather than to reflow inside it. */}
+      <Animated.Text numberOfLines={1} style={[styles.countText, styles.slotText, { width: pill.w }, ink]}>
+        {label}
+      </Animated.Text>
+    </Animated.View>
+  );
 }
 
 /**
@@ -463,51 +798,17 @@ export function DealCard({ item, width = 320 }: { item: ResultItem; width?: numb
 }
 
 /**
- * Similar-cards rail — CashKaro DS card carousel (Figma 6573:13413): skewed card
- * artwork (151×96, radius 10) with a shine, a 2-line card name, and a cobalt-tint→
- * white gradient "Upto ₹X Cashback" pill in blue (D056). Horizontal scroll.
+ * Similar-cards rail — a horizontal scroll of [CardTile](./CardTile.tsx)s (D105). It
+ * used to draw its own item (skewed 151×96 artwork, a 2-line name and a cobalt pill,
+ * Figma 6573:13413); a card is now the SAME tile here, in View-all and in Explore's
+ * "Jump back in", so one card can't look like three different things.
  */
 export function SimilarCardsRail({ items }: { items: ResultItem[] }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railBleed} contentContainerStyle={styles.cardsRail}>
-      {items.map((item) => {
-        const cb = item.cashback;
-        const value =
-          cb.type === 'flat_inr'
-            ? `₹${cb.value.toLocaleString('en-IN')} Cashback`
-            : cb.type === 'pct_single'
-            ? `${cb.value}% Cashback`
-            : '';
-        return (
-          <Press key={item.id} label={item.title}>
-            <View style={styles.simCard}>
-              <View style={styles.simArt}>
-                {item.artwork ? (
-                  <Image source={(typeof item.artwork === 'string' ? { uri: item.artwork } : item.artwork) as ImageSourcePropType} style={styles.simArtImg} resizeMode="cover" accessibilityLabel={item.title} />
-                ) : (
-                  <View style={[styles.simArtImg, styles.simArtFallback]}>
-                    <Icon name="card" size={28} color={color.aura.slateMuted} />
-                  </View>
-                )}
-              </View>
-              <Text style={[t.body12Medium, { color: color.textPrimary, height: 32 }]} numberOfLines={2}>
-                {item.title}
-              </Text>
-              {!!value && (
-                <LinearGradient
-                  colors={[color.aura.cashbackPillFrom, color.surface]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.simPill}
-                >
-                  <Text style={[t.body12Regular, { color: color.aura.cashback }]} numberOfLines={1}>Upto </Text>
-                  <Text style={[t.body12SemiBold, { color: color.aura.cashback, flexShrink: 1 }]} numberOfLines={1}>{value}</Text>
-                </LinearGradient>
-              )}
-            </View>
-          </Press>
-        );
-      })}
+      {items.map((item) => (
+        <CardTile key={item.id} item={item} />
+      ))}
     </ScrollView>
   );
 }
@@ -546,21 +847,21 @@ export function CampaignCard({ item }: { item: ResultItem }) {
           {item.bannerImage != null ? (
             <Image source={item.bannerImage as ImageSourcePropType} style={styles.campaignImg} resizeMode="cover" />
           ) : (
-            <LinearGradient colors={[color.error, '#ff6d1d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.campaignImg} />
+            <LinearGradient colors={[color.error, color.actionPrimary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.campaignImg} />
           )}
           <View style={styles.campaignBody}>
             <View style={{ flex: 1, gap: space.xxs }}>
               <View style={styles.campaignTitleRow}>
-                <Text style={[t.body16SemiBold, { color: color.aura.ink }]} numberOfLines={1}>{item.title}</Text>
+                <Text style={[t.body16SemiBold, { color: color.ckds.ink }]} numberOfLines={1}>{item.title}</Text>
                 {item.live && (
                   <View style={styles.liveBadge}>
                     <Text style={styles.liveBadgeText}>LIVE</Text>
                   </View>
                 )}
               </View>
-              {!!item.subtitle && <Text style={[t.body12Regular, { color: color.aura.slateMuted }]} numberOfLines={1}>{item.subtitle}</Text>}
+              {!!item.subtitle && <Text style={[t.body12Regular, { color: color.ckds.slateMuted }]} numberOfLines={1}>{item.subtitle}</Text>}
             </View>
-            <Icon name="chevron" size={13} color={color.aura.slateMuted} />
+            <Icon name="chevron" size={13} color={color.ckds.slateMuted} />
           </View>
         </View>
       </View>
@@ -590,7 +891,7 @@ export function CategoryChip({ item, onPress }: { item: ResultItem; onPress?: ()
           {/* Inset cobalt glow overlay (Figma inset 0 0 4 rgba(0,54,218,0.3)) */}
           <View style={styles.categoryIconGlow} pointerEvents="none" />
         </View>
-        <Text style={[t.body13Medium, { color: color.aura.ink }]} numberOfLines={1}>
+        <Text style={[t.body13Medium, { color: color.ckds.ink }]} numberOfLines={1}>
           {item.title}
         </Text>
       </LinearGradient>
@@ -604,63 +905,81 @@ export function CategoryChip({ item, onPress }: { item: ResultItem; onPress?: ()
  * with count-up, green "Up from x%" chip, blue "Shop & Earn" CTA, and the
  * 3-cell Cashback Timelines row.
  */
-export function StoreHero({ item, userType = 'existing' }: { item: ResultItem; userType?: 'new' | 'existing' }) {
+export function StoreHero({
+  item,
+  userType = 'existing',
+  bleed = false,
+}: {
+  item: ResultItem;
+  userType?: 'new' | 'existing';
+  /** Content-only mode (D069): a HeroBleed backdrop behind the page already
+   *  paints this hero's wash/orbs full-bleed (up to the status bar), so the
+   *  hero draws no box, no background, no fade of its own. The Gallery preview
+   *  leaves it off and keeps the self-contained card. */
+  bleed?: boolean;
+}) {
   const cb = item.cashback;
   const pct = cb.type === 'pct_single' ? cb.value : cb.type === 'pct_range' ? cb.max : null;
   const isNew = userType === 'new';
-  // The count-up runs in a TextInput (web defaults it to a huge width). We reserve
-  // the figure's exact box with an invisible sizer Text of the final value and
-  // overlay the animated CountUp on top — correct width + baseline on every
+  // The count-up overlays an invisible sizer Text of the final value, which
+  // reserves the figure's exact box — correct width + baseline on every
   // platform, with no hand-tuned per-glyph estimate (which clipped wide values).
-  const figStr = cb.type === 'flat_inr' ? `₹${cb.value.toLocaleString('en-IN')}` : pct != null ? (Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1)}%`) : '—';
+  // Cashback percentages carry 2 decimals ("6.00%") per the money-page spec;
+  // flat ₹ keeps Indian grouping without decimals.
+  const figStr = cb.type === 'flat_inr' ? `₹${cb.value.toLocaleString('en-IN')}` : pct != null ? `${pct.toFixed(2)}%` : '—';
   // Living brand-hued backdrop (D033): the same Aura engine as Expand Search, its
   // orbs re-tinted from this store's own wash colour instead of the AI violet.
-  const tint = item.heroTint ?? item.logoBg ?? color.aura.heroFrom;
+  const tint = heroBleedTint(item);
   // Brands whose tint is really just near-black (Nike, AJIO, Puma …) paint their
   // wash in pale sky too, so the sky-blue orbs aren't sitting on a grey field.
   const wash = auraWashTint(tint);
   const orbFills = useMemo(() => brandOrbFills(tint), [tint]);
-  const clock = useAuraClock();
+  const clock = useAuraClock(!bleed); // in bleed mode HeroBleed runs the field
   const gain = useSharedValue(1);
+  const ctaText = cb.type === 'none' ? item.ctaLabel ?? 'Visit Store' : `Earn Cashback on ${item.title}`;
   return (
-    <View style={styles.hero}>
-      {/* Tinted wash → light grey base (Figma 1646:7197 #f6e5ff→#f6f7f9); the
-          near-white base still merges into the page but keeps the white timeline
-          cells legible. */}
-      <LinearGradient
-        colors={[wash, color.aura.heroTo]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-      />
-      {/* Drifting orbs over that wash — no second base gradient. */}
-      <AuraField clock={clock} gain={gain} fills={orbFills} base={false} />
-      {/* Bottom dissolve: the wash AND the orbs fade to the page white before the
-          panel ends, so there is no cut edge where `overflow: hidden` clips them.
-          Sits under the content, so it never veils the timeline cells. */}
-      <LinearGradient
-        colors={[color.aura.fade0, color.surface]}
-        style={styles.heroFade}
-        pointerEvents="none"
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-      />
+    <View style={bleed ? styles.heroBleed : styles.hero}>
+      {!bleed && (
+        <>
+          {/* Tinted wash → light grey base (Figma 1646:7197 #f6e5ff→#f6f7f9); the
+              near-white base still merges into the page but keeps the white timeline
+              cells legible. */}
+          <LinearGradient
+            colors={[wash, color.ckds.heroTo]}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+          />
+          {/* Drifting orbs over that wash — no second base gradient. */}
+          <AuraField clock={clock} gain={gain} fills={orbFills} base={false} />
+          {/* Bottom dissolve: the wash AND the orbs fade to the page white before the
+              panel ends, so there is no cut edge where `overflow: hidden` clips them.
+              Sits under the content, so it never veils the timeline cells. */}
+          <LinearGradient
+            colors={[color.ckds.fade0, color.surface]}
+            style={styles.heroFade}
+            pointerEvents="none"
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+          />
+        </>
+      )}
 
       {/* id row: logo + name + rating */}
       <View style={styles.heroRow}>
-        <BrandThumb uri={item.logo} label={item.title} width={88} height={60} radiusToken={radius.lg} />
+        <BrandThumb uri={item.logo} label={item.title} width={88} height={60} radiusToken={radius.lg} scale={0.65} />
         <View style={{ flex: 1, gap: space.xs }}>
-          <Text style={[t.heading22SemiBold, { color: color.aura.ink }]} numberOfLines={1}>
+          <Text style={[t.heading22SemiBold, { color: color.ckds.ink }]} numberOfLines={1}>
             {item.title}
           </Text>
           {(item.ratingValue || item.shoppers) && (
             <View style={styles.heroRating}>
-              <Icon name="star" size={12} color={color.aura.star} />
+              <Icon name="star" size={12} color={color.ckds.star} />
               {!!item.ratingValue && (
-                <Text style={[t.body12Regular, { color: color.aura.slate }]}>  {item.ratingValue.toFixed(1)}</Text>
+                <Text style={[t.body12Regular, { color: color.ckds.slate }]}>  {item.ratingValue.toFixed(1)}</Text>
               )}
               {!!item.shoppers && (
-                <Text style={[t.body12Regular, { color: color.aura.slate }]}>  ·  {item.shoppers}</Text>
+                <Text style={[t.body12Regular, { color: color.ckds.slate }]}>  ·  {item.shoppers}</Text>
               )}
             </View>
           )}
@@ -669,14 +988,15 @@ export function StoreHero({ item, userType = 'existing' }: { item: ResultItem; u
 
       {/* big cashback figure */}
       <View style={{ gap: space.xs, width: '100%' }}>
-        {/* +2px on top of the container gap: the figure's tight lineHeight (54 on 52px)
-            crops its ascent, so a flat 4px reads tighter here than elsewhere. */}
-        <Text style={[t.body13Medium, { color: color.aura.slateMuted, marginBottom: space.xxs }]}>
+        {/* +8px on top of the container gap (D067). The figure's tight lineHeight
+            (54 on 52px) crops its ascent, so the qualifier needs more room here than
+            a flat 4px to read as a separate line rather than the figure's hat. */}
+        <Text style={[t.body13Medium, { color: color.ckds.slateMuted, marginBottom: space.s }]}>
           {cb.type === 'flat_inr' && cb.prefix === 'flat' ? 'Flat' : 'Up to'}
         </Text>
         <View style={styles.heroBig}>
           {cb.type === 'none' ? (
-            <Text style={[styles.heroFigure, { color: color.aura.cashback }]}>—</Text>
+            <Text style={[styles.heroFigure, { color: color.ckds.cashback }]}>—</Text>
           ) : (
             <View style={styles.figSlot}>
               {/* invisible sizer — reserves the final figure's exact width/height */}
@@ -684,40 +1004,55 @@ export function StoreHero({ item, userType = 'existing' }: { item: ResultItem; u
                 {figStr}
               </Text>
               {cb.type === 'flat_inr' ? (
-                <CountUp value={cb.value} prefix="₹" group style={[styles.heroFigure, styles.figFill, { color: color.aura.cashback }] as any} />
+                <CountUp value={cb.value} prefix="₹" group style={[styles.heroFigure, styles.figFill, { color: color.ckds.cashback }] as any} />
               ) : (
-                <CountUp value={pct!} suffix="%" decimals={Number.isInteger(pct) ? 0 : 1} style={[styles.heroFigure, styles.figFill, { color: color.aura.cashback }] as any} />
+                <CountUp value={pct!} suffix="%" decimals={2} style={[styles.heroFigure, styles.figFill, { color: color.ckds.cashback }] as any} />
               )}
             </View>
           )}
-          <Text style={[t.heading18SemiBold, { color: color.aura.slate }]}>Cash Back</Text>
+          <Text style={[t.heading22SemiBold, { color: color.ckds.slate }]}>Cash Back</Text>
         </View>
         {/* New user → welcome-bonus chip; existing → loyalty "up from" chip */}
         {isNew && cb.type !== 'none' ? (
-          <View style={[styles.upChip, { backgroundColor: color.aura.greenSurface }]}>
-            <Icon name="gift" size={10} color={color.aura.green} />
-            <Text style={[t.body12SemiBold, { color: color.aura.green }]}>  New user: Extra ₹150 on 1st order</Text>
+          <View style={[styles.upChip, { backgroundColor: color.ckds.greenSurface }]}>
+            {/* Solid, not the map's regular (D074): at 10px an outline gift is a
+                few hairlines on a pale green field and reads as a smudge. The map
+                entry stays regular for the Home clone's tab bar, where the glyph
+                sits at 18px among four other outline tabs. */}
+            <Icon name="gift" weight="solid" size={10} color={color.ckds.green} />
+            <Text style={[t.body12SemiBold, { color: color.ckds.green }]}>  New user: Extra ₹150 on 1st order</Text>
           </View>
         ) : (
           !!item.priorPct && (
             <View style={styles.upChip}>
-              <Icon name="shift" size={10} color={color.aura.green} />
-              <Text style={[t.body12SemiBold, { color: color.aura.green }]}>  Up from {item.priorPct}%</Text>
+              <Icon name="shift" size={10} color={color.ckds.green} />
+              <Text style={[t.body12SemiBold, { color: color.ckds.green }]}>  Up from {item.priorPct!.toFixed(2)}%</Text>
             </View>
           )
         )}
       </View>
 
-      <Pressable style={styles.heroCta} onPress={() => {}} accessibilityRole="button">
-        <Text style={styles.heroCtaText}>
-          {item.cashback.type === 'none' ? item.ctaLabel ?? 'Visit Store' : isNew ? 'Sign Up & Earn' : 'Shop & Earn'}
-        </Text>
-      </Pressable>
+      {/* Sticky-CTA spec (Figma 1716:74837): CK Orange, r12, "Earn Cashback on
+          {Store}" 16/SemiBold + solid arrow-up-right 12 at gap 4, under a looping
+          soft-light shine sweep (D070). */}
+      <Shine repeat blend="soft-light" delay={900} style={styles.heroCtaShine}>
+        <Pressable style={styles.heroCta} onPress={() => {}} accessibilityRole="button">
+          <Text style={styles.heroCtaText} numberOfLines={1}>{ctaText}</Text>
+          {cb.type !== 'none' && (
+            // 45° turns the subset's arrow-up into the spec's arrow-up-right (iconMap `earn`).
+            <View style={styles.heroCtaArrow}>
+              <Icon name="earn" size={12} color={color.textInverse} />
+            </View>
+          )}
+        </Pressable>
+      </Shine>
 
       {/* cashback timelines */}
       {item.timelines && (
         <View style={{ width: '100%', gap: space.s }}>
-          <Text style={[t.body13Medium, { color: color.aura.slateMuted, paddingHorizontal: space.xs }]}>
+          {/* Flush with the cells below it — the old 4px nudge lined the label up
+              with a card edge that no longer exists in bleed mode (D071). */}
+          <Text style={[t.body13Medium, { color: color.ckds.slateMuted, paddingHorizontal: bleed ? 0 : space.xs }]}>
             Cashback Timelines
           </Text>
           <View style={styles.timelines}>
@@ -760,8 +1095,8 @@ function TimelineCell({
       <View style={[styles.timelineBody, chevron && styles.timelineBodyChevron]}>
         <Glyph />
         <View style={styles.timelineText}>
-          <Text style={[styles.timelineLabel, { color: color.aura.slateMuted }]}>{label}</Text>
-          <Text style={[t.body12SemiBold, { color: color.aura.slate }]} numberOfLines={1}>
+          <Text style={[styles.timelineLabel, { color: color.ckds.slateMuted }]}>{label}</Text>
+          <Text style={[t.body12SemiBold, { color: color.ckds.slate }]} numberOfLines={1}>
             {value}
           </Text>
         </View>
@@ -791,9 +1126,9 @@ const styles = StyleSheet.create({
   productTitleBlock: { gap: space.xs }, // brand + title, gap 4
   priceLine: { flexDirection: 'row', alignItems: 'center', gap: space.s6 }, // gap 6
   priceGroup: { flexDirection: 'row', alignItems: 'center', gap: space.xs }, // ₹ + strike, gap 4
-  strike: { color: color.aura.priceMuted, textDecorationLine: 'line-through' },
+  strike: { color: color.ckds.priceMuted, textDecorationLine: 'line-through' },
   discountChip: {
-    backgroundColor: color.aura.greenSurface,
+    backgroundColor: color.ckds.greenSurface,
     borderRadius: radius.xs, // r4
     paddingHorizontal: space.s6, // px 6
     paddingVertical: space.xxs, // py 2
@@ -807,8 +1142,21 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs, // py 4
   },
   finalPriceBlock: { gap: space.xxs, paddingHorizontal: space.xxs }, // gap 2, px 2
+  // Muted provenance line (D076): hairline above, then mark + "on <shop>". The
+  // hairline is what keeps it from reading as another price row.
+  retailerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.s6,
+    marginTop: space.xxs,
+    paddingTop: space.s,
+    paddingHorizontal: space.xxs, // align with the Final Price block above
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.ckds.border,
+  },
+  retailerLogo: { width: 14, height: 14, borderRadius: radius.xs },
 
-  deal: { borderRadius: radius.xl, overflow: 'hidden', backgroundColor: color.aura.bg },
+  deal: { borderRadius: radius.xl, overflow: 'hidden', backgroundColor: color.ckds.bg },
   indicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -817,16 +1165,19 @@ const styles = StyleSheet.create({
     height: 20,
     marginTop: space.s12,
   },
-  countPill: {
-    backgroundColor: color.aura.indicator,
+  /** Dot ⇄ count pill: one box that morphs, so `radius.full` has to hold at 2px. */
+  slot: {
+    backgroundColor: color.ckds.indicator,
     borderRadius: radius.full,
-    paddingHorizontal: space.s,
-    paddingVertical: space.xxs,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   countText: { ...t.caption10SemiBold, color: color.textInverse, letterSpacing: 1 },
-  shrinkDot: { borderRadius: radius.full, backgroundColor: color.aura.indicator },
+  /** The label is wider than its capsule for most of the morph — centred, clipped. */
+  slotText: { textAlign: 'center', flexShrink: 0 },
+  /** Measures the widest label without taking a slot in the row. */
+  countGhost: { position: 'absolute', left: 0, opacity: 0 },
 
   // Rails inside a 20px-padded page column break out of that padding, then re-inset
   // their content on BOTH sides (see `cardsRail`), so a mid-scroll card is cut by the
@@ -843,18 +1194,6 @@ const styles = StyleSheet.create({
   liveBadge: { backgroundColor: color.error, borderRadius: radius.full, paddingHorizontal: space.s6, paddingVertical: 1 },
   liveBadgeText: { ...t.caption10SemiBold, color: color.textInverse, letterSpacing: 0.4 },
   cardsRail: { gap: space.s12, paddingVertical: space.s, paddingHorizontal: space.m20 },
-  simCard: { width: 151, gap: space.s },
-  simArt: { width: 151, height: 96, borderRadius: radius.md, overflow: 'hidden', transform: [{ skewX: '-0.27deg' }] },
-  simArtImg: { width: 151, height: 96 },
-  simArtFallback: { backgroundColor: color.aura.bg, alignItems: 'center', justifyContent: 'center' },
-  simPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 32,
-    paddingHorizontal: space.s, // tighter → "Upto ₹1,500 Cashback" fits one line
-    borderRadius: radius.full,
-    alignSelf: 'stretch', // span the 151px card so the label never wraps
-  },
   // Store card (Figma 1646:7182): white card, tinted tile, offer strip, footer.
   storeCard: {
     backgroundColor: color.surface,
@@ -926,22 +1265,44 @@ const styles = StyleSheet.create({
     gap: space.m,
     overflow: 'hidden',
   },
+  // Content-only hero under a HeroBleed backdrop (D069): same vertical rhythm,
+  // no box — no radius, no clip, no background, and NO horizontal padding of its
+  // own. Without the card there is nothing for a 16px inset to be measured from,
+  // so the hero inherits the page column's 20px and its logo, figure, CTA and
+  // timeline strip line up with every other row on the page (D071).
+  heroBleed: {
+    // 8, not 16: the context line's own 8px bottom padding sits above this, so
+    // the measured "Best match for …" → logo-tile gap is 16 (D071).
+    paddingTop: space.s,
+    paddingBottom: space.xl,
+    gap: space.m,
+  },
   /** Glow bed behind the deals rail. Deliberately LARGER than the section: the
    *  banner artwork is opaque, so a bed the size of the section leaves only a
    *  hairline of visible glow around it. Spilling past the section lets the bloom
    *  read in the page around the deal. No `overflow: hidden` — the glow fades out
    *  inside its own box (GLOW_REACH), so there is nothing to clip. */
   dealGlow: {
-    // Deliberately far larger than the rail. The banner artwork covers the bright
-    // middle of the ramp, so the only part that reaches the eye is what spills past
-    // the art — which means the box has to extend well beyond it, into the whitespace
-    // above the section head and below the pagination, or the glow reads as nothing.
+    // Deliberately far larger than the rail: the bloom is wider than the screen,
+    // and its ramp has to reach zero inside its own left/right/top edges so no
+    // `overflow` setting can cut it. `bottomBloomFill` sizes the light itself —
+    // this box only says how much room it has to fall off in.
     position: 'absolute',
     left: -space.huge,
     right: -space.huge,
     top: -space.huge,
-    bottom: -space.huge,
+    // The bottom is the ONE side that can't spill: whatever follows the deals
+    // rail (the Expand Search band) paints an opaque surface over anything below
+    // it, which cut the glow off in a hard horizontal line (D077). The bloom's
+    // core now sits close above that edge on purpose (D084), so the ramp DOES
+    // reach it — `dealGlowFade` is what dissolves it to nothing first.
+    bottom: -space.s,
   },
+  /** The dissolve that ends the bloom in page white instead of at an edge. Short
+   *  on purpose: `bottomBloomFill`'s ramp already reaches ~4% by this edge, so this
+   *  only has to take the last of it — a tall fade would veil the core, which sits
+   *  just under the artwork and is the whole point of a low light. */
+  dealGlowFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: space.s12 },
   /** Bottom dissolve — wash + orbs → page white, so the panel has no cut edge. */
   heroFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: space.huge96 },
   heroRow: { flexDirection: 'row', gap: space.s14, alignItems: 'center' },
@@ -956,7 +1317,9 @@ const styles = StyleSheet.create({
     ...elevation.logo, // exact W4 brand-logo shadow
   },
   heroRating: { flexDirection: 'row', alignItems: 'center' },
-  heroBig: { flexDirection: 'row', alignItems: 'baseline', gap: space.xs },
+  // gap 8, not 4 (D067): the figure carries -0.52 tracking and ends on a `%`, whose
+  // counter reads as space that isn't there — at 4 the "C" sat against it.
+  heroBig: { flexDirection: 'row', alignItems: 'baseline', gap: space.s },
   heroFigure: { fontFamily: fontFamily.bold, fontSize: 52, lineHeight: 54, letterSpacing: -0.52 },
   figSlot: { position: 'relative' }, // sizer Text sets the box; CountUp overlays it
   figFill: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 },
@@ -964,7 +1327,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: color.aura.greenSurface,
+    backgroundColor: color.ckds.greenSurface,
     borderWidth: 1,
     borderColor: 'rgba(26,122,57,0.15)',
     borderRadius: radius.full,
@@ -972,17 +1335,23 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
     marginTop: space.xxs,
   },
-  // Flat CTA (Figma 1646:7220 — 15/SemiBold, radius 12), painted in the brand
-  // action orange rather than the frame's cobalt (D058).
+  // Sticky-CTA spec (Figma 1716:74837): CK Orange (D058), 48 tall, radius 12,
+  // label + arrow-up-right at gap 4. The Shine wrap carries the radius so its
+  // `overflow: hidden` clips the sweep band to the button silhouette.
+  heroCtaShine: { alignSelf: 'stretch', borderRadius: radius.lg },
   heroCta: {
     alignSelf: 'stretch',
     height: 48,
     borderRadius: radius.lg,
-    backgroundColor: color.aura.ctaHero,
+    backgroundColor: color.ckds.ctaHero,
+    flexDirection: 'row',
+    gap: space.xs,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: space.m, // long store names ellipsize inside, not at the edge
   },
-  heroCtaText: { fontFamily: fontFamily.semiBold, fontSize: 15, color: color.textInverse },
+  heroCtaText: { fontFamily: fontFamily.semiBold, fontSize: 16, color: color.textInverse, flexShrink: 1 },
+  heroCtaArrow: { transform: [{ rotateZ: '45deg' }] },
   // Gap leaves room for the chevron point to sit between cells (pointing at the
   // next step) without overlapping it.
   timelines: { flexDirection: 'row', gap: TL_DEPTH + 3 },
@@ -1002,7 +1371,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.xs,
     // native-only raise (web uses the cell's drop-shadow filter above)
-    shadowColor: '#121726',
+    shadowColor: color.shadowInk,
     shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },

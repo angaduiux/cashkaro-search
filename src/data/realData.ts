@@ -9,7 +9,7 @@
  * (no real source available yet) — those stay as loud PLACEHOLDER flags (§7).
  */
 import { ResultItem, SerpModel } from './dataContract';
-import { allStoreTileItems, storeTilesByKeys } from './storeTiles';
+import { allStoreTileItems, storeTilesByKeys, storeTileByKey } from './storeTiles';
 
 const PLACEHOLDER = true; // greppable marker for un-sourced values (§7)
 
@@ -28,7 +28,11 @@ export const BRAND: Record<string, { logo: string | number | null; bg: string }>
   pharmeasy: { logo: require('../../assets/brands/pharmeasy.png'), bg: '#10847e1a' },
   beyoung: { logo: require('../../assets/brands/beyoung.png'), bg: '#fde68a55' },
   cleartrip: { logo: require('../../assets/brands/cleartrip.png'), bg: '#ff6d1d1a' },
-  myntra: { logo: require('../../assets/brands/myntra.png'), bg: '#ff3f6c1a' },
+  // Symbol only. The full lockup (`myntra.png`, kept as provenance) put the word
+  // "Myntra" beside the mark, which repeated the store name printed next to the
+  // tile and left the mark off-centre in it — the wide art filled the box's width,
+  // so `contain` had nothing left to centre (D066).
+  myntra: { logo: require('../../assets/brands/myntra-mark.png'), bg: '#ff3f6c1a' },
   amazon: { logo: require('../../assets/brands/amazon.png'), bg: '#ff990022' },
   bodyshop: { logo: brandLogo('thebodyshop.com'), bg: '#00423614' },
   // Body Cupid: no reliable favicon found — honest initial-letter fallback.
@@ -197,6 +201,32 @@ const ART = {
   sbiCashback: require('../../assets/cards/sbi-cashback.png'),
   axisFlipkart: require('../../assets/cards/axis-flipkart.png'),
   scapia: require('../../assets/cards/federal-scapia.png'),
+  // The three cards the card-TILE frame shows that the catalog didn't have (D105).
+  // Each render is that frame's own export (1696:5271) — and each card is named off
+  // the art itself, never guessed: "Elite" and "Live+" are printed on the plastic.
+  sbiElite: require('../../assets/cards/sbi-elite.png'),
+  hsbcLivePlus: require('../../assets/cards/hsbc-liveplus.png'),
+  axisSwirl: require('../../assets/cards/axis-swirl.png'),
+  // The SBI shelf's own renders, exported at 3× from the great.cards design system
+  // (`Q7235KVU3sU3HOTiibOXhv`, `CreditCards/SBI` 1189:167083 — sixteen 132×84 variants,
+  // D107). Same 398×252 as `sbiCashback`, so the artwork slot is pixel-matched. That
+  // frame is where any further card art comes from: IRCTC, Prime, Octane, BPCL, Miles,
+  // AURUM, Pulse, Club Vistara and ELITE RuPay are all in it.
+  sbiSimplyClick: require('../../assets/cards/sbi-simplyclick.png'),
+  sbiSimplySave: require('../../assets/cards/sbi-simplysave.png'),
+};
+
+// Issuer wordmarks for the credit-card TILE's white chip (D105) — the card-tile
+// frame's OWN exports (Figma Cashkaro-Search-2026 1696:5271, pulled with the MCP and
+// saved under assets/cards/figma/), trimmed of their transparent margin and scaled to
+// 360px wide. Figma crops the same assets with `object-cover` inside each chip, so a
+// trim is what it already renders — and the favicon in `logo` would be a blurry mark
+// on a 77×26 white plate.
+const ISSUER = {
+  sbiCard: require('../../assets/cards/figma/issuer-sbi-card.png'),
+  axisBank: require('../../assets/cards/figma/issuer-axis-bank.png'),
+  scapia: require('../../assets/cards/figma/issuer-scapia.png'),
+  hsbc: require('../../assets/cards/figma/issuer-hsbc.png'),
 };
 
 // ── Real deal banner creatives (exported from the Figma design file) ──────────
@@ -396,6 +426,7 @@ export const cardSbiCashback: ResultItem = {
   subtitle: 'SBI Card · Visa',
   logo: BRAND.sbiCard.logo, logoBg: BRAND.sbiCard.bg,
   artwork: ART.sbiCashback,
+  issuerLogo: ISSUER.sbiCard,
   cashback: { type: 'flat_inr', value: 1400, prefix: 'flat' }, // CashKaro reward (design case)
   rating: { stars: 4, count: 413 },
   benefitTags: [
@@ -425,6 +456,7 @@ export const cardAxisFlipkart: ResultItem = {
   subtitle: 'Axis Bank · Visa',
   logo: BRAND.axisBank.logo, logoBg: BRAND.axisBank.bg,
   artwork: ART.axisFlipkart,
+  issuerLogo: ISSUER.axisBank,
   cashback: { type: 'flat_inr', value: 1500, prefix: 'flat' }, // design case
   rating: { stars: 4, count: 790 },
   benefitTags: [
@@ -453,6 +485,7 @@ export const cardFederalScapia: ResultItem = {
   subtitle: 'Federal Bank · Visa',
   logo: BRAND.federal.logo, logoBg: BRAND.federal.bg,
   artwork: ART.scapia,
+  issuerLogo: ISSUER.scapia,
   cashback: { type: 'flat_inr', value: 550, prefix: 'flat' }, // design case
   rating: { stars: 4, count: 357 },
   benefitTags: [
@@ -467,6 +500,183 @@ export const cardFederalScapia: ResultItem = {
   fees: { state: 'free', joining: 'Lifetime Free', annual: 'Lifetime Free' },
   ctaLabel: 'Get this card',
 };
+
+// ── The rest of the card-tile frame's set (Figma 1696:5271, D105) ─────────────
+// Three more cards so every tile in that frame exists in the catalog. What the frame
+// states is transcribed (its own artwork, issuer wordmark, green line and "Flat ₹1400"
+// figure); what it does not state is left off rather than filled in — none of the six
+// tiles carries a card NAME, fees, tags or benefits, so these three are named off the
+// art (`Elite`, `Live+` are printed on the plastic; the Axis swirl card prints no
+// product name, so it stays issuer-level) and carry no invented rates or perks.
+export const cardSbiElite: ResultItem = {
+  id: 'card-sbi-elite',
+  archetype: '05_credit_card',
+  source: 'internal',
+  title: 'SBI Card ELITE',
+  subtitle: 'SBI Card · Visa',
+  logo: BRAND.sbiCard.logo, logoBg: BRAND.sbiCard.bg,
+  artwork: ART.sbiElite,
+  issuerLogo: ISSUER.sbiCard,
+  cashback: { type: 'flat_inr', value: 1400, prefix: 'flat' }, // the frame's own figure
+  // The frame's green line on this tile is a superlative, not a fee fact — which is
+  // exactly what a disclosed top-pick reason is (§6.6).
+  topPick: { reason: 'Best Cashback Card' },
+  // Added when ELITE started rendering as a FULL card in "More SBI cards" (D107).
+  // The tile never needed these; a comparison card is nothing without them, and a
+  // card with no fee strip at all reads as a broken row. SBI Card's own published
+  // terms, indicative under the page's BFSI disclaimer — the tile frame still owns
+  // the artwork, name and CashKaro figure above (D105).
+  benefitTags: [
+    { label: '₹5,000 welcome voucher', tone: 'reward' },
+    { label: 'Lounge access', tone: 'neutral' },
+    { label: '2X on dining', tone: 'neutral' },
+  ],
+  benefitBullets: [
+    { text: 'Welcome e-gift voucher worth ₹5,000 · movie tickets worth ₹6,000 a year' },
+    { text: 'Complimentary domestic & international lounge visits · 2X on dining' },
+  ],
+  fees: { state: 'fee', joining: '₹4,999', annual: '₹4,999' },
+  ctaLabel: 'Get this card',
+};
+
+export const cardHsbcLivePlus: ResultItem = {
+  id: 'card-hsbc-liveplus',
+  archetype: '05_credit_card',
+  source: 'internal',
+  title: 'HSBC Live+ Credit Card',
+  subtitle: 'HSBC · Visa Signature',
+  // The frame's own HSBC wordmark doubles as this card's brand logo — the catalog's
+  // BRAND map has no HSBC entry, and a favicon would be the blurry mark the tile rule
+  // exists to keep off a tile.
+  logo: ISSUER.hsbc, logoBg: 'transparent',
+  artwork: ART.hsbcLivePlus,
+  issuerLogo: ISSUER.hsbc,
+  cashback: { type: 'flat_inr', value: 1400, prefix: 'flat' }, // the frame's own figure
+  fees: { state: 'free', joining: 'Lifetime Free', annual: 'Lifetime Free' }, // frame: "Lifetime free"
+  ctaLabel: 'Get this card',
+};
+
+export const cardAxisSwirl: ResultItem = {
+  id: 'card-axis-swirl',
+  archetype: '05_credit_card',
+  source: 'internal',
+  // The art prints no product name — only the Axis wordmark — so neither does this.
+  title: 'Axis Bank Credit Card',
+  subtitle: 'Axis Bank',
+  logo: BRAND.axisBank.logo, logoBg: BRAND.axisBank.bg,
+  artwork: ART.axisSwirl,
+  issuerLogo: ISSUER.axisBank,
+  cashback: { type: 'flat_inr', value: 1400, prefix: 'flat' }, // the frame's own figure
+  fees: { state: 'free', joining: 'Lifetime Free', annual: 'Lifetime Free' }, // frame: "Lifetime free"
+  ctaLabel: 'Get this card',
+};
+
+/** The card-tile frame's full set, in its own order (D105). */
+export const ALL_CARD_TILES: ResultItem[] = [
+  cardSbiElite,
+  cardAxisSwirl,
+  cardSbiCashback,
+  cardHsbcLivePlus,
+  cardFederalScapia,
+  cardAxisFlipkart,
+];
+
+// ── The rest of the SBI shelf, for "More SBI cards" on the resolved-card page ──
+// Fees, waivers and reward structures are SBI Card's own published terms, indicative
+// and covered by the page's BFSI disclaimer (§6.7) — the same standing the loan APRs
+// have (D089). The artwork is each card's own render from the great.cards
+// `CreditCards/SBI` set (D107), so the card NETWORK is read off the plastic like
+// everything else: SimplyCLICK's render is Visa Platinum, SimplySAVE's is RuPay.
+//
+// The CashKaro figure is the tile frame's own SBI number (Flat ₹1400, D105) rather
+// than a per-card reward this project has no source for.
+const SBI_CK_REWARD = cardSbiElite.cashback;
+
+export const cardSbiSimplyClick: ResultItem = {
+  id: 'card-sbi-simplyclick',
+  archetype: '05_credit_card',
+  source: 'internal',
+  title: 'SBI SimplyCLICK Credit Card',
+  subtitle: 'SBI Card · Visa Platinum', // as printed on the render
+  logo: BRAND.sbiCard.logo, logoBg: BRAND.sbiCard.bg,
+  artwork: ART.sbiSimplyClick,
+  issuerLogo: ISSUER.sbiCard,
+  cashback: SBI_CK_REWARD,
+  benefitTags: [
+    { label: '10X on partners', tone: 'reward' },
+    { label: '5X online', tone: 'reward' },
+    { label: 'Milestone vouchers', tone: 'neutral' },
+  ],
+  benefitBullets: [
+    { text: '10X reward points on Amazon, Myntra, BookMyShow, Cleartrip & Yatra' },
+    { text: '₹500 Amazon voucher on joining · 5X on all other online spends' },
+  ],
+  fees: {
+    state: 'fee',
+    joining: '₹499',
+    annual: '₹499',
+    waiver: 'Annual fee waived on ₹1L yearly spend',
+  },
+  ctaLabel: 'Get this card',
+};
+
+export const cardSbiSimplySave: ResultItem = {
+  id: 'card-sbi-simplysave',
+  archetype: '05_credit_card',
+  source: 'internal',
+  title: 'SBI SimplySAVE Credit Card',
+  subtitle: 'SBI Card · RuPay Platinum', // as printed on the render
+  logo: BRAND.sbiCard.logo, logoBg: BRAND.sbiCard.bg,
+  artwork: ART.sbiSimplySave,
+  issuerLogo: ISSUER.sbiCard,
+  cashback: SBI_CK_REWARD,
+  benefitTags: [
+    { label: '10X dining', tone: 'reward' },
+    { label: '10X groceries', tone: 'reward' },
+    { label: '10X movies', tone: 'reward' },
+  ],
+  benefitBullets: [
+    { text: '10X reward points on dining, movies, groceries & departmental stores' },
+    { text: '2,000 bonus points on ₹2,000 spend in the first 60 days' },
+  ],
+  fees: {
+    state: 'fee',
+    joining: '₹499',
+    annual: '₹499',
+    waiver: 'Annual fee waived on ₹1L yearly spend',
+  },
+  ctaLabel: 'Get this card',
+};
+
+/**
+ * The SBI shelf a resolved SBI card sits on — every SBI card in the catalog except
+ * the one already shown as the hero, as FULL comparison cards (D107). ELITE leads:
+ * it is the one the tile frame calls "Best Cashback Card".
+ */
+export const MORE_SBI_CARDS: ResultItem[] = [cardSbiElite, cardSbiSimplyClick, cardSbiSimplySave];
+
+/**
+ * Every product-category page this build offers, as category chips — the showcase set
+ * on the Flipkart page (D116). Read from `productCategories()` rather than listed here,
+ * so a chip exists exactly when its page does and every one of them opens: that
+ * function is the same source `ScreenNav` and Explore read, and it drops any candidate
+ * category with too few products (D022).
+ *
+ * A FUNCTION, called from a getter on the section, because it must not run while this
+ * module is still evaluating: this module and `catalog` (which `productCategories`
+ * reads) form an import cycle, so a module-scope read hits a half-built catalog. It
+ * uses the `productCategories` imported further down the file — `import` is hoisted, and
+ * nothing here runs until a page asks for it.
+ */
+const allCategoryChips = (): ResultItem[] =>
+  productCategories().map((c) => ({
+    id: `c-all-${c.key}`,
+    archetype: '04_category',
+    source: 'internal',
+    title: c.title,
+    logo: null,
+    cashback: { type: 'none' },
+  }));
 
 // ═════════════════════════════════════════════════════════════════════════════
 // CASE A · Resolved retail store — "flip" → Flipkart
@@ -490,7 +700,7 @@ export const caseFlip: SerpModel = {
     timelines: { tracksIn: '48 Hours', confirmsIn: '60 Days', withdraw: 'UPI/Bank' },
     ctaLabel: 'Shop & Earn',
   },
-  tabs: ['all', 'stores', 'cards', 'products'],
+  tabs: ['all', 'stores', 'categories', 'cards', 'products'],
   sections: [
     {
       kind: 'stores',
@@ -499,6 +709,19 @@ export const caseFlip: SerpModel = {
       items: storeTilesByKeys(['croma', 'amazon', 'ajio'], 'flip'),
     },
     { kind: 'deals', title: 'Deals', count: 8, items: [dealCroma, dealAmazon, dealAjio, dealKlook] },
+    {
+      // The whole catalog's categories, not the ones a Flipkart query implies — this
+      // page is the showcase surface, and Flipkart is the one store that genuinely
+      // spans every category anyway (D116). `get` defers the read past module eval.
+      kind: 'categories',
+      title: 'Product Categories',
+      get count() {
+        return allCategoryChips().length;
+      },
+      get items() {
+        return allCategoryChips();
+      },
+    },
     {
       kind: 'cards',
       title: 'Cards for Flipkart',
@@ -703,9 +926,26 @@ export const caseB: SerpModel = {
   tabs: null,
   sections: [
     {
+      // The rest of the hero's OWN issuer, as full comparison cards, above the
+      // cross-issuer tile rail (D107): "more from this bank" is a narrower, more
+      // certain intent than "cards like this one", so it reads first and it reads
+      // in the shape you compare in — the stack, not the rail.
+      kind: 'cards',
+      title: 'More SBI cards',
+      count: MORE_SBI_CARDS.length,
+      items: MORE_SBI_CARDS,
+    },
+    {
       kind: 'similar_cards',
       title: 'Similar cards',
-      items: [cardAxisFlipkart, cardFederalScapia],
+      // Every card in the tile frame's set except the one already shown as the hero
+      // (D105) — the rail is tiles, so the three cards that exist only as tiles belong
+      // here rather than in a comparison stack that would render their empty halves.
+      // Also minus anything the "More SBI cards" stack above already states in full
+      // (D107): ELITE as a tile under its own full card is the same card twice.
+      items: ALL_CARD_TILES.filter(
+        (c) => c.id !== cardSbiCashback.id && !MORE_SBI_CARDS.some((s) => s.id === c.id),
+      ),
       disclaimer: 'Rates & fees are indicative and subject to change by the respective bank/NBFC.',
     },
   ],
@@ -728,6 +968,16 @@ type LoanSpec = {
   topPick?: string;
 };
 
+/**
+ * CashKaro's own reward on a personal loan — NOT invented, and not a rate: it is the
+ * figure the Storepage Tiles frame prints on its loan merchants (611:3360, rows 10–12).
+ * All nine loan tiles there carry the same "Flat 1%" with the REWARDS caption, so it is
+ * read off the set by key rather than restated here. Axis and HDFC are in that set by
+ * name; a lender that isn't (Bajaj Finserv) takes the same class figure, because every
+ * loan tile in the source agrees on it (D089).
+ */
+const LOAN_REWARD = storeTileByKey('axisBank')!.cashback;
+
 const loanItem = (id: string, title: string, spec: LoanSpec): ResultItem => ({
   id,
   archetype: '07_loan',
@@ -736,8 +986,14 @@ const loanItem = (id: string, title: string, spec: LoanSpec): ResultItem => ({
   subtitle: `EMI ${spec.emi} · ₹5,00,000`,
   logo: spec.logo ?? null,
   logoBg: spec.logoBg,
-  cashback: { type: 'none' },
+  cashback: LOAN_REWARD,
+  // The loan vertical earns REWARDS, not CASHBACK — the tile set's own caption for a
+  // loan merchant, and what the card's pill says.
+  cashbackCaption: 'REWARDS',
   rate: { kind: 'cost', value: spec.apr, display: spec.aprDisplay, note: 'onwards' },
+  // The loan card states the EMI as its own labelled figure, so it reads the
+  // structured field rather than re-parsing it back out of `subtitle` (D089).
+  emi: spec.emi,
   fees: { state: 'fee', joining: spec.processingFee, annual: spec.tenure },
   benefitBullets: spec.bullets.map((text) => ({ text })),
   topPick: spec.topPick ? { reason: spec.topPick } : null,
@@ -747,7 +1003,10 @@ const loanItem = (id: string, title: string, spec: LoanSpec): ResultItem => ({
 export const caseAmountLoan: SerpModel = {
   query: '₹5,00,000 personal loan',
   archetype: '07_loan',
-  context: { label: 'Lowest EMI for ₹5,00,000 · ranked by rate (low → high)', count: 3 },
+  // One results line, worded like every other finance category page (D103). The
+  // ₹5,00,000 the query asked for is on every card ("EMI ₹10,744/mo · ₹5,00,000"),
+  // so dropping it from the header repeats nothing and loses nothing.
+  context: { label: 'Showing 3 Personal Loans', count: 3 },
   hero: null,
   tabs: null,
   sections: [
@@ -807,7 +1066,9 @@ export const caseLoans: SerpModel = {
   query: 'loans',
   archetype: '07_loan',
   context: {
-    label: `${loanSection.items.length} personal loans · ranked by rate (low → high)`,
+    // Same shape as the cards page's line ("Showing 3 Credit Cards", D103) — the
+    // ranking clause goes with it, exactly as it did there (D096).
+    label: `Showing ${loanSection.items.length} Personal Loans`,
     count: loanSection.items.length,
   },
   hero: null,
@@ -864,7 +1125,7 @@ const savingsItem = (id: string, title: string, subtitle: string, spec: SavingsS
 export const caseSavings: SerpModel = {
   query: 'zero balance savings account',
   archetype: '12_bank_savings',
-  context: { label: 'Zero-balance accounts · ranked by interest (high → low)', count: 3 },
+  context: { label: 'Showing 3 Savings Accounts', count: 3 },
   hero: null,
   tabs: null,
   sections: [
@@ -1005,10 +1266,11 @@ export function financeSerp(query: string): SerpModel | undefined {
 // Each row routes (`goto`) to a real result page so search works end-to-end and
 // the screen doubles as the "what leads where" guide.
 // ═════════════════════════════════════════════════════════════════════════════
-import { SuggestGroup } from '../components/Suggestions';
-import { searchStores, CATEGORIES, buildCategoryStores } from './catalog';
+import { SuggestGroup, SuggestGroupKind, SuggestRow } from '../components/Suggestions';
+import { STORES, PRODUCTS, searchProducts, productsInCategory, type Cat } from './catalog';
 import { categoryIcon } from './categoryIcons';
-import { productCategories, categoryStats } from './productCategories';
+import { productCategories, categoryStats, SUB_LABELS } from './productCategories';
+import { score } from './matchScore';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // "View all" verticals — one full-page list per result type (§ side-panel nav).
@@ -1059,97 +1321,380 @@ function cbLabel(cb: import('./dataContract').Cashback): { prefix?: string; valu
   return { prefix: 'Up to', value: `${cb.max}%` };
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// The type-ahead's candidate pool + relevance ranking (D115)
+//
+// Every row is a REAL candidate scored against the query with the one shared
+// scorer (./matchScore.ts), so a type only appears when the query actually reaches
+// it and the whole list can be ordered by match strength: "credit" scores 84 on the
+// credit-card intent and 0 on every store, so the cards lead. Nothing is templated
+// onto the query string any more — the engine that produced "credit facewash",
+// "credit coupons & deals" and a fixed Big Billion Days row for EVERY query is gone.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * What a query has to say for a whole result TYPE to be relevant, independent of any
+ * one item in it — the vocabulary a user reaches these verticals with. A card row
+ * therefore ranks on the better of its own name match and its type's intent match,
+ * which is what makes "credit", "cc" or "lifetime free" open with cards while "sbi"
+ * still puts the SBI cards above the rest of the set.
+ */
+const SUGGEST_INTENT: Partial<Record<SuggestGroupKind, string[]>> = {
+  credit_cards: ['credit card', 'credit cards', 'credit', 'card', 'cards', 'cc', 'cashback card', 'visa', 'rupay', 'mastercard', 'lifetime free', 'forex', 'lounge access', 'no annual fee'],
+  loans: ['loan', 'loans', 'personal loan', 'personal loans', 'instant loan', 'emi', 'borrow', 'apr'],
+  savings: ['savings account', 'savings accounts', 'savings', 'zero balance', 'zero balance account', 'bank account', 'interest rate', 'digital savings'],
+  offers: ['coupon', 'coupons', 'coupon code', 'promo code', 'offer', 'offers', 'discount', 'deal', 'deals', 'voucher'],
+  campaigns: ['sale', 'campaign', 'festive sale', 'live now'],
+};
+
+const intentScore = (query: string, kind: SuggestGroupKind): number =>
+  score(query, (SUGGEST_INTENT[kind] ?? []).map((text) => ({ text, weight: 0.95 })));
+
+/**
+ * Below this a "match" is a coincidence, not a suggestion — a bare subsequence hit
+ * scores 26, so the floor sits just above it.
+ */
+const SUGGEST_FLOOR = 30;
+
+/**
+ * Per-type row caps — a long tail guard, NOT an editorial cut. A type that matched is
+ * never dropped from the list, it is only ranked below the type that matched better:
+ * "beauty" still offers the Beauty category page AND the beauty completions AND the
+ * beauty stores, in that order. The cap only stops one very broad type ("a", "pro",
+ * "watch" can each hit dozens of rows) from burying every other type below a screen of
+ * itself, and it stays silent — no "See all" row, which D088 correctly found spends a
+ * row to hide two — because the ranking already put that type's best rows first.
+ */
+const SUGGEST_CAP: Record<SuggestGroupKind, number> = {
+  stores: 8,
+  products: 6,
+  categories: 5,
+  credit_cards: 6,
+  cobranded: 0, // folded into credit_cards (D087)
+  loans: 3,
+  savings: 3,
+  offers: 3,
+  campaigns: 2,
+};
+
+const SUGGEST_LABEL: Record<SuggestGroupKind, string> = {
+  stores: 'Stores',
+  products: 'Products',
+  categories: 'Categories',
+  credit_cards: 'Credit Cards',
+  cobranded: 'Co-branded Cards',
+  loans: 'Loans',
+  savings: 'Savings Accounts',
+  offers: 'Offers',
+  campaigns: 'Campaigns',
+};
+
+type ScoredRow = { s: number; row: SuggestRow };
+
+/** Floor → sort → cap → group. Returns null when the query didn't reach this type. */
+function suggestGroup(kind: SuggestGroupKind, rows: ScoredRow[]): SuggestGroup | null {
+  const keep = rows
+    .filter((r) => r.s >= SUGGEST_FLOOR)
+    .sort((a, b) => b.s - a.s)
+    .slice(0, SUGGEST_CAP[kind]);
+  if (!keep.length) return null;
+  return { kind, label: SUGGEST_LABEL[kind], rows: keep.map((r) => ({ ...r.row, score: Math.round(r.s) })) };
+}
+
+/**
+ * Real product COMPLETIONS — the catalog's own keyword and sub-category vocabulary,
+ * deduped, each carrying the categories it lives in. A completion row can then be a
+ * term the catalog can actually answer ("whey protein", "earbuds", "sunscreen") with
+ * a counted result line, instead of the typed query with a hard-coded noun stapled to
+ * it. Built once, lazily — `PRODUCTS` is on the far side of the catalog↔realData
+ * cycle, so it must not be read at module-eval (same rule as productCategories()).
+ */
+type Completion = { term: string; cats: Cat[]; sub: string; n: number };
+let completionPool: Completion[] | null = null;
+function completions(): Completion[] {
+  if (completionPool) return completionPool;
+  const byTerm = new Map<string, Completion>();
+  for (const p of PRODUCTS) {
+    const terms = [...p.keywords, (SUB_LABELS[p.sub] ?? p.sub).toLowerCase()];
+    for (const raw of terms) {
+      const term = raw.trim().toLowerCase();
+      if (term.length < 3) continue;
+      const at = byTerm.get(term);
+      if (!at) byTerm.set(term, { term, cats: [p.category], sub: p.sub, n: 1 });
+      else {
+        at.n += 1;
+        if (!at.cats.includes(p.category)) at.cats.push(p.category);
+      }
+    }
+  }
+  completionPool = [...byTerm.values()];
+  return completionPool;
+}
+
+/** The sub-categories a catalog category actually stocks, in SUB_LABELS order. */
+function subsOf(cat: Cat): string[] {
+  const subs = new Set(productsInCategory(cat).map((p) => p.sub));
+  return Object.keys(SUB_LABELS).filter((k) => subs.has(k));
+}
+
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
+
+/**
+ * Type-ahead suggestions for `query` — every result type the query reaches, each row
+ * carrying the `score` the component ranks the flat list by (D115).
+ */
 export function buildSuggestions(query: string): SuggestGroup[] {
   const q = query.trim();
   if (!q) return [];
-  // Real store matches from the catalog (fuzzy over name/alias/category).
-  const matched = searchStores(q).slice(0, 4);
-  const storeRows = matched.map((s) => {
-    const c = cbLabel(s.cashback);
+
+  // A products row's lead rolls through the SKUs that completion actually returns
+  // (D088) — its own matches first, topped up from the category it searches in, so
+  // there are always real photos to roll. Resolved here, not in the component
+  // (D004), and at call time, which keeps it clear of the catalog↔realData cycle.
+  const skuStack = (completion: string, cat: Cat, from = 0): number[] => {
+    const out: number[] = [];
+    const push = (img?: number | null) => {
+      if (img != null && !out.includes(img) && out.length < 3) out.push(img);
+    };
+    searchProducts(completion).forEach((r) => push(r.productImage));
+    if (out.length < 3) {
+      // `from` rotates the category top-up, so two completions that both fall back to
+      // the same category don't open their reels on the same photo.
+      const pool = productsInCategory(cat);
+      pool.forEach((_, i) => push(PRODUCT_IMG[pool[(i + from) % pool.length].imgKey]));
+    }
+    return out;
+  };
+
+  // ── Stores — name, then aliases, then the weaker category/note context ──────
+  const storeRows: ScoredRow[] = STORES.map((st) => {
+    const c = cbLabel(st.cashback);
+    const s =
+      score(q, [
+        { text: st.name },
+        ...st.aliases.map((a) => ({ text: a, weight: 0.96 })),
+        { text: st.category, weight: 0.62 },
+        ...(st.note ? [{ text: st.note, weight: 0.4 }] : []),
+      ]) + (st.live ? 2 : 0); // gently favour live-verified rates, as searchStores does
     return {
-      kind: 'store' as const,
-      title: s.name,
-      logo: s.brand ? BRAND[s.brand].logo : null,
-      cashbackPrefix: c.prefix,
-      cashbackValue: c.value,
-      meta: c.meta,
-      goto: s.name.toLowerCase(),
+      s,
+      row: {
+        kind: 'store' as const,
+        title: st.name,
+        logo: st.brand ? BRAND[st.brand].logo : null,
+        cashbackPrefix: c.prefix,
+        cashbackValue: c.value,
+        meta: c.meta,
+        goto: st.name.toLowerCase(),
+      },
     };
   });
 
-  const groups: SuggestGroup[] = [
-    { kind: 'stores', label: 'Stores', rows: storeRows },
-    {
-      kind: 'products',
-      label: 'Products',
-      rows: [
-        { kind: 'query', title: `${q} facewash`, meta: 'in Beauty · 10+ results', goto: 'whey' },
-        { kind: 'query', title: `${q} foundation`, meta: 'in Beauty · 20+ results', goto: 'whey' },
-        { kind: 'query', title: `${q} lipstick matte`, meta: 'in Beauty · 2,300+ results', goto: 'whey' },
-      ],
-    },
-    {
-      kind: 'categories',
-      label: 'Categories',
-      // Rows point at real product category pages, and their meta is COUNTED from
-      // the catalog (never a rounded "20+") so the row and the page it opens agree.
-      rows: productCategories().slice(0, 2).map((c) => {
-        const s = categoryStats(c.cat);
-        return {
-          kind: 'tile' as const,
-          icon: 'grid' as const,
-          tileTone: 'purple' as const,
+  // ── Product completions — real catalog terms with counted result lines ──────
+  const completionRows: ScoredRow[] = completions().map((c, i) => {
+    const label = SUB_LABELS[c.sub] ?? c.sub;
+    const s =
+      score(q, [{ text: c.term }, { text: label, weight: 0.7 }, ...c.cats.map((cat) => ({ text: cat, weight: 0.5 }))]) +
+      Math.min(c.n, 6) * 0.5; // inventory as the tiebreak — the fuller term first
+    // Counted from the same resolver the tap runs, so the row and the page agree.
+    const n = searchProducts(c.term).length;
+    return {
+      s: n ? s : 0,
+      row: {
+        kind: 'query' as const,
+        title: c.term,
+        meta: c.cats.length === 1 ? `in ${c.cats[0]} · ${plural(n, 'result')}` : `${plural(n, 'result')} across ${c.cats.length} categories`,
+        goto: c.term,
+        stack: skuStack(c.term, c.cats[0], i * 2),
+      },
+    };
+  });
+
+  // ── Categories — the page, and the sub-category chips inside it ─────────────
+  // Every meta is COUNTED from the catalog (never a rounded "20+") so the row and
+  // the page it opens agree. `catKey` routes through resolveCategoryTarget, which
+  // resolves a page key and a sub-category key alike.
+  const categoryRows: ScoredRow[] = [];
+  for (const c of productCategories()) {
+    const stats = categoryStats(c.cat);
+    categoryRows.push({
+      // +4 / +2 below: when a query names a taxonomy word ("beauty", "whey protein")
+      // the browse PAGE and a product completion say the same words, and the page is
+      // the better answer — it opens facets, sorting and counts instead of re-running
+      // search. So it leads, and the completion follows it rather than replacing it.
+      s: score(q, [{ text: c.title }, { text: c.cat }, { text: c.tagline, weight: 0.45 }]) + 4,
+      row: {
+        kind: 'tile',
+        icon: 'grid',
+        tileTone: 'purple',
+        image: categoryIcon(c.cat) ?? undefined,
+        title: c.title,
+        meta: `Category · ${plural(stats.products, 'product')} · ${plural(stats.stores, 'store')}`,
+        catKey: c.key,
+        goto: c.cat.toLowerCase(),
+      },
+    });
+    for (const sub of subsOf(c.cat)) {
+      const label = SUB_LABELS[sub];
+      categoryRows.push({
+        s: score(q, [{ text: label }, { text: sub, weight: 0.9 }]) + 2, // under its own page (+4), over a bare completion
+        row: {
+          kind: 'tile',
+          icon: 'grid',
+          tileTone: 'purple',
           image: categoryIcon(c.cat) ?? undefined,
-          title: c.title,
-          meta: `Category · ${s.products} products · ${s.stores} stores`,
-          catKey: c.key,
-          goto: c.cat.toLowerCase(),
-        };
-      }),
-    },
-    {
-      kind: 'credit_cards',
-      label: 'Credit Cards',
-      rows: [
-        { kind: 'tile', icon: 'card', tileTone: 'blue', cardImage: ART.sbiCashback, title: 'SBI Cashback Credit Card', cashbackPrefix: 'Up to', cashbackValue: '5% back', goto: 'credit' },
-        { kind: 'tile', icon: 'card', tileTone: 'blue', cardImage: ART.axisFlipkart, title: 'Axis Flipkart Credit Card', cashbackPrefix: 'Flat', cashbackValue: '5% back', goto: 'credit' },
-      ],
-    },
-    {
-      kind: 'cobranded',
-      label: 'Co-branded Cards',
-      rows: [
-        { kind: 'tile', icon: 'card', tileTone: 'indigo', cardImage: ART.scapia, title: 'Scapia Federal Credit Card', cashbackPrefix: 'Up to', cashbackValue: '5% back', goto: 'credit' },
-      ],
-    },
-    {
-      kind: 'loans',
-      label: 'Loans',
-      rows: [
-        { kind: 'tile', icon: 'loan', tileTone: 'orange', title: 'Personal loan up to ₹5L', meta: 'Instant approval · indicative APR', goto: '₹5,00,000 personal loan' },
-      ],
-    },
-    {
-      kind: 'savings',
-      label: 'Savings Accounts',
-      rows: [
-        { kind: 'tile', icon: 'bank', tileTone: 'teal', title: 'Zero-balance savings offers', meta: 'Ranked by interest', goto: 'zero balance savings account' },
-      ],
-    },
-    {
-      kind: 'offers',
-      label: 'Offers',
-      rows: [
-        { kind: 'tile', icon: 'tag', tileTone: 'green', title: `${q} coupons & deals`, meta: '12 live offers today', goto: 'flip' },
-      ],
-    },
-    {
-      kind: 'campaigns',
-      label: 'Campaigns',
-      rows: [
-        { kind: 'tile', icon: 'campaign', tileTone: 'red', tileImage: require('../../assets/campaigns/big-billion-days.png'), title: 'Big Billion Days', meta: 'Live now · up to 80% off + extra cashback', live: true, goto: 'flip' },
-      ],
-    },
+          title: label,
+          meta: `in ${c.title} · ${plural(productsInCategory(c.cat).filter((p) => p.sub === sub).length, 'product')}`,
+          catKey: sub,
+          goto: label.toLowerCase(),
+        },
+      });
+    }
+  }
+
+  // ── Credit cards — the whole real tile set, ranked by name match or intent ──
+  // A card with its own results page goes there; the rest open the cards SERP.
+  const CARD_PAGE: Record<string, string> = { 'card-sbi-cashback': 'sbi cashback card' };
+  const cardIntent = intentScore(q, 'credit_cards');
+  // The cards SERP's own ranking first, then the rest of the tile set — so an
+  // intent-only query ("credit", "cc") lists the cards in the order the page it opens
+  // lists them, rather than in a second order invented here.
+  const cardPool = [
+    ...(caseCards.sections[0]?.items ?? []),
+    ...ALL_CARD_TILES.filter((c) => !(caseCards.sections[0]?.items ?? []).some((x) => x.id === c.id)),
   ];
-  return groups.filter((g) => g.rows.length > 0);
+  const cardRows: ScoredRow[] = cardPool.map((c, i) => {
+    const own = score(q, [
+      { text: c.title },
+      ...(c.subtitle ? [{ text: c.subtitle, weight: 0.9 }] : []),
+      ...(c.benefitTags ?? []).map((t) => ({ text: t.label, weight: 0.5 })),
+      ...(c.topPick ? [{ text: c.topPick.reason, weight: 0.45 }] : []),
+    ]);
+    return {
+      s: Math.max(own, cardIntent) - i * 0.15, // intent-only ties keep the cards page's order
+      row: {
+        kind: 'tile' as const,
+        icon: 'card' as const,
+        tileTone: c.archetype === '06_cobranded_card' ? ('indigo' as const) : ('blue' as const),
+        // The row's lead is the card RENDER (D087) — the tile set ships one per card.
+        cardImage: (c.artwork ?? undefined) as number | undefined,
+        title: c.title,
+        cashbackPrefix: cbLabel(c.cashback).prefix,
+        cashbackValue: cbLabel(c.cashback).value,
+        goto: CARD_PAGE[c.id] ?? 'credit',
+      },
+    };
+  });
+
+  // ── Loans + savings — the real lender/bank rows off their own results pages ─
+  const loanIntent = intentScore(q, 'loans');
+  const loanRows: ScoredRow[] = (caseLoans.sections[0]?.items ?? []).map((l, i) => ({
+    s: Math.max(score(q, [{ text: l.title }, ...(l.subtitle ? [{ text: l.subtitle, weight: 0.5 }] : [])]), loanIntent) - i * 0.1, // keep the page's APR order on an intent tie
+    row: {
+      kind: 'tile' as const,
+      icon: 'loan' as const,
+      tileTone: 'orange' as const,
+      title: l.title,
+      meta: [l.rate?.display && `${l.rate.display} ${l.rate.note ?? ''}`.trim(), l.emi].filter(Boolean).join(' · '),
+      goto: '₹5,00,000 personal loan',
+    },
+  }));
+
+  const savingsIntent = intentScore(q, 'savings');
+  const savingsRows: ScoredRow[] = (caseSavings.sections[0]?.items ?? []).map((b, i) => ({
+    s: Math.max(score(q, [{ text: b.title }, ...(b.subtitle ? [{ text: b.subtitle, weight: 0.6 }] : [])]), savingsIntent) - i * 0.1,
+    row: {
+      kind: 'tile' as const,
+      icon: 'bank' as const,
+      tileTone: 'teal' as const,
+      title: b.title,
+      meta: [b.rate?.display, b.subtitle].filter(Boolean).join(' · '),
+      goto: 'zero balance savings account',
+    },
+  }));
+
+  // ── Offers + campaigns — read off the real cases that actually carry them ───
+  // Both counts come from the sections the tap opens, so "2 live offers" is the two
+  // coupons that page really shows (§7 Placeholder Protocol).
+  const offerIntent = intentScore(q, 'offers');
+  const campaignIntent = intentScore(q, 'campaigns');
+  const offerRows: ScoredRow[] = [];
+  const campaignRows: ScoredRow[] = [];
+  const seenOffer = new Set<string>();
+  const seenCampaign = new Set<string>();
+  for (const [key, model] of Object.entries(REAL_CASES)) {
+    const store = model.hero?.title ?? key;
+    const coupons = model.sections.find((x) => x.kind === 'coupons');
+    if (coupons?.items.length && !seenOffer.has(store)) {
+      seenOffer.add(store);
+      offerRows.push({
+        s: Math.max(
+          score(q, [{ text: store }, ...coupons.items.map((i) => ({ text: `${i.title} ${i.code ?? ''}`, weight: 0.6 }))]),
+          offerIntent,
+        ),
+        row: {
+          kind: 'tile',
+          icon: 'tag',
+          tileTone: 'green',
+          title: `${store} coupons & offers`,
+          meta: `${plural(coupons.items.length, 'live offer')} · ${coupons.items[0].title}`,
+          goto: key,
+        },
+      });
+    }
+    for (const camp of model.sections.find((x) => x.kind === 'campaign')?.items ?? []) {
+      if (seenCampaign.has(camp.title)) continue;
+      seenCampaign.add(camp.title);
+      campaignRows.push({
+        s: Math.max(score(q, [{ text: camp.title }, ...(camp.subtitle ? [{ text: camp.subtitle, weight: 0.5 }] : []), { text: store, weight: 0.8 }]), campaignIntent),
+        row: {
+          kind: 'tile',
+          icon: 'campaign',
+          tileTone: 'red',
+          tileImage: require('../../assets/campaigns/big-billion-days.png'),
+          title: camp.title,
+          meta: camp.live ? `Live now · ${camp.subtitle ?? ''}`.trim() : camp.subtitle,
+          live: camp.live,
+          goto: key,
+        },
+      });
+    }
+  }
+
+  return [
+    suggestGroup('stores', storeRows),
+    suggestGroup('products', completionRows),
+    suggestGroup('categories', categoryRows),
+    suggestGroup('credit_cards', cardRows),
+    suggestGroup('loans', loanRows),
+    suggestGroup('savings', savingsRows),
+    suggestGroup('offers', offerRows),
+    suggestGroup('campaigns', campaignRows),
+  ].filter((g): g is SuggestGroup => g !== null);
+}
+
+/**
+ * "Did you mean …?" for a query that resolved to NOTHING — the correction the results
+ * screen offers (D112). It is the top-scoring suggestion candidate for the same query:
+ * the type-ahead's scorer tolerates a typo ("myntar" → Myntra, 1 edit) where
+ * `catalog.buildSerp` → `searchStores` does not, so a query that dropped to recovery
+ * usually has a strong candidate that simply never got asked for.
+ *
+ * `label` is what the row SAYS (the candidate's own name) and `query` is what tapping
+ * it searches — the two differ wherever a row routes to a vertical page rather than to
+ * its own title. Returns undefined when nothing scored, or when the best candidate is
+ * the query itself (then the query is spelled fine and simply has no results, which is
+ * a different message).
+ */
+export function didYouMean(query: string): { label: string; query: string } | undefined {
+  const q = query.trim().toLowerCase();
+  if (!q) return undefined;
+  let best: SuggestRow | undefined;
+  for (const g of buildSuggestions(query)) {
+    for (const row of g.rows) if (!best || (row.score ?? 0) > (best.score ?? 0)) best = row;
+  }
+  if (!best) return undefined;
+  const label = best.title.trim();
+  const target = (best.goto ?? best.title).trim();
+  return label.toLowerCase() === q || target.toLowerCase() === q ? undefined : { label, query: target };
 }

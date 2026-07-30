@@ -83,8 +83,13 @@ type Stop = readonly [color: string, position: string];
 type FillOpts = {
   /** 'circle' keeps the falloff even in a square box; 'ellipse' fills the box. */
   shape?: 'circle' | 'ellipse';
-  /** 'closest-side' lands the last stop on the nearest edge; 'farthest-side' on the far one. */
-  size?: 'closest-side' | 'farthest-side';
+  /**
+   * 'closest-side' lands the last stop on the nearest edge; 'farthest-side' on
+   * the far one. `{ x, y }` sets the ellipse's own radii (% of the box, or px) —
+   * needed whenever the light is NOT centred, since both keywords tie the radii
+   * to the box's edges and a low centre would then read as a squashed disc.
+   */
+  size?: 'closest-side' | 'farthest-side' | { x: string; y: string };
   at?: readonly [string, string];
 };
 
@@ -100,7 +105,9 @@ export function radialFill(stops: readonly Stop[], opts: FillOpts = {}): ViewSty
   const [left, top] = opts.at ?? ['50%', '50%'];
   if (Platform.OS === 'web') {
     const css = stops.map(([c, p]) => `${c} ${p}`).join(', ');
-    return { backgroundImage: `radial-gradient(${shape} ${size} at ${left} ${top}, ${css})` } as ViewStyle;
+    // CSS writes explicit radii as two lengths in place of the extent keyword.
+    const extent = typeof size === 'string' ? size : `${size.x} ${size.y}`;
+    return { backgroundImage: `radial-gradient(${shape} ${extent} at ${left} ${top}, ${css})` } as ViewStyle;
   }
   return {
     experimental_backgroundImage: [
@@ -211,7 +218,7 @@ const DARK_MAX = 96;
  * friends are all `#262626` at low alpha, and amplifying nothing leaves a grey
  * cloud, which reads as dirt on the card rather than as light.
  */
-const SKY: [number, number, number] = parseHex(color.aura.aiSky) ?? [56, 189, 248];
+const SKY: [number, number, number] = parseHex(color.ckds.aiSky) ?? [56, 189, 248];
 
 function deepenTint(hex: string | null | undefined): [number, number, number] | null {
   const rgb = parseHex(hex);
@@ -237,7 +244,7 @@ export function isColourlessTint(hex: string | null | undefined): boolean {
 
 /** The wash colour a surface should paint for `tint`: itself, or pale sky. */
 export function auraWashTint(hex: string | null | undefined): string {
-  return isColourlessTint(hex) ? color.aura.aiSkyWash : (hex ?? color.aura.aiSkyWash);
+  return isColourlessTint(hex) ? color.ckds.aiSkyWash : (hex ?? color.ckds.aiSkyWash);
 }
 
 /**
@@ -270,6 +277,40 @@ export function centredGlowFill(tint?: string | null, peak = 0.95): ViewStyle {
 }
 
 /**
+ * A wide, LOW bloom — one light source sitting near the bottom of its box, so
+ * the colour rises into the content from under it instead of sitting behind it.
+ *
+ * The radii are explicit (`spread` × `rise`, % of the box) because the centre is
+ * off-centre: `farthest-side` would tie both radii to the box edges and paint a
+ * squashed disc around a low centre. `spread` is deliberately the larger of the
+ * two — a light that is wider than it is tall reads as a horizon, and a round one
+ * at this position reads as a spotlight aimed at the pagination.
+ *
+ * `peak` is LOW, the opposite call to `centredGlowFill`'s: nothing covers this
+ * bloom's core (it lives in the open whitespace under the artwork, not behind
+ * it), so every bit of the ramp reaches the eye. The near-opaque peak a
+ * hidden core needs (D036) would read here as a stain on the page.
+ *
+ * Unlike `centredGlowFill` this one does NOT self-guarantee against clipping:
+ * a low centre puts part of the ramp past the bottom edge by construction. The
+ * caller owns that edge — dissolve it into the page (see `dealGlow`'s fade in
+ * ResultCards).
+ */
+export function bottomBloomFill(
+  tint?: string | null,
+  // Measured on the built page, not guessed (D014): a 100%-of-box horizontal radius
+  // carries the light past both screen edges, and 24% vertical lands its zero
+  // inside the whitespace under the artwork — so the only part of the ramp the
+  // artwork hides is the top half, and the bottom reaches nothing before the page
+  // does. 0.36 peaks at ~32% alpha where the light clears the banner: a wash you
+  // can see the colour of, ~10% by the screen edges.
+  { peak = 0.36, spread = '100%', rise = '24%', centre = '84%' }: { peak?: number; spread?: string; rise?: string; centre?: string } = {},
+): ViewStyle {
+  const rgb = deepenTint(tint) ?? [124, 58, 237];
+  return radialFill(orbStops(rgb, peak), { shape: 'ellipse', size: { x: spread, y: rise }, at: ['50%', centre] });
+}
+
+/**
  * Hue arcs that read as ONE temperature. A companion hue is always rotated
  * *inside* the arc its brand hue falls in, so a warm brand gains a warm second
  * colour (Cleartrip's orange → amber) and a cool one a cool second colour
@@ -294,6 +335,37 @@ const COMPANION_MIN = 16;
 const COMPANION_ROOM = 24;
 /** Which of the five orbs carry the second hue — spread, so every crossing mixes. */
 const COMPANION_ORBS = [1, 3];
+
+/**
+ * Peak alpha per orb in the WHITE fan. Higher than a coloured field needs: these
+ * separate from the wash on lightness alone, and white over an already-pale tint
+ * is a small delta per unit alpha.
+ */
+const FAN_PEAKS = [0.85, 0.76, 0.66, 0.58, 0.5] as const;
+/**
+ * How much of the brand hue is left in each "white" — a breath of it, not its
+ * colour, so the pools still belong to the page instead of reading as five grey
+ * smudges. Paired with `FAN_LIGHTS`, near the top of the lightness range.
+ */
+const FAN_SATS = [0.1, 0.04, 0.16, 0, 0.08] as const;
+const FAN_LIGHTS = [0.97, 0.99, 0.95, 1, 0.96] as const;
+
+/**
+ * Five BRIGHT, near-white orbs carrying a breath of the brand hue (D079).
+ *
+ * Colour-on-colour was the wrong idea: the orbs share the wash's hue by
+ * construction (D060), so on a brand like Myntra they matched the field in hue
+ * AND lightness and vanished (D078). White inverts the problem — a light pool
+ * separates from ANY tinted wash, whatever hue the brand brings, and it lifts the
+ * field instead of adding more of the colour the page already has.
+ */
+export function brandOrbFan(tint?: string | null): ViewStyle[] {
+  const rgb = deepenTint(tint);
+  const [h] = rgb ? rgbToHsl(rgb) : [0];
+  return FAN_PEAKS.map((peak, i) =>
+    radialFill(orbStops(hslToRgb(h, FAN_SATS[i], FAN_LIGHTS[i]), peak)),
+  );
+}
 
 /** Clockwise distance a → b, in degrees. */
 const cw = (a: number, b: number) => (b - a + 360) % 360;
@@ -364,7 +436,7 @@ export function brandOrbFills(tint?: string | null): ViewStyle[] {
  * `phase` offsets it within the loop, so three orbs from the same clock never
  * line up into an obvious rhythm.
  */
-type OrbSpec = {
+export type OrbSpec = {
   pos: ViewStyle;
   kx: number;
   ky: number;
@@ -389,7 +461,39 @@ const ORBS: OrbSpec[] = [
   { pos: { left: AI_ORB_SIZE * 0.34, top: -AI_ORB_SIZE * 0.46 }, kx: 3, ky: 4, ks: 5, phase: 0.83, ax: 70, ay: 38 },
 ];
 
-function Orb({ spec, fill, clock, gain }: { spec: OrbSpec; fill: ViewStyle; clock: AuraClock; gain: SharedValue<number> }) {
+/**
+ * The full-bleed hero's own layout (D080): a CLUSTER low in the scene, centred on
+ * the brand logo / cashback figure rather than the shared `ORBS` set, whose five
+ * centres sit at the corners of the box. In a 620px-tall scene those corners put
+ * two orbs below the fold and the rest up behind the search bar, so the light
+ * pooled where there is nothing to light. Anchored from the top on both axes so
+ * the cluster keeps its place as the scene's height changes, with smaller
+ * amplitudes than the corner set — they drift WITHIN the cluster instead of
+ * sweeping the whole field.
+ */
+export const HERO_ORBS: OrbSpec[] = [
+  { pos: { left: -100, top: 30 }, kx: 2, ky: 3, ks: 2, phase: 0, ax: 54, ay: 34 },
+  { pos: { right: -100, top: 5 }, kx: 3, ky: 2, ks: 4, phase: 0.37, ax: 48, ay: 38 },
+  { pos: { left: 10, top: 140 }, kx: 2, ky: 4, ks: 3, phase: 0.68, ax: 62, ay: 28 },
+  { pos: { right: -120, top: 140 }, kx: 4, ky: 3, ks: 2, phase: 0.19, ax: 44, ay: 32 },
+  { pos: { left: -50, top: -40 }, kx: 3, ky: 4, ks: 5, phase: 0.83, ax: 52, ay: 26 },
+];
+
+function Orb({
+  spec,
+  fill,
+  clock,
+  gain,
+  amp = 1,
+  scale = 1,
+}: {
+  spec: OrbSpec;
+  fill: ViewStyle;
+  clock: AuraClock;
+  gain: SharedValue<number>;
+  amp?: number;
+  scale?: number;
+}) {
   const style = useAnimatedStyle(() => {
     const u = clock.t.value / AURA_LOOP;
     return {
@@ -397,9 +501,9 @@ function Orb({ spec, fill, clock, gain }: { spec: OrbSpec; fill: ViewStyle; cloc
       // breathing was invisible next to the drift.
       opacity: gain.value * (0.66 + 0.34 * Math.sin(TAU * (spec.ky * u + spec.phase))),
       transform: [
-        { translateX: spec.ax * Math.sin(TAU * (spec.kx * u + spec.phase)) },
-        { translateY: spec.ay * Math.cos(TAU * (spec.ky * u + spec.phase * 1.7)) },
-        { scale: 1 + 0.2 * Math.sin(TAU * (spec.ks * u + spec.phase)) },
+        { translateX: spec.ax * amp * Math.sin(TAU * (spec.kx * u + spec.phase)) },
+        { translateY: spec.ay * amp * Math.cos(TAU * (spec.ky * u + spec.phase * 1.7)) },
+        { scale: (1 + 0.2 * Math.sin(TAU * (spec.ks * u + spec.phase))) * scale },
       ],
     };
   });
@@ -413,30 +517,44 @@ function Orb({ spec, fill, clock, gain }: { spec: OrbSpec; fill: ViewStyle; cloc
  * `fills` swaps the palette — pass `brandOrbFills(item.heroTint)` to make the
  * field glow in a store's own colour. `base={false}` when the parent already
  * paints its own wash and only wants the orbs on top of it.
+ *
+ * `amp` multiplies each orb's travel and `scale` its size — both default to 1,
+ * so every existing surface is untouched. A big, sparsely-covered field (the
+ * full-bleed hero, D075) needs more of both than a control-sized card: the same
+ * ±70px drift that reads as motion inside a 340px card is nearly imperceptible
+ * across a 620px one.
  */
 export function AuraField({
   clock,
   gain,
   fills = AI_FILLS,
   base = true,
+  amp = 1,
+  scale = 1,
+  specs = ORBS,
 }: {
   clock: AuraClock;
   gain: SharedValue<number>;
   fills?: ViewStyle[];
   base?: boolean;
+  amp?: number;
+  scale?: number;
+  /** Orb layout. Defaults to the corner-anchored shared set; the hero passes
+   *  `HERO_ORBS` to cluster the light around its logo (D080). */
+  specs?: OrbSpec[];
 }) {
   return (
     <Animated.View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {base && (
         <LinearGradient
-          colors={[color.surface, color.aura.aiCardTo]}
+          colors={[color.surface, color.ckds.aiCardTo]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0.1, y: 0 }}
           end={{ x: 0.9, y: 1 }}
         />
       )}
-      {ORBS.map((spec, i) => (
-        <Orb key={i} spec={spec} fill={fills[i % fills.length]} clock={clock} gain={gain} />
+      {specs.map((spec, i) => (
+        <Orb key={i} spec={spec} fill={fills[i % fills.length]} clock={clock} gain={gain} amp={amp} scale={scale} />
       ))}
     </Animated.View>
   );
@@ -532,9 +650,9 @@ export function Sweep({
 // every edge — a soft column of light rather than a hard-edged slab.
 const SWEEP_FILL = radialFill(
   [
-    [color.aura.aiSheen, '0%'],
-    [color.aura.aiSheen, '18%'],
-    [color.aura.aiSheen0, '100%'],
+    [color.ckds.aiSheen, '0%'],
+    [color.ckds.aiSheen, '18%'],
+    [color.ckds.aiSheen0, '100%'],
   ],
   { shape: 'ellipse', size: 'farthest-side' },
 );
@@ -551,7 +669,7 @@ export function Orbit({ clock, size, harmonic = 1 }: { clock: AuraClock; size: n
   return (
     <Animated.View pointerEvents="none" style={[styles.orbit, { width: size * 2, height: size * 2, left: -size / 2, top: -size / 2 }, anim]}>
       <LinearGradient
-        colors={[color.aura.aiSheen0, color.aura.aiSheen, color.aura.aiSheen0]}
+        colors={[color.ckds.aiSheen0, color.ckds.aiSheen, color.ckds.aiSheen0]}
         locations={[0.34, 0.5, 0.66]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

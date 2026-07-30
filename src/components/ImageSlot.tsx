@@ -15,6 +15,7 @@ export function BrandThumb({
   width,
   height,
   radiusToken = radius.sm,
+  scale = 1,
   style,
 }: {
   uri?: string | number | null;
@@ -22,6 +23,10 @@ export function BrandThumb({
   width: number;
   height: number;
   radiusToken?: number;
+  /** Shrinks the logo INSIDE the tile without resizing the tile — 0.5 halves it.
+   *  For assets cropped tight to their ink box (the Myntra symbol, D066), which
+   *  otherwise reach the tile's edges where a lockup would have left air. */
+  scale?: number;
   style?: StyleProp<ViewStyle>;
 }) {
   const initial = label?.trim()?.[0]?.toUpperCase() ?? '';
@@ -32,12 +37,12 @@ export function BrandThumb({
       {source ? (
         <Image
           source={source}
-          style={{ width: width * 0.96, height: height * 0.86 }}
+          style={{ width: width * 0.96 * scale, height: height * 0.86 * scale }}
           resizeMode="contain"
           accessibilityLabel={label}
         />
       ) : (
-        <Text style={[t.heading18SemiBold, { color: color.aura.slateMuted }]}>{initial}</Text>
+        <Text style={[t.heading18SemiBold, { color: color.ckds.slateMuted }]}>{initial}</Text>
       )}
     </View>
   );

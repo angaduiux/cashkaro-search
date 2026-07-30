@@ -1,12 +1,13 @@
-import React from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { type as t, space, radius } from '../theme/tokens';
-
 /**
  * Preview-chrome side panel (web wide layout only) listing every screen type
  * the app can render, so any state is one tap away. Purely a dev/preview
  * navigator — lives outside the phone frame and matches the dark stage chrome.
  */
+import React from 'react';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { type as t, space, radius } from '../theme/tokens';
+
+
 export type NavItem = { key: string; label: string; sub?: string; onPress: () => void };
 export type NavSection = { title: string; items: NavItem[] };
 
