@@ -42,7 +42,7 @@ export function BrandThumb({
           accessibilityLabel={label}
         />
       ) : (
-        <Text style={[t.heading18SemiBold, { color: color.aura.slateMuted }]}>{initial}</Text>
+        <Text style={[t.heading18SemiBold, { color: color.ckds.slateMuted }]}>{initial}</Text>
       )}
     </View>
   );

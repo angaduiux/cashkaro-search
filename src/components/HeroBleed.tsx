@@ -17,8 +17,9 @@ import { AuraField, auraWashTint, brandOrbFan, HERO_ORBS, tintRgba, useAuraClock
 import { ResultItem } from '../data/dataContract';
 
 /**
- * HeroBleed — the full-bleed living backdrop behind a resolved-store SERP
- * (the store hero's wash from Figma 1646:7197, unboxed — D069).
+ * HeroBleed — the full-bleed living backdrop behind a resolved best-match SERP:
+ * a store (the store hero's wash from Figma 1646:7197, unboxed — D069) or a credit
+ * card, whose best match unboxes onto the same scene in its issuer's hue (D104).
  *
  * Mounted by `Root` as the FIRST child of the app column, above the mock status
  * bar rather than inside the stage: `stageBody` clips and begins below the
@@ -28,7 +29,8 @@ import { ResultItem } from '../data/dataContract';
  * down through the hero, dissolving into page white — the hero reads as a scene,
  * not a card. The wash + orbs bloom in on mount, then parallax-fade against the
  * SERP scroll (`scrollY`, written by SerpShell's scroll handler), by which point
- * the bar's white underlay has taken over. `StoreHero` renders content-only.
+ * the bar's white underlay has taken over. `StoreHero` / `CreditCard` render
+ * content-only.
  */
 export function HeroBleed({ item, scrollY }: { item: ResultItem; scrollY: SharedValue<number> }) {
   const tint = heroBleedTint(item);
@@ -57,11 +59,16 @@ export function HeroBleed({ item, scrollY }: { item: ResultItem; scrollY: Shared
     transform: [{ translateY: -scrollY.value * PARALLAX }],
   }));
 
+  // The entrance and the scroll fade both drive OPACITY, so they cannot live on the
+  // same view — a layout animation overwrites the style's value, which Reanimated
+  // warns about and which makes the bloom-in fight the fade. The entrance stays on
+  // the outer box; `drift` moves to an inner layer filling it.
   return (
-    <Animated.View entering={FadeIn.duration(duration.moderate)} style={[styles.bleed, drift]} pointerEvents="none">
+    <Animated.View entering={FadeIn.duration(duration.moderate)} style={styles.bleed} pointerEvents="none">
+      <Animated.View style={[StyleSheet.absoluteFill, drift]}>
       {/* Tinted wash → light grey base, top of screen to the dissolve. */}
       <LinearGradient
-        colors={[wash, color.aura.heroTo]}
+        colors={[wash, color.ckds.heroTo]}
         style={StyleSheet.absoluteFill}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -71,22 +78,32 @@ export function HeroBleed({ item, scrollY }: { item: ResultItem; scrollY: Shared
       {/* White dissolve: starts just under the big cashback figure and lands on
           pure page white at the backdrop's bottom edge, so there is no seam. */}
       <LinearGradient
-        colors={[color.aura.fade0, color.surface]}
-        style={styles.dissolve}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-      />
+          colors={[color.ckds.fade0, color.surface]}
+          style={styles.dissolve}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+        />
+      </Animated.View>
     </Animated.View>
   );
 }
 
-/** The one place a store hero's aura tint is resolved (StoreHero + HeroBleed). */
+/**
+ * The one place a hero's aura tint is resolved (StoreHero + HeroBleed).
+ *
+ * A card hero (D104) reaches this by the same route a brand does: its `logoBg`. Both
+ * are issuer/brand hues carried at ~10% alpha for a logo tile, and both are read
+ * here as the HUE only — `WASH_ALPHA` below sets the strength. That is what makes
+ * SBI's cyan land at the same weight as Croma's mint rather than a shade of white.
+ */
 export function heroBleedTint(item: ResultItem): string {
-  return item.heroTint ?? item.logoBg ?? color.aura.heroFrom;
+  return item.heroTint ?? item.logoBg ?? color.ckds.heroFrom;
 }
 
 /** Backdrop height, measured from the PHYSICAL top of the device: status bar
- *  (44) + search bar (70) + context line (~44) + hero (~400) + slack. */
+ *  (44) + search bar (70) + context line (~44) + hero (~400) + slack. One height for
+ *  both hero kinds: a card hero is ~150px shorter, so its scene is already deep into
+ *  the white dissolve by the time the card ends (D104). */
 const BLEED_H = 620;
 /** The flat wash's alpha (D075). Low: the base is a hint of the brand, and the
  *  orb field — not this — is what carries colour into the scene. */

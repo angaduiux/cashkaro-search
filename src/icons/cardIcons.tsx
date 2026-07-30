@@ -139,17 +139,32 @@ export function benefitIconFor(text: string, icon?: string): CardIconName {
 }
 
 /**
- * The CTA's chevron (673:27223) — a filled white arrow with a 0.3 cobalt edge,
- * drawn at 6.14 × 9.94 from a 5.384 × 9.259 export.
+ * The CTA's chevron (673:27223), at the spec's 6.14 × 9.94 — but STROKED rather
+ * than filled (D093). The export is a filled arrow with a 0.3 cobalt edge, whose
+ * silhouette is a fixed ~1.9px thick; that read heavier than the label the moment
+ * the label came down from ExtraBold, and a fill can only be re-weighted by
+ * scaling the whole glyph. As a stroke, weight is one number: `strokeWidth`
+ * defaults to the label's own stem (`CARD_SPEC.chevStroke`), so the two stay
+ * matched if the label's weight changes again. Same silhouette — the drawing is
+ * inset by half the stroke so the round caps land inside the 6.14 × 9.94 box.
  */
-export function ApplyChevron({ width = CARD_SPEC.chevW, height = CARD_SPEC.chevH }: { width?: number; height?: number }) {
+export function ApplyChevron({
+  width = CARD_SPEC.chevW,
+  height = CARD_SPEC.chevH,
+  strokeWidth = CARD_SPEC.chevStroke,
+}: {
+  width?: number;
+  height?: number;
+  strokeWidth?: number;
+}) {
   return (
-    <Svg width={width} height={height} viewBox="0 0 5.38412 9.25868" fill="none">
+    <Svg width={width} height={height} viewBox={`0 0 ${CARD_SPEC.chevW} ${CARD_SPEC.chevH}`} fill="none">
       <Path
-        d="M0.3477 0.34804C0.611857 0.0838822 1.04048 0.0840274 1.30473 0.34804L4.9854 4.0287C5.31702 4.36068 5.31723 4.89901 4.9854 5.23085L1.30473 8.91054C1.04049 9.1746 0.611874 9.17471 0.3477 8.91054C0.0839379 8.64654 0.0841696 8.21874 0.3477 7.95448L3.41899 4.87636C3.55491 4.7398 3.55494 4.51876 3.41899 4.38222L0.3477 1.30409C0.0842028 1.03982 0.0839048 0.612018 0.3477 0.34804Z"
-        fill={color.card.applyChevron}
-        stroke={color.card.applyChevronEdge}
-        strokeWidth={0.3}
+        d="M1.1 1.1L5.04 4.97L1.1 8.84"
+        stroke={color.card.applyChevron}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </Svg>
   );
@@ -157,8 +172,13 @@ export function ApplyChevron({ width = CARD_SPEC.chevW, height = CARD_SPEC.chevH
 
 /**
  * The divider between the two fee columns ("Line 30", 673:27216) — a 45px hairline
- * that fades to white at both ends, so it reads as a soft separation rather than a
- * ruled line. Exported horizontal and rotated 90° in Figma; drawn vertical here.
+ * that fades out at both ends, so it reads as a soft separation rather than a ruled
+ * line. Exported horizontal and rotated 90° in Figma; drawn vertical here.
+ *
+ * The ends fade to the hairline's OWN colour at zero alpha, not to the spec's opaque
+ * white (D108). White is invisible on the boxed card and two white ticks on the
+ * unboxed hero's blue HeroBleed scene — a fade ends on its own colour, the same rule
+ * `ckBorder0` exists for.
  */
 export function FeeDivider({ height = CARD_SPEC.dividerH }: { height?: number }) {
   const id = useId();
@@ -166,9 +186,9 @@ export function FeeDivider({ height = CARD_SPEC.dividerH }: { height?: number })
     <Svg width={1} height={height} viewBox={`0 0 1 ${height}`} fill="none">
       <Defs>
         <LinearGradient id={id} x1="0" y1="0" x2="0" y2={height} gradientUnits="userSpaceOnUse">
-          <Stop stopColor={color.card.hairline0} />
+          <Stop stopColor={color.card.hairlineFade} />
           <Stop offset={0.528846} stopColor={color.card.hairlineMid} />
-          <Stop offset={1} stopColor={color.card.hairline0} />
+          <Stop offset={1} stopColor={color.card.hairlineFade} />
         </LinearGradient>
       </Defs>
       <Path d={`M0.5 0.5V${height - 0.5}`} stroke={`url(#${id})`} strokeLinecap="round" />

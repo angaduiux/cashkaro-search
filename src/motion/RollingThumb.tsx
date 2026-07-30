@@ -22,8 +22,8 @@ import { EASE } from './motion';
  *   `p.value` back on the JS side walked every layer below the circle. JS-side
  *   reads of a shared value mid-animation are stale by design.)
  * • JS therefore owns exactly one thing: which image the INVISIBLE slot will carry.
- *   It is set one step ahead, while that slot sits a full travel below the window at
- *   zero opacity, so the swap can never be seen.
+ *   It is set one step ahead, while that slot is at **exactly zero opacity**
+ *   (`cos(π/2)`) below the centre, so the swap can never be seen.
  * • Pacing is a self-scheduling timer, never an animation callback — the reel keeps
  *   rolling even where those callbacks don't arrive.
  * • The curve is `spatial` over `duration.hero`: it leaves immediately and spends
@@ -44,7 +44,7 @@ export function RollingThumb({
 }) {
   const reduced = useReducedMotion();
   const p = useSharedValue(0);
-  const travel = size + space.xs; // one image-height of movement, plus a hair of air
+  const travel = size * ROLL_TRAVEL; // see ROLL_TRAVEL — must stay INSIDE the window
   // SLOTS slots, each holding the image index it currently carries. Slot i is the
   // one centred whenever `p ≡ i (mod SLOTS)`.
   const [frames, setFrames] = useState<number[]>(() =>
@@ -146,6 +146,16 @@ const SLOTS = 2;
 const ROLL = { duration: duration.hero, easing: EASE.spatial, reduceMotion: ReduceMotion.System };
 /** Scale drop at the edge of the roll — the depth cue that keeps it off a slot machine. */
 const DEPTH = 0.14;
+/**
+ * How far a slot travels, as a fraction of the disc (D098). It MUST be well under
+ * 1: the disc is the window and clips to itself, so a travel of a full diameter puts
+ * BOTH images half outside it at the crossover — the reel then reads as two clipped
+ * fragments stuck to the top and bottom edges with an empty middle, which is exactly
+ * what "the pills look misaligned and clipped at the bottom" was. It was `size + 4`.
+ * At 0.45 the two images still overlap across the centre as they cross, so the disc
+ * always has a picture in the middle of it, and the cosine opacity ramp does the rest.
+ */
+const ROLL_TRAVEL = 0.45;
 /** The image sits inside the circle with air around it, like a BrandThumb tile. */
 const IMAGE_INSET = 0.82;
 // Cadence (ms): the first roll lands after the pill's entrance has settled, then a

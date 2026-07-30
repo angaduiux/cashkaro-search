@@ -1,42 +1,63 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
-import { space } from '../theme/tokens';
-
 /**
  * LoopRail — a horizontal rail that drifts very slowly and forever, and that the
  * user can still drag in either direction without ever reaching an end (D086).
  * Carries the Explore trending pills, which outgrew a wrapping row.
  *
+ * **The drift is a TRANSFORM on the content, not a scroll of the scroller (D099).**
+ * That is the whole design, and it is a correction. The drift used to write
+ * `scrollTo` every frame from a rAF loop, which put JS in a fight with the finger
+ * over one number — the scroll offset — and the fight had three symptoms, all of
+ * them reported from a device: a drag never accumulated, because every frame reset
+ * the offset before iOS could decide a pan had begun (so `onScrollBeginDrag` never
+ * fired, so the loop never paused: a deadlock — "the auto-scroll stops but I can't
+ * scroll manually either"); and a press was cancelled, because the pill slid out
+ * from under a stationary finger ("the pills don't tap"). Driving the drift with
+ * `translateX` leaves the scroll offset entirely to the user, so a drag is ordinary
+ * native scrolling and a press is never moved out from under the finger.
+ *
  * How the loop is built:
  *
  * • The children are laid out several times over — `ceil(viewport / W) + 3` copies.
  *   The scroller is parked in the SECOND one, so there is always a full copy of
- *   content off each edge and the seam is never in frame. One copy's width `W` is
- *   measured from the first copy's layout, plus the trailing gap, so item 1 of copy B
- *   sits exactly `W` from item 1 of A.
- * • Position is normalised into `[W, 2W)` every tick: crossing either boundary
- *   subtracts or adds exactly one copy width, which is invisible because the pixel
- *   under the finger is identical. That is what makes a drag endless in BOTH
- *   directions rather than stopping at offset 0.
- * • The drift is a plain `requestAnimationFrame` loop writing `scrollTo`, not a
- *   Reanimated worklet: `scrollTo` from a worklet is a native-only path, and this
- *   rail has to move in the web preview too — the same reasoning that keeps
- *   count-ups on rAF (D068). At this speed one frame moves a sixth of a pixel, so
- *   the cost is one imperative call per frame and nothing else.
- * • A touch pauses the drift and a drag hands its end position back, so the rail
- *   carries on from wherever the user let go instead of snapping — and a pill's press
- *   is never cancelled by the rail moving under the finger.
- * • Under reduced motion no frame loop is ever started; the rail is still a
+ *   content off each edge: one copy of slack absorbs the drift transform, and the
+ *   next absorbs a drag. One copy's width `W` is measured from the first copy's
+ *   layout, plus the trailing gap, so item 1 of copy B sits exactly `W` from A's.
+ * • `phase` advances on the UI thread (`useFrameCallback`) and wraps into `[0, W)`.
+ *   The wrap is invisible because the pixel it lands on is identical, which is what
+ *   makes the drift endless rather than something that runs out.
+ * • A DRAG is normalised back into the middle copy when it ends — the same trick on
+ *   the scroll offset — so the user never reaches an end either.
+ * • `paused` freezes the drift. It is set from the rail's own touch handlers AND
+ *   published to the children through `useRailPause()`, because once a child
+ *   Pressable takes the responder the ScrollView may never see the touch at all
+ *   (D097). A rail that keeps moving under the thumb is a rail whose pills don't tap.
+ * • Under reduced motion the frame callback never starts; the rail is still a
  *   perfectly ordinary scroller (§9.6).
  */
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import Animated, { useAnimatedStyle, useFrameCallback, useReducedMotion, useSharedValue } from 'react-native-reanimated';
+import { space } from '../theme/tokens';
+
+/**
+ * Freeze/thaw handles the rail publishes to its children (D097). Default is a
+ * no-op pair, so a pressable that calls it outside a rail costs nothing.
+ */
+const RailPauseContext = createContext<{ hold: () => void; release: () => void }>({
+  hold: () => {},
+  release: () => {},
+});
+
+/** Pause the drifting rail this element sits in, for the length of a press. */
+export const useRailPause = () => useContext(RailPauseContext);
+
 export function LoopRail({
   children,
   speed = DRIFT,
   gap = space.s12,
   bleed = 0,
 }: {
-  /** One copy of the rail's content. Rendered three times. */
+  /** One copy of the rail's content. Rendered several times over. */
   children: React.ReactNode[];
   /** Drift in px per second — positive drifts left, negative drifts right. Small
    *  on purpose; see DRIFT. */
@@ -49,62 +70,69 @@ export function LoopRail({
   const ref = useRef<ScrollView | null>(null);
   const [w, setW] = useState(0); // one copy's width + its trailing gap
   const [vw, setVw] = useState(0); // the rail's own visible width
-  const pos = useRef(0); // last x we wrote, always inside [w, 2w)
-  // A finger on the rail freezes it — from TOUCH, not just from drag. A rail that
-  // keeps moving under the thumb cancels the press it lands on, which is why the
-  // pills read as untappable. `sliding` is tracked separately so the drift also stays
-  // out of the way through the momentum AFTER a fling, where a competing `scrollTo`
-  // would fight the deceleration.
-  const touching = useRef(false);
-  const sliding = useRef(false);
 
-  // Enough copies that offset 2w is always REACHABLE: a scroller clamps at
-  // `content − viewport`, so with only three copies a narrow set puts 2w past the
-  // end, and a rail drifting right — which wraps to 2w on its first tick — sits
-  // pinned there looking frozen. Two spare copies past the viewport fixes it.
+  // UI-thread state: the frame callback reads all three, so none can be a ref.
+  const phase = useSharedValue(0); // drift offset, always inside [0, w)
+  const paused = useSharedValue(false);
+  const copyW = useSharedValue(0);
+  // Published in an effect, never in the render body: writing a shared value while
+  // React renders is what Reanimated's strict mode flags, and it fired on every
+  // measure pass. The frame callback already no-ops while the width is 0, so the
+  // one-frame delay costs nothing.
+  useEffect(() => {
+    copyW.value = w;
+  }, [w]);
+
+  // Enough copies that the drift transform (up to one copy) and a drag (another)
+  // both have covered content to move into.
   const copies = w && vw ? Math.max(3, Math.ceil(vw / w) + 3) : 3;
 
-  // Park in the middle copy as soon as the width is known.
+  // Park in the middle copy as soon as the width is known — a full copy of slack
+  // off each edge is what makes a drag endless in both directions.
   useEffect(() => {
     if (!w) return;
-    pos.current = w;
     ref.current?.scrollTo({ x: w, y: 0, animated: false });
   }, [w]);
 
-  useEffect(() => {
-    if (!w || reduced) return;
-    let raf = 0;
-    let last = 0;
-    const tick = (now: number) => {
-      const dt = last ? Math.min(now - last, 64) : 0; // a backgrounded tab returns a huge dt
-      last = now;
-      if (!touching.current && !sliding.current && dt) {
-        let x = pos.current + (speed * dt) / 1000;
-        if (x >= 2 * w) x -= w; // drifting left (positive speed)
-        if (x < w) x += w; // drifting right (negative speed), or dragged back
-        pos.current = x;
-        ref.current?.scrollTo({ x, y: 0, animated: false });
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [w, reduced, speed]);
+  useFrameCallback((frame) => {
+    'worklet';
+    const cw = copyW.value;
+    if (!cw || paused.value) return;
+    // A backgrounded tab hands back a huge delta; cap it so the rail never jumps.
+    const dt = Math.min(frame.timeSincePreviousFrame ?? 0, 64);
+    if (!dt) return;
+    let next = phase.value + (speed * dt) / 1000;
+    next %= cw; // the content repeats every cw, so the wrap cannot be seen
+    if (next < 0) next += cw;
+    phase.value = next;
+  }, !reduced);
 
-  /** Bring any offset back into the middle copy — silent, the content repeats. */
-  const normalise = (x: number) => {
+  // Positive speed drifts the content LEFT, so the transform runs negative.
+  const driftStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -phase.value }] }));
+
+  /** Bring a drag's end offset back into the middle copy — silent, content repeats. */
+  const onRelease = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    paused.value = false;
+    if (!w) return;
+    const x = e.nativeEvent.contentOffset.x;
     let n = x;
-    if (!w) return n;
     while (n >= 2 * w) n -= w;
     while (n < w) n += w;
     if (Math.abs(n - x) > 0.5) ref.current?.scrollTo({ x: n, y: 0, animated: false });
-    return n;
   };
 
-  const onRelease = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    pos.current = normalise(e.nativeEvent.contentOffset.x);
-    sliding.current = false;
-  };
+  // Stable across renders — a child's press handlers must not re-subscribe.
+  const pause = useMemo(
+    () => ({
+      hold: () => {
+        paused.value = true;
+      },
+      release: () => {
+        paused.value = false;
+      },
+    }),
+    [paused],
+  );
 
   return (
     <ScrollView
@@ -115,28 +143,33 @@ export function LoopRail({
       // Explore is shown with the keyboard up, and a scroller's default is to spend
       // the first tap dismissing it. Without this the pills simply never fire.
       keyboardShouldPersistTaps="handled"
-      onTouchStart={() => (touching.current = true)}
-      onTouchEnd={() => (touching.current = false)}
-      onTouchCancel={() => (touching.current = false)}
-      onScrollBeginDrag={() => (sliding.current = true)}
+      onTouchStart={() => (paused.value = true)}
+      onTouchEnd={() => (paused.value = false)}
+      onTouchCancel={() => (paused.value = false)}
+      onScrollBeginDrag={() => (paused.value = true)}
       onScrollEndDrag={onRelease}
       onMomentumScrollEnd={onRelease}
       onLayout={(e) => setVw(Math.round(e.nativeEvent.layout.width))}
       style={[styles.rail, bleed ? { marginHorizontal: -bleed } : null]}
       contentContainerStyle={[styles.row, styles.pad, { gap }]}
     >
-      {Array.from({ length: copies }, (_, c) => c).map((c) => (
-        <View
-          key={c}
-          style={[styles.row, { gap }]}
-          // Only the first copy is measured; all three are identical.
-          onLayout={c === 0 ? (e) => setW(Math.round(e.nativeEvent.layout.width) + gap) : undefined}
-        >
-          {children.map((child, i) => (
-            <View key={`${c}-${i}`}>{child}</View>
+      <RailPauseContext.Provider value={pause}>
+        {/* The drift lives HERE — on the content, never on the scroll offset (D099). */}
+        <Animated.View style={[styles.row, { gap }, driftStyle]}>
+          {Array.from({ length: copies }, (_, c) => c).map((c) => (
+            <View
+              key={c}
+              style={[styles.row, { gap }]}
+              // Only the first copy is measured; all of them are identical.
+              onLayout={c === 0 ? (e) => setW(Math.round(e.nativeEvent.layout.width) + gap) : undefined}
+            >
+              {children.map((child, i) => (
+                <View key={`${c}-${i}`}>{child}</View>
+              ))}
+            </View>
           ))}
-        </View>
-      ))}
+        </Animated.View>
+      </RailPauseContext.Provider>
     </ScrollView>
   );
 }

@@ -1,3 +1,15 @@
+/**
+ * The card set every result page is built from — one component per archetype's row
+ * or tile, all reading the same `ResultItem` shape: `StoreRow`, `ProductCard`,
+ * `StoreTile` (the Figma Storepage tile, D013), `DealsCarousel` and `DealCard`,
+ * `SimilarCardsRail`, `CouponCard`, `CampaignCard`, `CategoryChip` and `StoreHero`.
+ * A SERP section picks a card here; it never invents its own layout.
+ *
+ * Two rules in this file exist because each was a shipped bug — a carousel's card
+ * width, snap step and paging frame must be ONE rounded integer, and any horizontal
+ * rail must be full-bleed with its padding re-added inside the scroll content
+ * (AGENTS "Layout conventions").
+ */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
@@ -45,6 +57,7 @@ import { AuraField, auraWashTint, bottomBloomFill, brandOrbFills, useAuraClock }
 import { staggerDelay, timingTravel } from '../motion/motion';
 import { Shine } from '../motion/Shine';
 import { heroBleedTint } from './HeroBleed';
+import { CardTile } from './CardTile';
 
 /** Press-scale wrapper — every tappable card breathes on touch (§9.4). */
 function Press({ children, label, onPress }: { children: React.ReactNode; label: string; onPress?: () => void }) {
@@ -179,38 +192,38 @@ export function ProductCard({
               {item.subtitle.toUpperCase()}
             </Text>
           )}
-          <Text style={[t.body12Regular, { color: color.aura.slate }]} numberOfLines={2}>
+          <Text style={[t.body12Regular, { color: color.ckds.slate }]} numberOfLines={2}>
             {item.title}
           </Text>
         </View>
         <View style={styles.priceLine}>
           {(!!item.ctaLabel || !!item.originalPrice) && (
             <View style={styles.priceGroup}>
-              {!!item.ctaLabel && <Text style={[t.body14SemiBoldFlat, { color: color.aura.priceMuted }]}>{item.ctaLabel}</Text>}
+              {!!item.ctaLabel && <Text style={[t.body14SemiBoldFlat, { color: color.ckds.priceMuted }]}>{item.ctaLabel}</Text>}
               {!!item.originalPrice && <Text style={[t.caption10Medium, styles.strike]}>{item.originalPrice}</Text>}
             </View>
           )}
           {!!discount && (
             <View style={styles.discountChip}>
-              <Text style={[t.caption8SemiBold, { color: color.aura.green }]}>{discount}</Text>
+              <Text style={[t.caption8SemiBold, { color: color.ckds.green }]}>{discount}</Text>
             </View>
           )}
         </View>
       </View>
       {cbLabel && (
         <LinearGradient
-          colors={[color.aura.cashbackPillFrom, color.surface]}
+          colors={[color.ckds.cashbackPillFrom, color.surface]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.cbPill}
         >
-          <Text style={[t.body12SemiBold, { color: color.aura.cashback }]}>{cbLabel}</Text>
+          <Text style={[t.body12SemiBold, { color: color.ckds.cashback }]}>{cbLabel}</Text>
         </LinearGradient>
       )}
       {!!finalPrice && (
         <View style={styles.finalPriceBlock}>
-          <Text style={[t.caption10SemiBold, { color: color.aura.priceMuted, letterSpacing: letterSpacing.normal }]}>Final Price</Text>
-          <Text style={[t.body15SemiBold, { color: color.aura.ink }]}>{finalPrice}</Text>
+          <Text style={[t.caption10SemiBold, { color: color.ckds.priceMuted, letterSpacing: letterSpacing.normal }]}>Final Price</Text>
+          <Text style={[t.body15SemiBold, { color: color.ckds.ink }]}>{finalPrice}</Text>
         </View>
       )}
       {/* Provenance footer — web-search results only, where the merchant is the
@@ -227,7 +240,7 @@ export function ProductCard({
               accessibilityLabel={item.retailer.name}
             />
           )}
-          <Text style={[t.caption10Medium, { color: color.aura.priceMuted }]} numberOfLines={1}>
+          <Text style={[t.caption10Medium, { color: color.ckds.priceMuted }]} numberOfLines={1}>
             on {item.retailer.name}
           </Text>
         </View>
@@ -278,7 +291,7 @@ export function StoreTile({ item, width = 96, onPress }: { item: ResultItem; wid
     : '';
   const rgb = item.heroTint
     ? softTintRgb(item.heroTint, 0)
-    : softTintRgb(item.logoBg ?? color.aura.searchField);
+    : softTintRgb(item.logoBg ?? color.ckds.searchField);
   const source: ImageSourcePropType | undefined =
     item.logo == null ? undefined : typeof item.logo === 'string' ? { uri: item.logo } : (item.logo as ImageSourcePropType);
   const logoW = Math.round((width - 8) * 0.66);
@@ -297,25 +310,25 @@ export function StoreTile({ item, width = 96, onPress }: { item: ResultItem; wid
             {source ? (
               <Image source={source} style={{ width: logoW, height: Math.round(logoW * 0.62) }} resizeMode="contain" accessibilityLabel={item.title} />
             ) : (
-              <Text style={[t.body16SemiBold, { color: color.aura.slate }]} numberOfLines={1}>{item.title}</Text>
+              <Text style={[t.body16SemiBold, { color: color.ckds.slate }]} numberOfLines={1}>{item.title}</Text>
             )}
           </View>
           {!!item.discount && (
             <View style={styles.storeCardOffStrip}>
-              <Text style={[t.caption10Medium, { color: color.aura.offGreen }]} numberOfLines={1}>{item.discount}</Text>
+              <Text style={[t.caption10Medium, { color: color.ckds.offGreen }]} numberOfLines={1}>{item.discount}</Text>
             </View>
           )}
         </View>
         <View style={styles.storeCardFoot}>
           {value ? (
             <>
-              <Text style={[t.body14BoldSnug, { color: color.aura.cta }]} numberOfLines={1}>
+              <Text style={[t.body14BoldSnug, { color: color.ckds.cta }]} numberOfLines={1}>
                 {prefix} {value}
               </Text>
-              <Text style={[t.caption8SemiBoldCaps, { color: color.aura.cashbackCaption }]}>{item.cashbackCaption ?? 'CASHBACK'}</Text>
+              <Text style={[t.caption8SemiBoldCaps, { color: color.ckds.cashbackCaption }]}>{item.cashbackCaption ?? 'CASHBACK'}</Text>
             </>
           ) : (
-            <Text style={[t.body14BoldSnug, { color: color.aura.cta }]} numberOfLines={1}>{item.ctaLabel ?? 'Visit'}</Text>
+            <Text style={[t.body14BoldSnug, { color: color.ckds.cta }]} numberOfLines={1}>{item.ctaLabel ?? 'Visit'}</Text>
           )}
         </View>
       </View>
@@ -430,7 +443,7 @@ export function DealsCarousel({ items, bleed = 0 }: { items: ResultItem[]; bleed
   // artwork rather than sitting behind it (D084). Only the colour changes, and it
   // changes the moment the next banner takes the middle of the screen, not when
   // the scroll finally settles.
-  const glowTint = items[Math.min(page, count - 1)]?.bannerTint ?? color.aura.tileWash;
+  const glowTint = items[Math.min(page, count - 1)]?.bannerTint ?? color.ckds.tileWash;
   const glowFill = useMemo(() => bottomBloomFill(glowTint), [glowTint]);
 
   useAnimatedReaction(
@@ -580,7 +593,7 @@ export function DealsCarousel({ items, bleed = 0 }: { items: ResultItem[]; bleed
             straight line. Dissolving into the page white first means there is no
             line to see. Under the banners and the dots, never over them. */}
         <LinearGradient
-          colors={[color.aura.fade0, color.surface]}
+          colors={[color.ckds.fade0, color.surface]}
           style={styles.dealGlowFade}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
@@ -785,51 +798,17 @@ export function DealCard({ item, width = 320 }: { item: ResultItem; width?: numb
 }
 
 /**
- * Similar-cards rail — CashKaro DS card carousel (Figma 6573:13413): skewed card
- * artwork (151×96, radius 10) with a shine, a 2-line card name, and a cobalt-tint→
- * white gradient "Upto ₹X Cashback" pill in blue (D056). Horizontal scroll.
+ * Similar-cards rail — a horizontal scroll of [CardTile](./CardTile.tsx)s (D105). It
+ * used to draw its own item (skewed 151×96 artwork, a 2-line name and a cobalt pill,
+ * Figma 6573:13413); a card is now the SAME tile here, in View-all and in Explore's
+ * "Jump back in", so one card can't look like three different things.
  */
 export function SimilarCardsRail({ items }: { items: ResultItem[] }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railBleed} contentContainerStyle={styles.cardsRail}>
-      {items.map((item) => {
-        const cb = item.cashback;
-        const value =
-          cb.type === 'flat_inr'
-            ? `₹${cb.value.toLocaleString('en-IN')} Cashback`
-            : cb.type === 'pct_single'
-            ? `${cb.value}% Cashback`
-            : '';
-        return (
-          <Press key={item.id} label={item.title}>
-            <View style={styles.simCard}>
-              <View style={styles.simArt}>
-                {item.artwork ? (
-                  <Image source={(typeof item.artwork === 'string' ? { uri: item.artwork } : item.artwork) as ImageSourcePropType} style={styles.simArtImg} resizeMode="cover" accessibilityLabel={item.title} />
-                ) : (
-                  <View style={[styles.simArtImg, styles.simArtFallback]}>
-                    <Icon name="card" size={28} color={color.aura.slateMuted} />
-                  </View>
-                )}
-              </View>
-              <Text style={[t.body12Medium, { color: color.textPrimary, height: 32 }]} numberOfLines={2}>
-                {item.title}
-              </Text>
-              {!!value && (
-                <LinearGradient
-                  colors={[color.aura.cashbackPillFrom, color.surface]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.simPill}
-                >
-                  <Text style={[t.body12Regular, { color: color.aura.cashback }]} numberOfLines={1}>Upto </Text>
-                  <Text style={[t.body12SemiBold, { color: color.aura.cashback, flexShrink: 1 }]} numberOfLines={1}>{value}</Text>
-                </LinearGradient>
-              )}
-            </View>
-          </Press>
-        );
-      })}
+      {items.map((item) => (
+        <CardTile key={item.id} item={item} />
+      ))}
     </ScrollView>
   );
 }
@@ -868,21 +847,21 @@ export function CampaignCard({ item }: { item: ResultItem }) {
           {item.bannerImage != null ? (
             <Image source={item.bannerImage as ImageSourcePropType} style={styles.campaignImg} resizeMode="cover" />
           ) : (
-            <LinearGradient colors={[color.error, '#ff6d1d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.campaignImg} />
+            <LinearGradient colors={[color.error, color.actionPrimary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.campaignImg} />
           )}
           <View style={styles.campaignBody}>
             <View style={{ flex: 1, gap: space.xxs }}>
               <View style={styles.campaignTitleRow}>
-                <Text style={[t.body16SemiBold, { color: color.aura.ink }]} numberOfLines={1}>{item.title}</Text>
+                <Text style={[t.body16SemiBold, { color: color.ckds.ink }]} numberOfLines={1}>{item.title}</Text>
                 {item.live && (
                   <View style={styles.liveBadge}>
                     <Text style={styles.liveBadgeText}>LIVE</Text>
                   </View>
                 )}
               </View>
-              {!!item.subtitle && <Text style={[t.body12Regular, { color: color.aura.slateMuted }]} numberOfLines={1}>{item.subtitle}</Text>}
+              {!!item.subtitle && <Text style={[t.body12Regular, { color: color.ckds.slateMuted }]} numberOfLines={1}>{item.subtitle}</Text>}
             </View>
-            <Icon name="chevron" size={13} color={color.aura.slateMuted} />
+            <Icon name="chevron" size={13} color={color.ckds.slateMuted} />
           </View>
         </View>
       </View>
@@ -912,7 +891,7 @@ export function CategoryChip({ item, onPress }: { item: ResultItem; onPress?: ()
           {/* Inset cobalt glow overlay (Figma inset 0 0 4 rgba(0,54,218,0.3)) */}
           <View style={styles.categoryIconGlow} pointerEvents="none" />
         </View>
-        <Text style={[t.body13Medium, { color: color.aura.ink }]} numberOfLines={1}>
+        <Text style={[t.body13Medium, { color: color.ckds.ink }]} numberOfLines={1}>
           {item.title}
         </Text>
       </LinearGradient>
@@ -966,7 +945,7 @@ export function StoreHero({
               near-white base still merges into the page but keeps the white timeline
               cells legible. */}
           <LinearGradient
-            colors={[wash, color.aura.heroTo]}
+            colors={[wash, color.ckds.heroTo]}
             style={StyleSheet.absoluteFill}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
@@ -977,7 +956,7 @@ export function StoreHero({
               panel ends, so there is no cut edge where `overflow: hidden` clips them.
               Sits under the content, so it never veils the timeline cells. */}
           <LinearGradient
-            colors={[color.aura.fade0, color.surface]}
+            colors={[color.ckds.fade0, color.surface]}
             style={styles.heroFade}
             pointerEvents="none"
             start={{ x: 0.5, y: 0 }}
@@ -990,17 +969,17 @@ export function StoreHero({
       <View style={styles.heroRow}>
         <BrandThumb uri={item.logo} label={item.title} width={88} height={60} radiusToken={radius.lg} scale={0.65} />
         <View style={{ flex: 1, gap: space.xs }}>
-          <Text style={[t.heading22SemiBold, { color: color.aura.ink }]} numberOfLines={1}>
+          <Text style={[t.heading22SemiBold, { color: color.ckds.ink }]} numberOfLines={1}>
             {item.title}
           </Text>
           {(item.ratingValue || item.shoppers) && (
             <View style={styles.heroRating}>
-              <Icon name="star" size={12} color={color.aura.star} />
+              <Icon name="star" size={12} color={color.ckds.star} />
               {!!item.ratingValue && (
-                <Text style={[t.body12Regular, { color: color.aura.slate }]}>  {item.ratingValue.toFixed(1)}</Text>
+                <Text style={[t.body12Regular, { color: color.ckds.slate }]}>  {item.ratingValue.toFixed(1)}</Text>
               )}
               {!!item.shoppers && (
-                <Text style={[t.body12Regular, { color: color.aura.slate }]}>  ·  {item.shoppers}</Text>
+                <Text style={[t.body12Regular, { color: color.ckds.slate }]}>  ·  {item.shoppers}</Text>
               )}
             </View>
           )}
@@ -1012,12 +991,12 @@ export function StoreHero({
         {/* +8px on top of the container gap (D067). The figure's tight lineHeight
             (54 on 52px) crops its ascent, so the qualifier needs more room here than
             a flat 4px to read as a separate line rather than the figure's hat. */}
-        <Text style={[t.body13Medium, { color: color.aura.slateMuted, marginBottom: space.s }]}>
+        <Text style={[t.body13Medium, { color: color.ckds.slateMuted, marginBottom: space.s }]}>
           {cb.type === 'flat_inr' && cb.prefix === 'flat' ? 'Flat' : 'Up to'}
         </Text>
         <View style={styles.heroBig}>
           {cb.type === 'none' ? (
-            <Text style={[styles.heroFigure, { color: color.aura.cashback }]}>—</Text>
+            <Text style={[styles.heroFigure, { color: color.ckds.cashback }]}>—</Text>
           ) : (
             <View style={styles.figSlot}>
               {/* invisible sizer — reserves the final figure's exact width/height */}
@@ -1025,29 +1004,29 @@ export function StoreHero({
                 {figStr}
               </Text>
               {cb.type === 'flat_inr' ? (
-                <CountUp value={cb.value} prefix="₹" group style={[styles.heroFigure, styles.figFill, { color: color.aura.cashback }] as any} />
+                <CountUp value={cb.value} prefix="₹" group style={[styles.heroFigure, styles.figFill, { color: color.ckds.cashback }] as any} />
               ) : (
-                <CountUp value={pct!} suffix="%" decimals={2} style={[styles.heroFigure, styles.figFill, { color: color.aura.cashback }] as any} />
+                <CountUp value={pct!} suffix="%" decimals={2} style={[styles.heroFigure, styles.figFill, { color: color.ckds.cashback }] as any} />
               )}
             </View>
           )}
-          <Text style={[t.heading22SemiBold, { color: color.aura.slate }]}>Cash Back</Text>
+          <Text style={[t.heading22SemiBold, { color: color.ckds.slate }]}>Cash Back</Text>
         </View>
         {/* New user → welcome-bonus chip; existing → loyalty "up from" chip */}
         {isNew && cb.type !== 'none' ? (
-          <View style={[styles.upChip, { backgroundColor: color.aura.greenSurface }]}>
+          <View style={[styles.upChip, { backgroundColor: color.ckds.greenSurface }]}>
             {/* Solid, not the map's regular (D074): at 10px an outline gift is a
                 few hairlines on a pale green field and reads as a smudge. The map
                 entry stays regular for the Home clone's tab bar, where the glyph
                 sits at 18px among four other outline tabs. */}
-            <Icon name="gift" weight="solid" size={10} color={color.aura.green} />
-            <Text style={[t.body12SemiBold, { color: color.aura.green }]}>  New user: Extra ₹150 on 1st order</Text>
+            <Icon name="gift" weight="solid" size={10} color={color.ckds.green} />
+            <Text style={[t.body12SemiBold, { color: color.ckds.green }]}>  New user: Extra ₹150 on 1st order</Text>
           </View>
         ) : (
           !!item.priorPct && (
             <View style={styles.upChip}>
-              <Icon name="shift" size={10} color={color.aura.green} />
-              <Text style={[t.body12SemiBold, { color: color.aura.green }]}>  Up from {item.priorPct!.toFixed(2)}%</Text>
+              <Icon name="shift" size={10} color={color.ckds.green} />
+              <Text style={[t.body12SemiBold, { color: color.ckds.green }]}>  Up from {item.priorPct!.toFixed(2)}%</Text>
             </View>
           )
         )}
@@ -1073,7 +1052,7 @@ export function StoreHero({
         <View style={{ width: '100%', gap: space.s }}>
           {/* Flush with the cells below it — the old 4px nudge lined the label up
               with a card edge that no longer exists in bleed mode (D071). */}
-          <Text style={[t.body13Medium, { color: color.aura.slateMuted, paddingHorizontal: bleed ? 0 : space.xs }]}>
+          <Text style={[t.body13Medium, { color: color.ckds.slateMuted, paddingHorizontal: bleed ? 0 : space.xs }]}>
             Cashback Timelines
           </Text>
           <View style={styles.timelines}>
@@ -1116,8 +1095,8 @@ function TimelineCell({
       <View style={[styles.timelineBody, chevron && styles.timelineBodyChevron]}>
         <Glyph />
         <View style={styles.timelineText}>
-          <Text style={[styles.timelineLabel, { color: color.aura.slateMuted }]}>{label}</Text>
-          <Text style={[t.body12SemiBold, { color: color.aura.slate }]} numberOfLines={1}>
+          <Text style={[styles.timelineLabel, { color: color.ckds.slateMuted }]}>{label}</Text>
+          <Text style={[t.body12SemiBold, { color: color.ckds.slate }]} numberOfLines={1}>
             {value}
           </Text>
         </View>
@@ -1147,9 +1126,9 @@ const styles = StyleSheet.create({
   productTitleBlock: { gap: space.xs }, // brand + title, gap 4
   priceLine: { flexDirection: 'row', alignItems: 'center', gap: space.s6 }, // gap 6
   priceGroup: { flexDirection: 'row', alignItems: 'center', gap: space.xs }, // ₹ + strike, gap 4
-  strike: { color: color.aura.priceMuted, textDecorationLine: 'line-through' },
+  strike: { color: color.ckds.priceMuted, textDecorationLine: 'line-through' },
   discountChip: {
-    backgroundColor: color.aura.greenSurface,
+    backgroundColor: color.ckds.greenSurface,
     borderRadius: radius.xs, // r4
     paddingHorizontal: space.s6, // px 6
     paddingVertical: space.xxs, // py 2
@@ -1173,11 +1152,11 @@ const styles = StyleSheet.create({
     paddingTop: space.s,
     paddingHorizontal: space.xxs, // align with the Final Price block above
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: color.aura.border,
+    borderTopColor: color.ckds.border,
   },
   retailerLogo: { width: 14, height: 14, borderRadius: radius.xs },
 
-  deal: { borderRadius: radius.xl, overflow: 'hidden', backgroundColor: color.aura.bg },
+  deal: { borderRadius: radius.xl, overflow: 'hidden', backgroundColor: color.ckds.bg },
   indicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1188,7 +1167,7 @@ const styles = StyleSheet.create({
   },
   /** Dot ⇄ count pill: one box that morphs, so `radius.full` has to hold at 2px. */
   slot: {
-    backgroundColor: color.aura.indicator,
+    backgroundColor: color.ckds.indicator,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1215,18 +1194,6 @@ const styles = StyleSheet.create({
   liveBadge: { backgroundColor: color.error, borderRadius: radius.full, paddingHorizontal: space.s6, paddingVertical: 1 },
   liveBadgeText: { ...t.caption10SemiBold, color: color.textInverse, letterSpacing: 0.4 },
   cardsRail: { gap: space.s12, paddingVertical: space.s, paddingHorizontal: space.m20 },
-  simCard: { width: 151, gap: space.s },
-  simArt: { width: 151, height: 96, borderRadius: radius.md, overflow: 'hidden', transform: [{ skewX: '-0.27deg' }] },
-  simArtImg: { width: 151, height: 96 },
-  simArtFallback: { backgroundColor: color.aura.bg, alignItems: 'center', justifyContent: 'center' },
-  simPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 32,
-    paddingHorizontal: space.s, // tighter → "Upto ₹1,500 Cashback" fits one line
-    borderRadius: radius.full,
-    alignSelf: 'stretch', // span the 151px card so the label never wraps
-  },
   // Store card (Figma 1646:7182): white card, tinted tile, offer strip, footer.
   storeCard: {
     backgroundColor: color.surface,
@@ -1360,7 +1327,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: color.aura.greenSurface,
+    backgroundColor: color.ckds.greenSurface,
     borderWidth: 1,
     borderColor: 'rgba(26,122,57,0.15)',
     borderRadius: radius.full,
@@ -1376,7 +1343,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     height: 48,
     borderRadius: radius.lg,
-    backgroundColor: color.aura.ctaHero,
+    backgroundColor: color.ckds.ctaHero,
     flexDirection: 'row',
     gap: space.xs,
     alignItems: 'center',
@@ -1404,7 +1371,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.xs,
     // native-only raise (web uses the cell's drop-shadow filter above)
-    shadowColor: '#121726',
+    shadowColor: color.shadowInk,
     shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },

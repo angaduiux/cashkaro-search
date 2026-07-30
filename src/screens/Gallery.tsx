@@ -1,3 +1,9 @@
+/**
+ * "All layouts on one page" — every result-page shape (Cases A–G) laid out
+ * together as device-framed previews, so the whole system reads at a glance.
+ * Each tile is a non-interactive SerpShell preview showing the top of that
+ * layout. Responsive: multi-column on wide screens, single column on a phone.
+ */
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -18,12 +24,7 @@ import {
 } from '../data/realData';
 import { staggerDelay } from '../motion/motion';
 
-/**
- * "All layouts on one page" — every result-page shape (Cases A–G) laid out
- * together as device-framed previews, so the whole system reads at a glance.
- * Each tile is a non-interactive SerpShell preview showing the top of that
- * layout. Responsive: multi-column on wide screens, single column on a phone.
- */
+
 const ENTRIES: { label: string; sub: string; model: SerpModel }[] = [
   { label: 'A · Resolved store', sub: 'flip → Flipkart', model: caseFlip },
   { label: 'A · Store + categories', sub: 'body → The Body Shop', model: caseBody },

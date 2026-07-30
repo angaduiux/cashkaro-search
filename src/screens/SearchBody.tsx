@@ -84,7 +84,8 @@ export function SearchBody({
             />
           </Animated.View>
         ) : (
-          <RecoveryScreen query={committed} onExpand={() => {}} />
+          /* Nothing resolved → recovery, which offers the spelling correction (D112). */
+          <RecoveryScreen query={committed} onExpand={() => {}} onPick={onPick} />
         ))}
     </View>
   );

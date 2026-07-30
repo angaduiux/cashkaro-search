@@ -218,7 +218,7 @@ const DARK_MAX = 96;
  * friends are all `#262626` at low alpha, and amplifying nothing leaves a grey
  * cloud, which reads as dirt on the card rather than as light.
  */
-const SKY: [number, number, number] = parseHex(color.aura.aiSky) ?? [56, 189, 248];
+const SKY: [number, number, number] = parseHex(color.ckds.aiSky) ?? [56, 189, 248];
 
 function deepenTint(hex: string | null | undefined): [number, number, number] | null {
   const rgb = parseHex(hex);
@@ -244,7 +244,7 @@ export function isColourlessTint(hex: string | null | undefined): boolean {
 
 /** The wash colour a surface should paint for `tint`: itself, or pale sky. */
 export function auraWashTint(hex: string | null | undefined): string {
-  return isColourlessTint(hex) ? color.aura.aiSkyWash : (hex ?? color.aura.aiSkyWash);
+  return isColourlessTint(hex) ? color.ckds.aiSkyWash : (hex ?? color.ckds.aiSkyWash);
 }
 
 /**
@@ -547,7 +547,7 @@ export function AuraField({
     <Animated.View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {base && (
         <LinearGradient
-          colors={[color.surface, color.aura.aiCardTo]}
+          colors={[color.surface, color.ckds.aiCardTo]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0.1, y: 0 }}
           end={{ x: 0.9, y: 1 }}
@@ -650,9 +650,9 @@ export function Sweep({
 // every edge — a soft column of light rather than a hard-edged slab.
 const SWEEP_FILL = radialFill(
   [
-    [color.aura.aiSheen, '0%'],
-    [color.aura.aiSheen, '18%'],
-    [color.aura.aiSheen0, '100%'],
+    [color.ckds.aiSheen, '0%'],
+    [color.ckds.aiSheen, '18%'],
+    [color.ckds.aiSheen0, '100%'],
   ],
   { shape: 'ellipse', size: 'farthest-side' },
 );
@@ -669,7 +669,7 @@ export function Orbit({ clock, size, harmonic = 1 }: { clock: AuraClock; size: n
   return (
     <Animated.View pointerEvents="none" style={[styles.orbit, { width: size * 2, height: size * 2, left: -size / 2, top: -size / 2 }, anim]}>
       <LinearGradient
-        colors={[color.aura.aiSheen0, color.aura.aiSheen, color.aura.aiSheen0]}
+        colors={[color.ckds.aiSheen0, color.ckds.aiSheen, color.ckds.aiSheen0]}
         locations={[0.34, 0.5, 0.66]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

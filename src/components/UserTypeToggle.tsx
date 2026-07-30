@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { color, type as t, space, radius, fontFamily } from '../theme/tokens';
+import { color, type as t, space, radius, fontFamily, elevation, PILL_HEIGHT } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 import { EASE } from '../motion/motion';
 
@@ -35,11 +35,46 @@ export function UserTypeToggle({ value, onChange }: { value: UserType; onChange:
   );
 }
 
+/**
+ * Compact new/existing switch — a small sticky pill that flips the whole flow from
+ * INSIDE the phone (D102). `UserTypeToggle` above is the in-design segmented
+ * control; this one is showcase chrome, for demoing on a device, where the web
+ * preview's own User control does not exist. Deliberately dark: it should read as a
+ * demo affordance sitting over the app, not as part of the Home design it covers.
+ *
+ * `bottom` is the caller's job, because only the caller knows what it has to clear
+ * (Home's tab bar plus the safe-area inset).
+ */
+export function UserTypeSwitch({
+  value,
+  onChange,
+  bottom,
+}: {
+  value: UserType;
+  onChange: (v: UserType) => void;
+  bottom: number;
+}) {
+  const next: UserType = value === 'new' ? 'existing' : 'new';
+  return (
+    <Pressable
+      onPress={() => onChange(next)}
+      hitSlop={8}
+      style={[styles.switch, { bottom }]}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value === 'existing' }}
+      accessibilityLabel={`Showing the ${value} user flow. Tap to switch to ${next}.`}
+    >
+      <Icon name="user" size={11} color={color.textInverse} />
+      <Text style={styles.switchLabel}>{value === 'new' ? 'New' : 'Existing'}</Text>
+    </Pressable>
+  );
+}
+
 function Segment({ icon, label, active, onPress }: { icon: any; label: string; active: boolean; onPress: () => void }) {
   return (
     <Pressable style={styles.segment} onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: active }} accessibilityLabel={label}>
-      <Icon name={icon} size={14} color={active ? color.textInverse : color.aura.slate} />
-      <Text style={[styles.segText, { color: active ? color.textInverse : color.aura.slate }]}>{label}</Text>
+      <Icon name={icon} size={14} color={active ? color.textInverse : color.ckds.slate} />
+      <Text style={[styles.segText, { color: active ? color.textInverse : color.ckds.slate }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -60,8 +95,25 @@ const styles = StyleSheet.create({
     top: space.xs,
     bottom: space.xs,
     borderRadius: radius.full,
-    backgroundColor: color.aura.cta,
+    backgroundColor: color.ckds.cta,
   },
+  // Sticky showcase pill, bottom-right, 36 tall + 8 of slop to clear the tap-target
+  // minimum. It DOES float over whatever is behind it — on Home that is the store
+  // rail's "Shop Now" — which is why the label is one word: anything floating over a
+  // full-width rail covers something, so it covers as little as possible.
+  switch: {
+    position: 'absolute',
+    right: space.m20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.s6,
+    height: PILL_HEIGHT,
+    paddingHorizontal: space.s12,
+    borderRadius: radius.full,
+    backgroundColor: color.ckds.ink,
+    ...elevation.md,
+  },
+  switchLabel: { fontFamily: fontFamily.semiBold, fontSize: 12, color: color.textInverse },
   segment: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs, height: '100%' },
   segText: { fontFamily: fontFamily.semiBold, fontSize: 13 },
 });

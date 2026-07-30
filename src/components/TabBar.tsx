@@ -88,7 +88,7 @@ export function TabBar({
                   <Text
                     style={[
                       t.body14SemiBold,
-                      { color: isActive ? color.textInverse : color.aura.cta },
+                      { color: isActive ? color.textInverse : color.ckds.cta },
                     ]}
                   >
                     {LABELS[key]}

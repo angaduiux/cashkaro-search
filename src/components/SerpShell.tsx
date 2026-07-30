@@ -3,10 +3,12 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import Animated, { FadeIn, FadeInDown, useAnimatedScrollHandler, runOnJS, SharedValue } from 'react-native-reanimated';
 import { SerpModel, SerpSection, TabKey, ResultItem } from '../data/dataContract';
 import { color, type as t, space, duration } from '../theme/tokens';
-import { SectionHeader } from './atoms';
+import { SectionHeader, HeadingLine } from './atoms';
 import { StoreTile, ProductCard, CategoryChip, DealsCarousel, SimilarCardsRail, CouponCard, CampaignCard } from './ResultCards';
 import { FinanceCard } from './FinanceCard';
 import { CreditCard } from './CreditCard';
+import { LoanCard } from './LoanCard';
+import { CardFilterBar, CardFilterSheets, useCardFilters, CardFilterController } from './CardFilterBar';
 import { StoreHero } from './ResultCards';
 import { TabBar } from './TabBar';
 import { ExpandSearchCard } from './ExpandSearch';
@@ -31,10 +33,10 @@ export function SerpShell({
 }: {
   model: SerpModel;
   webResults?: ResultItem[];
-  /** Store-hero pages under a full-bleed HeroBleed backdrop (D069): the shell
-   *  goes transparent so the backdrop shows through, and the hero renders
-   *  content-only. The Gallery preview never sets it — there the hero keeps
-   *  its self-contained card wash. */
+  /** Store-hero (D069) and card-hero (D104) pages under a full-bleed HeroBleed
+   *  backdrop: the shell goes transparent so the backdrop shows through, and the
+   *  hero renders content-only. The Gallery preview never sets it — there a store
+   *  hero keeps its self-contained card wash and a card keeps its frame. */
   heroBleed?: boolean;
   /** Written from the scroll handler — drives the HeroBleed parallax/fade and
    *  the search bar's white underlay (Root). */
@@ -84,6 +86,31 @@ export function SerpShell({
   const expand = !!model.expandSearch && !financeOnly;
 
   /**
+   * The credit-cards RESULT page — the one shape that gets the filter bar (D091):
+   * no resolved hero, and every section is a cards section. That is `credit` and
+   * `cards`, and deliberately not "Cards for Flipkart" (a store-scoped rail among
+   * other sections, where filtering a single card would be noise) nor the resolved
+   * single card (whose Similar cards rail is a suggestion, not a catalogue).
+   */
+  const cardsResultPage =
+    !model.hero && model.sections.length > 0 && model.sections.every((s) => s.kind === 'cards');
+
+  // Held here rather than beside the stack, because the sheets mount outside the
+  // scroller and both halves must read one state (D091). `NO_CARDS` is a module
+  // constant, so a page that isn't a cards page keeps the same empty set every
+  // render and the controller never re-runs.
+  const cards = useCardFilters(cardsResultPage ? model.sections[0].items : NO_CARDS);
+
+  /**
+   * A finance vertical's own results page — no hero, one section, and that section
+   * IS the page (cards / loans / savings). Its results line already names the
+   * vertical and its count ("Showing 3 Personal Loans"), so the section header
+   * below would print the same two facts again (D103): headerless here.
+   */
+  const financeCategoryPage =
+    !model.hero && model.sections.length === 1 && FINANCE_SECTIONS.includes(model.sections[0].kind);
+
+  /**
    * The page's rows, as a FLAT array rather than JSX nested in a fragment, because
    * `stickyHeaderIndices` addresses the ScrollView's children **by index** and a
    * fragment would hide the tab bar inside one child (D059). Falsy rows are dropped
@@ -96,11 +123,20 @@ export function SerpShell({
   let stickyIndex = -1;
 
   // Context line (§3.3): count for broad match, "Best match for…" for single entity.
-  rows.push(
-    <Animated.View key="context" entering={FadeIn.duration(duration.fast)} style={styles.context}>
-      <Text style={[t.body14Regular, { color: color.textSecondary }]}>{model.context.label}</Text>
-    </Animated.View>,
-  );
+  //
+  // Suppressed on the cards result page (D096): the filter bar states the count
+  // itself, and its count is the LIVE one — two results lines, the upper of which
+  // stops agreeing with the list the moment you filter. A "Best match for …" line
+  // is not a count, so a hero page always keeps this.
+  if (!cardsResultPage) {
+    rows.push(
+      <Animated.View key="context" entering={FadeIn.duration(duration.fast)} style={styles.context}>
+        <HeadingLine>
+          <Text style={[t.body14Regular, { color: color.textSecondary }]}>{model.context.label}</Text>
+        </HeadingLine>
+      </Animated.View>,
+    );
+  }
 
   if (loading) {
     rows.push(
@@ -117,7 +153,9 @@ export function SerpShell({
       rows.push(
         <Animated.View key="hero" entering={FadeInDown.duration(duration.moderate)} style={styles.heroWrap}>
           {isCardArchetype(model.hero) ? (
-            <CreditCard item={model.hero} />
+            <CreditCard item={model.hero} bleed={heroBleed} />
+          ) : isLoan(model.hero) ? (
+            <LoanCard item={model.hero} />
           ) : isFinance(model.hero) ? (
             <FinanceCard item={model.hero} variant="full" />
           ) : (
@@ -132,9 +170,11 @@ export function SerpShell({
     if (model.hero && model.tabs) {
       rows.push(
         <View key="allResults" style={styles.allResults}>
-          <Text style={[t.body14Regular, { color: color.textSecondary }]}>
-            All matched results for “{model.query.charAt(0).toUpperCase() + model.query.slice(1)}”
-          </Text>
+          <HeadingLine>
+            <Text style={[t.body14Regular, { color: color.textSecondary }]}>
+              All matched results for “{model.query.charAt(0).toUpperCase() + model.query.slice(1)}”
+            </Text>
+          </HeadingLine>
         </View>,
       );
     }
@@ -156,6 +196,8 @@ export function SerpShell({
             // Under the tab bar the first section owns the whole gap below the
             // hairline, and that gap is 16 (D055); section-to-section is 24.
             first={si === 0 && !!model.tabs}
+            headerless={financeCategoryPage}
+            cards={cardsResultPage ? cards : undefined}
             onViewAllStores={onViewAllStores}
             onOpenCategory={onOpenCategory}
           />
@@ -177,19 +219,25 @@ export function SerpShell({
   if (!expand) rows.push(<View key="tail" style={{ height: space.huge }} />);
 
   return (
-    <Animated.ScrollView
-      style={[styles.scroll, heroBleed && styles.scrollBleed]}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      scrollEnabled={!preview}
-      onScroll={preview ? undefined : onScroll}
-      scrollEventThrottle={16}
-      // Pinned only when the bar exists AND the page scrolls: in the gallery's
-      // static preview a pinned row would sit over content that never moves.
-      stickyHeaderIndices={stickyIndex >= 0 && !preview ? [stickyIndex] : undefined}
-    >
-      {rows}
-    </Animated.ScrollView>
+    // The scroller is wrapped so the cards page's bottom sheets have a sibling to
+    // mount into: inside the scroller they would pin to the bottom of the content
+    // (D091). The wrapper is transparent and flexes, so nothing else moves.
+    <View style={styles.host}>
+      <Animated.ScrollView
+        style={[styles.scroll, heroBleed && styles.scrollBleed]}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={!preview}
+        onScroll={preview ? undefined : onScroll}
+        scrollEventThrottle={16}
+        // Pinned only when the bar exists AND the page scrolls: in the gallery's
+        // static preview a pinned row would sit over content that never moves.
+        stickyHeaderIndices={stickyIndex >= 0 && !preview ? [stickyIndex] : undefined}
+      >
+        {rows}
+      </Animated.ScrollView>
+      <CardFilterSheets c={cards} />
+    </View>
   );
 }
 
@@ -225,17 +273,49 @@ const BODY_TOP_INSET: Partial<Record<SerpSection['kind'], number>> = {
 function SectionView({
   section,
   first = false,
+  headerless = false,
+  cards,
   onViewAllStores,
   onOpenCategory,
 }: {
   section: SerpSection;
   /** First section under the tab bar — 16px from the hairline, not 24 (D055). */
   first?: boolean;
+  /** This section IS the page (a finance category page) — the results line above
+   *  already states its vertical and count, so it renders without a header (D103). */
+  headerless?: boolean;
+  /** Set only on the cards result page: the filter bar replaces this section's
+   *  header and its `filtered` set replaces the section's items (D091). */
+  cards?: CardFilterController;
   onViewAllStores?: () => void;
   onOpenCategory?: (title: string) => void;
 }) {
+  // The filter bar states the count itself ("Showing n Credit Cards"), so a
+  // section header above it would put the same number on the page twice — and the
+  // unfiltered one at that.
+  if (cards && section.kind === 'cards') {
+    return (
+      <View style={first ? styles.sectionFirst : styles.section}>
+        <CardFilterBar c={cards} />
+        <View style={{ gap: space.s12 }}>
+          {cards.filtered.map((item, i) => (
+            <CreditCard key={item.id} item={item} index={i} />
+          ))}
+        </View>
+      </View>
+    );
+  }
+
   // Stores rail: drop duplicate brands and keep the header count in sync.
   const resolved = section.kind === 'stores' ? { ...section, items: dedupeStores(section.items) } : section;
+
+  // Headerless: the results line above is this section's header (D103). The body
+  // sits 8px below it — with the line's own 8px bottom padding that is the same
+  // 16px a first section keeps under the tab bar's hairline (D055).
+  if (headerless) {
+    return <View style={styles.sectionBare}>{renderSectionBody(resolved, onOpenCategory)}</View>;
+  }
+
   const count = resolved.kind === 'stores' ? resolved.items.length : resolved.count;
   // Only the stores rail has a wired destination (the catalog View-all grid).
   const viewAll = section.kind === 'stores' ? onViewAllStores : undefined;
@@ -251,6 +331,13 @@ function SectionView({
     </View>
   );
 }
+
+/** The finance verticals that can each own a whole results page (D103). */
+const FINANCE_SECTIONS: SerpSection['kind'][] = ['cards', 'loans', 'savings'];
+
+/** Empty set for a page with no cards section — a constant, so the controller's
+ *  reset effect sees the same reference on every render (see `useCardFilters`). */
+const NO_CARDS: ResultItem[] = [];
 
 function renderSectionBody(section: SerpSection, onOpenCategory?: (title: string) => void) {
   switch (section.kind) {
@@ -309,6 +396,8 @@ function renderSectionBody(section: SerpSection, onOpenCategory?: (title: string
           {section.items.map((item, i) =>
             isCardArchetype(item) ? (
               <CreditCard key={item.id} item={item} index={i} />
+            ) : isLoan(item) ? (
+              <LoanCard key={item.id} item={item} index={i} />
             ) : (
               <FinanceCard key={item.id} item={item} variant="full" index={i} />
             ),
@@ -345,13 +434,22 @@ const isFinance = (item: ResultItem) =>
   ['05_credit_card', '06_cobranded_card', '07_loan', '12_bank_savings'].includes(item.archetype);
 const isCardArchetype = (item: ResultItem) =>
   ['05_credit_card', '06_cobranded_card'].includes(item.archetype);
+/** Loans get their own card in the credit-card visual system (D089); savings still
+ *  render as the generic FinanceCard. */
+const isLoan = (item: ResultItem) => item.archetype === '07_loan';
 
-/** A hero that renders as StoreHero (not CreditCard / FinanceCard) — the only
- *  archetypes that get the full-bleed HeroBleed backdrop (D069). Shared by
- *  SearchBody (mounts the backdrop) and Root (bar/status-bar transparency). */
+/** A hero that renders as StoreHero (not CreditCard / FinanceCard) — the ones whose
+ *  wash/orb scene is the brand's own (D069). */
 export const isStoreHeroItem = (item: ResultItem) => !isFinance(item) && !isCardArchetype(item);
 
+/** Every hero that gets the full-bleed HeroBleed backdrop: stores (D069) and now
+ *  cards, whose best match unboxes onto the same kind of scene (D104). Loans and
+ *  savings still keep their boxed card. Shared by SearchBody (mounts the backdrop)
+ *  and Root (bar/status-bar transparency). */
+export const isBleedHeroItem = (item: ResultItem) => isStoreHeroItem(item) || isCardArchetype(item);
+
 const styles = StyleSheet.create({
+  host: { flex: 1 },
   scroll: { flex: 1, backgroundColor: color.surface },
   // Under a HeroBleed backdrop the shell must not paint the page — the wash
   // lives on a layer behind it (D069).
@@ -365,6 +463,9 @@ const styles = StyleSheet.create({
   // bar's hairline down to the first section's title.
   section: { marginTop: space.l },
   sectionFirst: { marginTop: space.m },
+  // Headerless finance category page: no title to hang a 24px gap off, so the body
+  // clears the results line by 8 (+ that line's own 8px padding = 16, D055/D103).
+  sectionBare: { marginTop: space.s },
   // Rails must be FULL-BLEED (AGENTS.md): cancel the page column's 20px padding so
   // a mid-scroll card is cut by the screen edge, then re-inset the content on BOTH
   // sides so the first card aligns with the page and the last scrolls to the edge.

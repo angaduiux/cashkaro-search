@@ -156,7 +156,7 @@ export function ProductCategory({
       {/* ── Header: back · identity · category switcher · search ─────────────── */}
       <View style={styles.header}>
         <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-          <Icon name="back" size={20} color={color.aura.ink} />
+          <Icon name="back" size={20} color={color.ckds.ink} />
         </Pressable>
         <Pressable
           onPress={() => setSheet('category')}
@@ -167,18 +167,18 @@ export function ProductCategory({
           <CategoryGlyph title={cat} size={CAT_ICON} />
           <View style={styles.headerText}>
             <View style={styles.headerTitleRow}>
-              <Text style={[t.body16SemiBold, { color: color.aura.ink }]} numberOfLines={1}>
+              <Text style={[t.body16SemiBold, { color: color.ckds.ink }]} numberOfLines={1}>
                 {category.title}
               </Text>
-              <Icon name="chevron" size={11} color={color.aura.slate} style={styles.caret} />
+              <Icon name="chevron" size={11} color={color.ckds.slate} style={styles.caret} />
             </View>
-            <Text style={[t.body12Regular, { color: color.aura.slateMuted }]} numberOfLines={1}>
+            <Text style={[t.body12Regular, { color: color.ckds.slateMuted }]} numberOfLines={1}>
               {stats.products} products · {stats.stores} stores
             </Text>
           </View>
         </Pressable>
         <Pressable onPress={onSearch} hitSlop={12} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel="Search">
-          <Icon name="search" size={17} color={color.aura.slate} />
+          <Icon name="search" size={17} color={color.ckds.slate} />
         </Pressable>
       </View>
 
@@ -210,7 +210,7 @@ export function ProductCategory({
         {/* ── Hero band: the highest real rate in this set ───────────────────── */}
         <View style={styles.heroWrap}>
           <LinearGradient
-            colors={[color.aura.heroFrom, color.aura.heroTo]}
+            colors={[color.ckds.heroFrom, color.ckds.heroTo]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             style={StyleSheet.absoluteFill}
@@ -218,31 +218,31 @@ export function ProductCategory({
           <View style={styles.heroRow}>
             <CategoryGlyph title={cat} size={HERO_ICON} />
             <View style={styles.heroText}>
-              <Text style={[t.body12Medium, { color: color.aura.slateMuted }]}>Earn up to</Text>
+              <Text style={[t.body12Medium, { color: color.ckds.slateMuted }]}>Earn up to</Text>
               <View style={styles.heroFigureRow}>
                 <CountUpText
                   value={stats.maxCbPct}
                   suffix="%"
                   trigger={countTick}
                   format={(n) => (Number.isInteger(stats.maxCbPct) ? `${Math.round(n)}` : n.toFixed(1))}
-                  style={[t.display32Bold, { color: color.aura.cashback }]}
+                  style={[t.display32Bold, { color: color.ckds.cashback }]}
                 />
-                <Text style={[t.heading18SemiBold, { color: color.aura.slate }]}>cashback</Text>
+                <Text style={[t.heading18SemiBold, { color: color.ckds.slate }]}>cashback</Text>
               </View>
-              <Text style={[t.body12Regular, { color: color.aura.slate }]}>
+              <Text style={[t.body12Regular, { color: color.ckds.slate }]}>
                 across {stats.products} products from {stats.brands} brands
               </Text>
             </View>
           </View>
           <View style={styles.heroChips}>
             <View style={styles.heroChip}>
-              <Icon name="bolt" size={11} color={color.aura.green} />
-              <Text style={[t.body12SemiBold, { color: color.aura.green }]}>  Stacks on top of store discounts</Text>
+              <Icon name="bolt" size={11} color={color.ckds.green} />
+              <Text style={[t.body12SemiBold, { color: color.ckds.green }]}>  Stacks on top of store discounts</Text>
             </View>
             {stats.maxDiscount > 0 && (
               <View style={[styles.heroChip, styles.heroChipNeutral]}>
-                <Icon name="tag" size={11} color={color.aura.slate} />
-                <Text style={[t.body12SemiBold, { color: color.aura.slate }]}>  Up to {stats.maxDiscount}% off MRP</Text>
+                <Icon name="tag" size={11} color={color.ckds.slate} />
+                <Text style={[t.body12SemiBold, { color: color.ckds.slate }]}>  Up to {stats.maxDiscount}% off MRP</Text>
               </View>
             )}
           </View>
@@ -275,11 +275,11 @@ export function ProductCategory({
 
         {/* ── Results bar: what you're looking at, and how it's ordered ─────── */}
         <View style={styles.resultsBar}>
-          <Text style={[t.body14SemiBoldFlat, { color: color.aura.ink }]}>
+          <Text style={[t.body14SemiBoldFlat, { color: color.ckds.ink }]}>
             {items.length} {items.length === 1 ? 'product' : 'products'}
             {filters.sub ? ` in ${SUB_LABELS[filters.sub] ?? filters.sub}` : ''}
           </Text>
-          <Text style={[t.body12Regular, { color: color.aura.slateMuted }]}>Sorted by {sortLabel(sort)}</Text>
+          <Text style={[t.body12Regular, { color: color.ckds.slateMuted }]}>Sorted by {sortLabel(sort)}</Text>
         </View>
 
         {activeCount > 0 && (
@@ -298,7 +298,7 @@ export function ProductCategory({
               <RemovablePill label={`${filters.minCb}% cashback & above`} onRemove={() => setFilters((f) => ({ ...f, minCb: null }))} />
             )}
             <Pressable onPress={clearFilters} hitSlop={10} style={styles.clearAll} accessibilityRole="button" accessibilityLabel="Clear all filters">
-              <Text style={[t.body12SemiBold, { color: color.aura.cta }]}>Clear all</Text>
+              <Text style={[t.body12SemiBold, { color: color.ckds.cta }]}>Clear all</Text>
             </Pressable>
           </View>
         )}
@@ -321,7 +321,7 @@ export function ProductCategory({
           ) : (
             <Animated.View entering={FadeInDown.duration(duration.base)} style={styles.empty}>
               <CategoryGlyph title={cat} size={HERO_ICON} dim />
-              <Text style={[t.body16SemiBold, { color: color.aura.ink }]}>No products match these filters</Text>
+              <Text style={[t.body16SemiBold, { color: color.ckds.ink }]}>No products match these filters</Text>
               <Text style={[t.body14Regular, styles.emptyLine]}>
                 {stats.products} products are available in {category.title} — try dropping a filter.
               </Text>
@@ -348,8 +348,8 @@ export function ProductCategory({
             accessibilityRole="button"
             accessibilityLabel={`Sort. Currently ${sortLabel(sort)}`}
           >
-            <Icon name="sort" size={14} color={color.aura.ink} />
-            <Text style={[t.body14SemiBoldFlat, { color: color.aura.ink }]}>{sortLabel(sort)}</Text>
+            <Icon name="sort" size={14} color={color.ckds.ink} />
+            <Text style={[t.body14SemiBoldFlat, { color: color.ckds.ink }]}>{sortLabel(sort)}</Text>
           </Pressable>
           <View style={styles.barSep} />
           <Pressable
@@ -358,8 +358,8 @@ export function ProductCategory({
             accessibilityRole="button"
             accessibilityLabel={activeCount > 0 ? `Filters, ${activeCount} applied` : 'Filters'}
           >
-            <Icon name="filter" size={14} color={activeCount > 0 ? color.textInverse : color.aura.ink} />
-            <Text style={[t.body14SemiBoldFlat, { color: activeCount > 0 ? color.textInverse : color.aura.ink }]}>
+            <Icon name="filter" size={14} color={activeCount > 0 ? color.textInverse : color.ckds.ink} />
+            <Text style={[t.body14SemiBoldFlat, { color: activeCount > 0 ? color.textInverse : color.ckds.ink }]}>
               Filter{activeCount > 0 ? ` · ${activeCount}` : ''}
             </Text>
           </Pressable>
@@ -399,7 +399,7 @@ export function ProductCategory({
                 accessibilityRole="button"
                 accessibilityLabel="Clear all filters"
               >
-                <Text style={[t.body14SemiBold, { color: color.aura.slate }]}>Clear all</Text>
+                <Text style={[t.body14SemiBold, { color: color.ckds.slate }]}>Clear all</Text>
               </Pressable>
               <Pressable
                 onPress={applyFilters}
@@ -475,17 +475,17 @@ export function ProductCategory({
               >
                 <CategoryGlyph title={c.cat} size={CAT_ICON} />
                 <View style={styles.catRowText}>
-                  <Text style={[c.key === key ? t.body16SemiBold : t.body16Regular, { color: color.aura.ink }]} numberOfLines={1}>
+                  <Text style={[c.key === key ? t.body16SemiBold : t.body16Regular, { color: color.ckds.ink }]} numberOfLines={1}>
                     {c.title}
                   </Text>
-                  <Text style={[t.body12Regular, { color: color.aura.slateMuted }]} numberOfLines={1}>
+                  <Text style={[t.body12Regular, { color: color.ckds.slateMuted }]} numberOfLines={1}>
                     {s.products} products · up to {Math.round(s.maxCbPct)}% cashback
                   </Text>
                 </View>
                 {c.key === key ? (
-                  <Icon name="check" size={15} color={color.aura.cta} />
+                  <Icon name="check" size={15} color={color.ckds.cta} />
                 ) : (
-                  <Icon name="chevron" size={12} color={color.aura.fieldIcon} />
+                  <Icon name="chevron" size={12} color={color.ckds.fieldIcon} />
                 )}
               </Pressable>
             );
@@ -557,11 +557,11 @@ function ProductSheet({
         )}
         <View style={styles.breakDivider} />
         <View style={styles.breakRow}>
-          <Text style={[t.body14SemiBold, { color: color.aura.ink }]}>Effective price</Text>
-          <Text style={[t.heading18SemiBold, { color: color.aura.ink }]}>{inr(finalPrice(product))}</Text>
+          <Text style={[t.body14SemiBold, { color: color.ckds.ink }]}>Effective price</Text>
+          <Text style={[t.heading18SemiBold, { color: color.ckds.ink }]}>{inr(finalPrice(product))}</Text>
         </View>
       </View>
-      <Text style={[t.body12Regular, { color: color.aura.slateMuted }]}>
+      <Text style={[t.body12Regular, { color: color.ckds.slateMuted }]}>
         Cashback tracks within 48 hours of the order and confirms once the store validates it.
       </Text>
     </Sheet>
@@ -581,11 +581,11 @@ function BreakRow({
 }) {
   return (
     <View style={styles.breakRow}>
-      <Text style={[t.body14Regular, { color: color.aura.slate }]}>{label}</Text>
+      <Text style={[t.body14Regular, { color: color.ckds.slate }]}>{label}</Text>
       <Text
         style={[
           t.body14SemiBoldFlat,
-          { color: tone === 'reward' ? color.aura.green : color.aura.ink },
+          { color: tone === 'reward' ? color.ckds.green : color.ckds.ink },
           strike && styles.strike,
         ]}
       >
@@ -601,7 +601,7 @@ function CategoryGlyph({ title, size, dim }: { title: string; size: number; dim?
   if (!img) {
     return (
       <View style={[styles.glyphFallback, { width: size, height: size, borderRadius: size / 2 }]}>
-        <Icon name="grid" size={size * 0.4} weight="light" color={color.aura.slateMuted} />
+        <Icon name="grid" size={size * 0.4} weight="light" color={color.ckds.slateMuted} />
       </View>
     );
   }
@@ -626,8 +626,8 @@ function SubChip({ label, count, on, onPress }: { label: string; count: number; 
       accessibilityState={{ selected: on }}
       accessibilityLabel={`${label}, ${count} ${count === 1 ? 'product' : 'products'}`}
     >
-      <Text style={[t.body13Medium, { color: on ? color.textInverse : color.aura.ink }]}>{label}</Text>
-      <Text style={[t.body12Regular, { color: on ? color.textInverse : color.aura.slateMuted }]}>{count}</Text>
+      <Text style={[t.body13Medium, { color: on ? color.textInverse : color.ckds.ink }]}>{label}</Text>
+      <Text style={[t.body12Regular, { color: on ? color.textInverse : color.ckds.slateMuted }]}>{count}</Text>
     </Pressable>
   );
 }
@@ -642,8 +642,8 @@ function RemovablePill({ label, onRemove }: { label: string; onRemove: () => voi
       accessibilityRole="button"
       accessibilityLabel={`Remove filter ${label}`}
     >
-      <Text style={[t.body12Medium, { color: color.aura.cta }]}>{label}</Text>
-      <Icon name="clear" size={10} color={color.aura.cta} />
+      <Text style={[t.body12Medium, { color: color.ckds.cta }]}>{label}</Text>
+      <Icon name="clear" size={10} color={color.ckds.cta} />
     </Pressable>
   );
 }
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
     width: MIN_TAP_TARGET,
     height: MIN_TAP_TARGET,
     borderRadius: radius.full,
-    backgroundColor: color.aura.bg,
+    backgroundColor: color.ckds.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -685,8 +685,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     borderWidth: 1,
   },
-  subChipOn: { backgroundColor: color.aura.cta, borderColor: color.aura.cta },
-  subChipOff: { backgroundColor: color.surface, borderColor: color.aura.border },
+  subChipOn: { backgroundColor: color.ckds.cta, borderColor: color.ckds.cta },
+  subChipOff: { backgroundColor: color.surface, borderColor: color.ckds.border },
 
   scroll: { flex: 1 },
   content: { paddingHorizontal: space.m20 },
@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
   heroChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: color.aura.greenSurface,
+    backgroundColor: color.ckds.greenSurface,
     borderRadius: radius.full,
     paddingHorizontal: space.s,
     paddingVertical: space.xs,
@@ -748,17 +748,17 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: space.m20 },
 
   empty: { alignItems: 'center', gap: space.s12, paddingVertical: space.xxl },
-  emptyLine: { color: color.aura.slate, textAlign: 'center' },
+  emptyLine: { color: color.ckds.slate, textAlign: 'center' },
   emptyCta: {
     minHeight: MIN_TAP_TARGET,
     paddingHorizontal: space.m20,
     borderRadius: radius.full,
-    backgroundColor: color.aura.cta,
+    backgroundColor: color.ckds.cta,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: space.xs,
   },
-  foot: { color: color.aura.slateMuted, marginTop: space.m20 },
+  foot: { color: color.ckds.slateMuted, marginTop: space.m20 },
 
   // Floating bar — sits above the page, clear of the last grid row (content pads
   // by space.huge96 so nothing is ever hidden behind it).
@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     backgroundColor: color.surface,
     borderWidth: 1,
-    borderColor: color.aura.border,
+    borderColor: color.ckds.border,
     overflow: 'hidden',
     ...elevation.md,
   },
@@ -781,24 +781,24 @@ const styles = StyleSheet.create({
     height: BAR_H,
     paddingHorizontal: space.m20,
   },
-  barHalfOn: { backgroundColor: color.aura.cta },
-  barSep: { width: 1, height: space.m20, backgroundColor: color.aura.border },
+  barHalfOn: { backgroundColor: color.ckds.cta },
+  barSep: { width: 1, height: space.m20, backgroundColor: color.ckds.border },
 
   sheetCta: {
     flex: 1,
     minHeight: MIN_TAP_TARGET,
     borderRadius: radius.lg,
-    backgroundColor: color.aura.cta,
+    backgroundColor: color.ckds.cta,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetCtaOff: { backgroundColor: color.aura.slateMuted },
+  sheetCtaOff: { backgroundColor: color.ckds.slateMuted },
   sheetGhost: {
     minHeight: MIN_TAP_TARGET,
     paddingHorizontal: space.m,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: color.aura.border,
+    borderColor: color.ckds.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -814,13 +814,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: color.surface,
     borderWidth: 1,
-    borderColor: color.aura.border,
+    borderColor: color.ckds.border,
   },
   breakdown: { gap: space.s12 },
   breakRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s12 },
-  breakDivider: { height: 1, backgroundColor: color.aura.border },
-  strike: { color: color.aura.priceMuted, textDecorationLine: 'line-through' },
+  breakDivider: { height: 1, backgroundColor: color.ckds.border },
+  strike: { color: color.ckds.priceMuted, textDecorationLine: 'line-through' },
 
-  glyphFallback: { backgroundColor: color.aura.bg, alignItems: 'center', justifyContent: 'center' },
+  glyphFallback: { backgroundColor: color.ckds.bg, alignItems: 'center', justifyContent: 'center' },
   glyphDim: { opacity: 0.4 },
 });

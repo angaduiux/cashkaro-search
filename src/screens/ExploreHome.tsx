@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Image, ImageSourcePropType, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { color, type as t, space, radius, fontFamily, spring, MIN_TAP_TARGET, PILL_HEIGHT, TRENDING_PILL_HEIGHT } from '../theme/tokens';
+import { color, type as t, space, radius, fontFamily, spring, MIN_TAP_TARGET, PILL_HEIGHT, TRENDING_PILL_HEIGHT, CARD_TILE_SPEC } from '../theme/tokens';
 import { Icon } from '../icons/Icon';
 import { IconName } from '../icons/iconMap';
-import { BrandThumb } from '../components/ImageSlot';
 import { DealsCarousel, StoreTile } from '../components/ResultCards';
-import { storeTilesByKeys } from '../data/storeTiles';
-import { CountUpText } from '../motion/CountUp';
+import { CardTile } from '../components/CardTile';
+import { storeTilesByKeys, storeTileByKey, storeTileItem } from '../data/storeTiles';
 import { UserType } from '../components/UserTypeToggle';
 import { BRAND, ALL_DEALS, cardSbiCashback, cardAxisFlipkart, cardFederalScapia } from '../data/realData';
 import { searchStores } from '../data/catalog';
@@ -16,7 +15,8 @@ import { trendingPills, type TrendingPill } from '../data/trendingPills';
 import { Cashback, ResultItem } from '../data/dataContract';
 import { staggerDelay } from '../motion/motion';
 import { RollingThumb } from '../motion/RollingThumb';
-import { LoopRail } from '../motion/LoopRail';
+import { LoopRail, useRailPause } from '../motion/LoopRail';
+import { isColourlessTint } from '../motion/Aura';
 
 /** Vertical slop that lifts the 40px pill's tap target back to ≥44px (§6.2). */
 const PILL_SLOP = Math.ceil((MIN_TAP_TARGET - PILL_HEIGHT) / 2);
@@ -33,9 +33,9 @@ function Head({ icon, gif, title, action }: { icon?: IconName; gif?: ImageSource
         {gif ? (
           <Image source={gif} style={styles.headGif} resizeMode="contain" accessibilityLabel={`${title} icon`} />
         ) : (
-          icon && <Icon name={icon} size={18} color={icon === 'fire' ? color.actionPrimary : color.aura.ink} />
+          icon && <Icon name={icon} size={18} color={icon === 'fire' ? color.actionPrimary : color.ckds.ink} />
         )}
-        <Text style={[t.body14SemiBold, { color: color.aura.ink, letterSpacing: 0 }]}>{title}</Text>
+        <Text style={[t.body14SemiBold, { color: color.ckds.ink, letterSpacing: 0 }]}>{title}</Text>
       </View>
       {action}
     </View>
@@ -75,14 +75,6 @@ function trendingRows(): TrendingPill[][] {
 // render time (not module scope) to stay clear of the catalog↔realData cycle.
 const TOP_STORE_KEYS = ['croma', 'nykaa', 'ajio', 'amazon', 'mamaearth', 'dotKey'];
 
-/** Cashback → short label, e.g. "Up to 3%" / "Flat ₹1,500". Null when none. */
-function rateLabel(cb: Cashback): { prefix: string; value: string } | null {
-  if (cb.type === 'none') return null;
-  if (cb.type === 'flat_inr') return { prefix: cb.prefix === 'flat' ? 'Flat' : 'Up to', value: `₹${cb.value.toLocaleString('en-IN')}` };
-  const v = cb.type === 'pct_range' ? cb.max : cb.value;
-  return { prefix: 'Up to', value: `${v}%` };
-}
-
 // Recently-viewed credit/co-branded cards → direct card-page destinations.
 const CARDS: { card: ResultItem; aliases: string[]; goto: string }[] = [
   { card: cardSbiCashback, aliases: ['sbi cashback card', 'sbi cashback', 'sbi card', 'sbi', 'cashback card'], goto: 'sbi cashback card' },
@@ -98,8 +90,61 @@ function matchCard(q: string) {
   return CARDS.find((c) => c.aliases.some((a) => s === a || s.startsWith(a + ' ') || (a.length >= 4 && s.includes(a))));
 }
 
-type Dest = { kind: 'store' | 'card'; key: string; logo: string | number | null; title: string; cashback: Cashback; goto: string };
+/**
+ * A resolved recent. `item` is the ResultItem its tile renders — a card carries the
+ * catalog's own card (artwork, issuer wordmark, fees), a store the Storepage tile when
+ * that brand has one, else a tile built from its DS logo + catalog cashback (D105).
+ */
+type Dest = { kind: 'store' | 'card'; key: string; item: ResultItem; goto: string };
 
+/** Jump-back-in tile width — the card tile's own 104 (Figma 1696:5271), so a card and
+ *  a store sit at the same width in the rail. */
+const JUMP_TILE_W = CARD_TILE_SPEC.w;
+
+/**
+ * The ResultItem a store destination's tile renders (D105). A brand that IS in the
+ * Storepage Tiles set gets that tile verbatim — the frame's own logo PNG, wash, offer
+ * strip and caption — which is what AGENTS.md's tile rule asks for. A brand that isn't
+ * (Flipkart, Nike …) still has to be shown, because "Jump back in" is history and
+ * substituting another brand would be a lie; it gets the same tile drawn from its own
+ * design-system logo and catalog cashback, with no offer strip to invent.
+ */
+function storeDestItem(store: { slug: string; name: string; cashback: Cashback; brand: string | null }): ResultItem {
+  const tile = store.brand ? storeTileByKey(store.brand) : undefined;
+  if (tile) return storeTileItem(tile, 'jump-' + store.slug);
+  const brand = store.brand ? BRAND[store.brand] : undefined;
+  return {
+    id: 'jump-' + store.slug,
+    archetype: '01_store',
+    source: 'internal',
+    title: store.name,
+    logo: brand?.logo ?? null,
+    // The wash. A brand with a real tint passes it as `logoBg`, which StoreTile mixes
+    // 80% into white like every other store card (raw, it painted Flipkart's tile
+    // highlighter-yellow). A near-black or colourless one — Nike, AJIO — would wash
+    // grey, which reads as dirt (D039), so it takes the aura's pale sky instead, via
+    // `heroTint`: that value is already pale and must not be softened again or the tile
+    // comes out white.
+    ...(isColourlessTint(brand?.bg)
+      ? { heroTint: color.ckds.aiSkyWash }
+      : { logoBg: brand?.bg }),
+    cashback: store.cashback,
+    // The green strip is the Storepage tile's own offer text, which a brand outside
+    // that set has none of — so it carries the one green fact that IS sourced for every
+    // store: CashKaro's own tracking promise (`catalog` TL, 48 hours).
+    discount: 'Tracks in 48 hours',
+  };
+}
+
+
+/**
+ * ExploreHome — the Explore landing, shown the moment search is tapped and before a
+ * character is typed. "Jump back in" is a compact rail of logo tiles for recents that
+ * resolved to an exact store or card, so one tap goes straight to that result; "Recent"
+ * keeps the full history as removable pills; "Trending" is two rails that drift in
+ * opposite directions forever, each pill leading with a disc that rolls through the SKUs
+ * its query returns (D081, D086); then the deals carousel and the Top Stores grid.
+ */
 export function ExploreHome({
   recents,
   enterTick,
@@ -135,7 +180,7 @@ export function ExploreHome({
     const card = matchCard(q);
     if (card && !seen.has('card:' + card.card.id)) {
       seen.add('card:' + card.card.id);
-      destinations.push({ kind: 'card', key: card.card.id, logo: card.card.logo, title: card.card.title, cashback: card.card.cashback, goto: card.goto });
+      destinations.push({ kind: 'card', key: card.card.id, item: card.card, goto: card.goto });
       continue;
     }
     const store = searchStores(q)[0];
@@ -147,7 +192,7 @@ export function ExploreHome({
       (store.name.toLowerCase().startsWith(s) || store.aliases.some((a) => a === s || a.startsWith(s) || s.startsWith(a)));
     if (store && strong && !seen.has('store:' + store.slug)) {
       seen.add('store:' + store.slug);
-      destinations.push({ kind: 'store', key: store.slug, logo: store.brand ? BRAND[store.brand]?.logo ?? null : null, title: store.name, cashback: store.cashback, goto: store.name.toLowerCase() });
+      destinations.push({ kind: 'store', key: store.slug, item: storeDestItem(store), goto: store.name.toLowerCase() });
     }
   }
 
@@ -163,7 +208,11 @@ export function ExploreHome({
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tileRow}>
             {destinations.slice(0, 8).map((d, i) => (
               <Animated.View key={d.key} entering={FadeInDown.delay(staggerDelay(i)).duration(220)}>
-                <DestinationTile dest={d} trigger={enterTick} onPress={() => (d.kind === 'store' ? onOpenStore(d.goto) : onPick(d.goto))} />
+                {d.kind === 'card' ? (
+                  <CardTile item={d.item} width={JUMP_TILE_W} onPress={() => onPick(d.goto)} />
+                ) : (
+                  <StoreTile item={d.item} width={JUMP_TILE_W} onPress={() => onOpenStore(d.goto)} />
+                )}
               </Animated.View>
             ))}
           </ScrollView>
@@ -246,34 +295,6 @@ export function ExploreHome({
   );
 }
 
-/** Compact recent-destination tile — logo + cashback figure (Home Top-Stores style). */
-function DestinationTile({ dest, onPress, trigger }: { dest: Dest; onPress: () => void; trigger: number }) {
-  const rate = rateLabel(dest.cashback);
-  const cb = dest.cashback;
-  const isFlat = cb.type === 'flat_inr';
-  const num = cb.type === 'flat_inr' ? cb.value : cb.type === 'pct_range' ? cb.max : cb.type === 'pct_single' ? cb.value : 0;
-  return (
-    <Pressable style={styles.tile} onPress={onPress} accessibilityRole="button" accessibilityLabel={dest.title}>
-      <BrandThumb uri={dest.logo} label={dest.title} width={104} height={44} radiusToken={11} />
-      {rate ? (
-        <View style={styles.tileRate}>
-          <Text style={[t.body12Medium, { color: color.aura.slate }]}>{rate.prefix} </Text>
-          <CountUpText
-            value={num}
-            prefix={isFlat ? '₹' : ''}
-            suffix={isFlat ? '' : '%'}
-            trigger={trigger}
-            format={(n) => (isFlat ? Math.round(n).toLocaleString('en-IN') : Number.isInteger(num) ? `${Math.round(n)}` : n.toFixed(1))}
-            style={[styles.tileRateValue, { color: color.aura.cashback }]}
-          />
-        </View>
-      ) : (
-        <Text style={[t.body12Medium, { color: color.aura.slate }]}>Visit store</Text>
-      )}
-    </Pressable>
-  );
-}
-
 function Chip({
   icon,
   label,
@@ -293,6 +314,9 @@ function Chip({
   // Press feedback: the same scale-spring as `Button` (§9.4 "card press / tap"),
   // so a chip answers the finger instead of reading as a dead label.
   const scale = useSharedValue(1);
+  // A trending chip rides a drifting rail; hold it still for the press or the
+  // movement under the finger cancels the tap (D097). No-op off a rail.
+  const rail = useRailPause();
   const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const thumb = images && images.length > 0;
 
@@ -300,8 +324,14 @@ function Chip({
     <Animated.View style={pressStyle}>
     <Pressable
       onPress={onPress}
-      onPressIn={() => (scale.value = withSpring(0.97, spring.snappy))}
-      onPressOut={() => (scale.value = withSpring(1, spring.snappy))}
+      onPressIn={() => {
+        rail.hold();
+        scale.value = withSpring(0.97, spring.snappy);
+      }}
+      onPressOut={() => {
+        rail.release();
+        scale.value = withSpring(1, spring.snappy);
+      }}
       hitSlop={{ top: PILL_SLOP, bottom: PILL_SLOP }}
       style={[styles.chip, warm ? styles.chipWarm : styles.chipRecent, thumb ? styles.chipThumb : null]}
       accessibilityRole="button"
@@ -323,11 +353,11 @@ function Chip({
       )}
       {/* A trending pill leads with the SKU reel its query resolves to (D081);
           recents keep the history glyph. */}
-      {thumb ? <RollingThumb images={images!} /> : <Icon name={icon} size={13} color={color.aura.fieldIcon} />}
-      <Text style={[t.body14Regular, { color: color.aura.slate }]}>{label}</Text>
+      {thumb ? <RollingThumb images={images!} /> : <Icon name={icon} size={13} color={color.ckds.fieldIcon} />}
+      <Text style={[t.body14Regular, { color: color.ckds.slate }]}>{label}</Text>
       {onRemove && (
         <Pressable hitSlop={8} onPress={onRemove} accessibilityRole="button" accessibilityLabel={`Remove ${label}`} style={styles.chipRemove}>
-          <Icon name="clear" size={13} color={color.aura.fieldIcon} />
+          <Icon name="clear" size={13} color={color.ckds.fieldIcon} />
         </Pressable>
       )}
     </Pressable>
@@ -376,15 +406,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.s12,
     borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: color.aura.border,
+    borderColor: color.ckds.border,
     backgroundColor: color.surface,
   },
   // Top-Stores grid — matches the Home rail's wrap + gutters
   storeGrid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.m, rowGap: space.m },
-  // Jump-back-in compact tile rail
+  // Jump-back-in brand-tile rail (D105)
   tileRow: { flexDirection: 'row', gap: space.m, paddingHorizontal: space.m20 },
-  tile: { width: 104, alignItems: 'center', gap: space.s12 },
-  tileRate: { flexDirection: 'row', alignItems: 'baseline' },
-  tileRateValue: { fontFamily: fontFamily.semiBold, fontSize: 20, letterSpacing: -0.08 },
   welcome: { flexDirection: 'row', alignItems: 'center', gap: space.s, marginTop: space.s12, paddingHorizontal: space.xs },
 });

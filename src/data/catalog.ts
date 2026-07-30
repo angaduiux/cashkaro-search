@@ -147,7 +147,11 @@ export function searchStores(query: string): Store[] {
       else if (h.startsWith(q)) score = Math.max(score, 80);
       else if (h.includes(q)) score = Math.max(score, 50);
     }
-    if (s.live) score += 3; // gently favour live-verified
+    // Only ever a TIEBREAK on a store the query actually matched. Unconditionally it
+    // gave every live store a score of 3 with no match at all, so `searchStores` never
+    // returned empty: "zzzqqq" resolved to a five-store SERP headed "5 results for
+    // Zzzqqq" and the recovery screen was unreachable (screenshotted, D112).
+    if (score > 0 && s.live) score += 3;
     return { s, score };
   })
     .filter((x) => x.score > 0)

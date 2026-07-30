@@ -91,10 +91,10 @@ const HEADING_MARK = 20;
 /** Soft platter behind the mark — cobalt core fading to nothing (matches the
  *  blue glass body; a violet platter under a blue mark read as a second object). */
 const MARK_GLOW = radialFill([
-  [color.aura.aiGlowBlueCore, '0%'],
-  [color.aura.aiGlowBlueMid, '42%'],
-  [color.aura.aiGlowBlue0, '78%'],
-  [color.aura.aiGlowBlue0, '100%'],
+  [color.ckds.aiGlowBlueCore, '0%'],
+  [color.ckds.aiGlowBlueMid, '42%'],
+  [color.ckds.aiGlowBlue0, '78%'],
+  [color.ckds.aiGlowBlue0, '100%'],
 ]);
 
 export function ExpandSearchCard({
@@ -258,7 +258,7 @@ export function ExpandSearchCard({
             >
               {/* Base ramp — also the still frame under reduced motion. */}
               <LinearGradient
-                colors={[color.aura.aiFrom, color.aura.aiVia, color.aura.aiTo, color.aura.aiWash1]}
+                colors={[color.ckds.aiFrom, color.ckds.aiVia, color.ckds.aiTo, color.ckds.aiWash1]}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={StyleSheet.absoluteFill}
@@ -266,7 +266,7 @@ export function ExpandSearchCard({
               {ctaW > 0 && !reduced && <FlowStrip clock={clock} width={ctaW} harmonic={2} />}
               {/* Glass: gloss down from the top edge, shade at the bottom. */}
               <LinearGradient
-                colors={[color.aura.aiGloss, color.aura.aiGlossMid, color.aura.aiInnerShade]}
+                colors={[color.ckds.aiGloss, color.ckds.aiGlossMid, color.ckds.aiInnerShade]}
                 locations={[0, 0.55, 1]}
                 style={StyleSheet.absoluteFill}
               />
@@ -425,16 +425,16 @@ const styles = StyleSheet.create({
   /** The text column beside the mark — title over a two-line pitch. */
   headText: { flex: 1 },
   /** 1px light along the top edge — how an iOS control catches ambient light. */
-  topLight: { position: 'absolute', left: 0, right: 0, top: 0, height: 1, backgroundColor: color.aura.aiHairline },
+  topLight: { position: 'absolute', left: 0, right: 0, top: 0, height: 1, backgroundColor: color.ckds.aiHairline },
 
-  title: { ...t.body16SemiBold, color: color.aura.ink },
-  body: { ...t.body14Regular, color: color.aura.slate, marginTop: space.xs },
+  title: { ...t.body16SemiBold, color: color.ckds.ink },
+  body: { ...t.body14Regular, color: color.ckds.slate, marginTop: space.xs },
 
   ctaShadow: {
     marginTop: space.m,
     borderRadius: radius.xl,
-    backgroundColor: color.aura.aiTo,
-    shadowColor: color.aura.aiShadow,
+    backgroundColor: color.ckds.aiTo,
+    shadowColor: color.ckds.aiShadow,
     shadowOpacity: 0.3,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 5 },
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     gap: space.s,
   },
   ctaLabel: { ...t.body15SemiBold, color: color.textInverse },
-  pressVeil: { backgroundColor: color.aura.aiPress },
+  pressVeil: { backgroundColor: color.ckds.aiPress },
 
   dots: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   dot: { width: space.xs, height: space.xs, borderRadius: space.xxs, backgroundColor: color.textInverse },
@@ -468,8 +468,8 @@ const styles = StyleSheet.create({
   /** Results state — one heading + the grid, back on the page column. */
   results: { paddingHorizontal: space.m20, paddingTop: SHEET_END_H + SHEET_CLEAR, gap: space.m },
   headingRow: { flexDirection: 'row', alignItems: 'center', gap: space.s },
-  heading: { ...t.body16SemiBold, color: color.aura.ink, flex: 1 },
-  headingCount: { ...t.body12Medium, color: color.aura.slateMuted },
+  heading: { ...t.body16SemiBold, color: color.ckds.ink, flex: 1 },
+  headingCount: { ...t.body12Medium, color: color.ckds.slateMuted },
   /**
    * 2-up grid as two INDEPENDENT columns splitting one 12px gutter — not a
    * wrapping row, whose cells all stretch to the tallest in the row. `flex-start`

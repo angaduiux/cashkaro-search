@@ -1,3 +1,15 @@
+/**
+ * Root — the app's single controller. It owns ONE search state machine (active,
+ * text, committed, mode: typing | serp) that every surface reads, so the one hoisted
+ * search bar glides Home → Explore → Typing → results instead of each screen owning
+ * a field of its own (D034). It also owns the overlay stack (product category page,
+ * per-vertical View-all, catalog grid, gallery), the query → `SerpModel` resolution
+ * order (`REAL_CASES` → `financeSerp` → `buildSerp`, D052), and the web preview
+ * chrome: device frame, mock status bar, mock keyboard and the screen navigator.
+ *
+ * Edited ADDITIVELY by convention — several chats work in this file (AGENTS
+ * "Parallel-work boundaries"), and test scaffolding never survives a turn (D011).
+ */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform, TextInput, useWindowDimensions, Keyboard as OSKeyboard } from 'react-native';
 import Animated, {
@@ -12,9 +24,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { color, type as t, space, radius, elevation } from './theme/tokens';
 import { EASE } from './motion/motion';
 import { SearchBar } from './components/SearchBar';
-import { isStoreHeroItem } from './components/SerpShell';
+import { isBleedHeroItem } from './components/SerpShell';
 import { HeroBleed } from './components/HeroBleed';
-import { HomeScreen } from './screens/HomeScreen';
+import { HomeScreen, APP_TAB_BAR_H } from './screens/HomeScreen';
 import { SearchBody } from './screens/SearchBody';
 import { Gallery } from './screens/Gallery';
 import { CatalogViewAll } from './screens/CatalogViewAll';
@@ -23,6 +35,7 @@ import { ProductCategory } from './screens/ProductCategory';
 import { ScreenNav, NavSection } from './components/ScreenNav';
 import { Keyboard } from './os/Keyboard';
 import { VoiceSheet } from './components/VoiceSheet';
+import { UserTypeSwitch } from './components/UserTypeToggle';
 import { StatusBar, STATUS_BAR_H } from './os/StatusBar';
 import { NavChrome, NAV_CHROME_H } from './os/NavChrome';
 import { DEVICES, DEFAULT_DEVICE, Device } from './os/devices';
@@ -63,7 +76,12 @@ export function Root() {
   const [viewAllKey, setViewAllKey] = useState<string | null>(null); // generic per-vertical View-all overlay
   const [catPage, setCatPage] = useState<CategoryTarget | null>(null); // product category page overlay
   const [enterTick, setEnterTick] = useState(0); // bumps on search-bar tap → replays count-ups
-  const [userType, setUserType] = useState<'new' | 'existing'>('new'); // drives new/existing flow
+  // Defaults to EXISTING (D100). The only control that flips this is in the wide
+  // web-preview toolbar below, which does not exist on a device — so at 'new' the
+  // simulator could never show "Jump back in" or Recent searches at all, even
+  // though INITIAL_RECENTS seeds six queries precisely so they can be seen. Web
+  // keeps both flows one tap apart.
+  const [userType, setUserType] = useState<'new' | 'existing'>('existing');
   const [kbH, setKbH] = useState(0); // measured mock on-screen keyboard height (web)
   const [voice, setVoice] = useState(false); // voice sheet owns the keyboard slot
   const [osKbH, setOsKbH] = useState(0); // real OS keyboard height (native)
@@ -331,7 +349,7 @@ export function Root() {
     },
   ];
 
-  // Full-bleed store-hero SERP (D069). The HeroBleed layer is mounted HERE, as a
+  // Full-bleed hero SERP — store heroes (D069) and card heroes (D104). The layer is mounted HERE, as a
   // sibling ABOVE the mock status bar rather than inside the stage — `stageBody`
   // clips (`overflow: hidden`) and starts below the status bar, so a wash mounted
   // inside it could only ever be cut off at that line. From here one gradient
@@ -342,7 +360,7 @@ export function Root() {
   // scene must not keep tinting the status bar above it.
   const overlayOpen = !!catPage || !!viewAllCat || !!viewAllKey || gallery;
   const heroBleed =
-    active && mode === 'serp' && !!model?.hero && isStoreHeroItem(model.hero) && !overlayOpen;
+    active && mode === 'serp' && !!model?.hero && isBleedHeroItem(model.hero) && !overlayOpen;
   // White comes back under BOTH chrome strips together as the page scrolls: the
   // search bar (from inside the stage, so it also hides content passing beneath
   // it) and the status bar (from outside it, since `stageBody` can't paint up
@@ -398,6 +416,15 @@ export function Root() {
         {/* Home layer */}
         <Animated.View style={[StyleSheet.absoluteFill, homeStyle]} pointerEvents={active ? 'none' : 'auto'}>
           <HomeScreen onPick={openFromHome} />
+          {/* Showcase-only: flips the whole flow between a new and an existing user
+              from inside the phone (D102). Declared AFTER HomeScreen so it paints
+              over it, and inside the Home layer so it fades out with Home and stops
+              taking taps the moment search opens. */}
+          <UserTypeSwitch
+            value={userType}
+            onChange={setUserType}
+            bottom={APP_TAB_BAR_H + insets.bottom + space.s12}
+          />
         </Animated.View>
 
         {/* Search layer — shrinks to sit above the on-screen keyboard so its
